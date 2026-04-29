@@ -29,6 +29,9 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.Sub2APIBaseURL != "http://sub2api:8080" {
 		t.Fatalf("unexpected sub2api url: %q", cfg.Sub2APIBaseURL)
 	}
+	if cfg.WeChatEnabled {
+		t.Fatal("expected wechat auth disabled by default")
+	}
 }
 
 func TestLoadConfigEnvOverrides(t *testing.T) {
@@ -37,6 +40,10 @@ func TestLoadConfigEnvOverrides(t *testing.T) {
 	t.Setenv("DATABASE_DSN", "postgres://user:pass@localhost:5432/image_show?sslmode=disable")
 	t.Setenv("REDIS_DB", "2")
 	t.Setenv("MOCK_SUB2API", "true")
+	t.Setenv("WECHAT_AUTH_ENABLED", "true")
+	t.Setenv("WECHAT_SERVER_ADDRESS", "https://wechat.example.com")
+	t.Setenv("WECHAT_SERVER_TOKEN", "token")
+	t.Setenv("WECHAT_QRCODE_URL", "https://wechat.example.com/qrcode.png")
 	AppConfig = nil
 
 	cfg := LoadConfig()
@@ -52,6 +59,9 @@ func TestLoadConfigEnvOverrides(t *testing.T) {
 	}
 	if !cfg.MockSub2API {
 		t.Fatal("expected mock sub2api enabled")
+	}
+	if !cfg.WeChatEnabled || cfg.WeChatServer != "https://wechat.example.com" || cfg.WeChatToken != "token" || cfg.WeChatQRCode == "" {
+		t.Fatalf("unexpected wechat config: %+v", cfg)
 	}
 }
 

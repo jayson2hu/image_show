@@ -75,15 +75,15 @@ func Register(email, password, code, ip, anonymousID string) (*AuthResult, error
 func Login(email, password, ip, userAgent string) (*AuthResult, error) {
 	var user model.User
 	if err := model.DB.Where("email = ?", email).First(&user).Error; err != nil {
-		recordLoginLog(0, ip, userAgent, false)
+		recordLoginLog(0, ip, userAgent, "email", false)
 		return nil, ErrInvalidCredentials
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		recordLoginLog(user.ID, ip, userAgent, false)
+		recordLoginLog(user.ID, ip, userAgent, "email", false)
 		return nil, ErrInvalidCredentials
 	}
 	if user.Status != 1 {
-		recordLoginLog(user.ID, ip, userAgent, false)
+		recordLoginLog(user.ID, ip, userAgent, "email", false)
 		return nil, ErrUserDisabled
 	}
 
@@ -93,7 +93,7 @@ func Login(email, password, ip, userAgent string) (*AuthResult, error) {
 	if err := model.DB.Save(&user).Error; err != nil {
 		return nil, err
 	}
-	recordLoginLog(user.ID, ip, userAgent, true)
+	recordLoginLog(user.ID, ip, userAgent, "email", true)
 
 	token, err := GenerateToken(user.ID, user.Role)
 	if err != nil {
@@ -102,12 +102,12 @@ func Login(email, password, ip, userAgent string) (*AuthResult, error) {
 	return &AuthResult{Token: token, User: user}, nil
 }
 
-func recordLoginLog(userID int64, ip, userAgent string, success bool) {
+func recordLoginLog(userID int64, ip, userAgent, method string, success bool) {
 	_ = model.DB.Create(&model.LoginLog{
 		UserID:    userID,
 		IP:        ip,
 		UserAgent: userAgent,
-		Method:    "email",
+		Method:    method,
 		Success:   success,
 	}).Error
 }

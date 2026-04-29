@@ -30,6 +30,11 @@ export const useUserStore = defineStore('user', {
       this.setToken(response.data.token)
       this.user = response.data.user
     },
+    async wechatLogin(code: string) {
+      const response = await api.get('/auth/wechat/callback', { params: { code } })
+      this.setToken(response.data.token)
+      this.user = response.data.user
+    },
     async register(email: string, password: string, code: string) {
       const response = await api.post('/auth/register', { email, password, code })
       this.setToken(response.data.token)

@@ -80,7 +80,11 @@ func AdminSettings(c *gin.Context) {
 		return
 	}
 	values := map[string]string{
-		"register_enabled": model.GetSettingValue("register_enabled", "true"),
+		"register_enabled":      model.GetSettingValue("register_enabled", "true"),
+		"wechat_auth_enabled":   model.GetSettingValue("wechat_auth_enabled", "false"),
+		"wechat_server_address": model.GetSettingValue("wechat_server_address", ""),
+		"wechat_server_token":   model.GetSettingValue("wechat_server_token", ""),
+		"wechat_qrcode_url":     model.GetSettingValue("wechat_qrcode_url", ""),
 	}
 	for _, item := range items {
 		values[item.Key] = item.Value

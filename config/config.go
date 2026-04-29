@@ -28,6 +28,10 @@ type Config struct {
 	SMTPFrom       string
 	Sub2APIBaseURL string
 	MockSub2API    bool
+	WeChatEnabled  bool
+	WeChatServer   string
+	WeChatToken    string
+	WeChatQRCode   string
 }
 
 var AppConfig *Config
@@ -54,6 +58,10 @@ func LoadConfig() *Config {
 		SMTPFrom:       getEnv("SMTP_FROM", ""),
 		Sub2APIBaseURL: getEnv("SUB2API_BASE_URL", "http://sub2api:8080"),
 		MockSub2API:    getEnvBool("MOCK_SUB2API", false),
+		WeChatEnabled:  getEnvBool("WECHAT_AUTH_ENABLED", false),
+		WeChatServer:   getEnv("WECHAT_SERVER_ADDRESS", ""),
+		WeChatToken:    getEnv("WECHAT_SERVER_TOKEN", ""),
+		WeChatQRCode:   getEnv("WECHAT_QRCODE_URL", ""),
 	}
 	AppConfig = cfg
 	return cfg

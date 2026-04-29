@@ -832,22 +832,24 @@
 4. 前端登录页添加微信扫码入口
 
 **自测验收**：
-- [ ] 生成微信登录二维码正常
-- [ ] 扫码后回调正确处理
-- [ ] 新用户扫码自动创建账号
-- [ ] 已有用户扫码直接登录
-- [ ] 绑定/解绑微信正常
+- [x] 生成微信登录二维码正常
+- [x] 扫码后回调正确处理（按 new-api：公众号验证码换取 OpenID）
+- [x] 新用户扫码自动创建账号
+- [x] 已有用户扫码直接登录
+- [x] 绑定/解绑微信正常
+
+**执行决策（2026-04-29）**：用户确认 3.5 按 new-api 实现，不走文档原先“动态二维码 + callback + status 轮询”的完整扫码协议。实际采用 WeChat Server 验证码模式：后台配置公众号二维码、WeChat Server 地址和 token，前端提交公众号验证码，后端调用 `{WECHAT_SERVER_ADDRESS}/api/wechat/user?code=...` 换取 OpenID。
 
 ---
 
 ### Phase 3 整体验收
 
-- [ ] 限流正常：超频返回 429，预算耗尽返回 503
-- [ ] 管理后台所有功能正常
-- [ ] 日志查询和批量删除正常
-- [ ] 渠道管理 + 测试连通性正常
-- [ ] 微信登录全流程正常
-- [ ] 权限控制：普通用户无法访问管理接口
+- [x] 限流正常：超频返回 429，预算耗尽返回 503
+- [x] 管理后台所有功能正常
+- [x] 日志查询和批量删除正常
+- [x] 渠道管理 + 测试连通性正常
+- [x] 微信登录全流程正常
+- [x] 权限控制：普通用户无法访问管理接口
 
 ---
 
@@ -1203,8 +1205,10 @@ SMTP_FROM=noreply@yourdomain.com
 SUB2API_BASE_URL=http://sub2api:8080  # Docker 内网
 
 # === 微信登录（可选）===
-WECHAT_APP_ID=
-WECHAT_APP_SECRET=
+WECHAT_AUTH_ENABLED=false
+WECHAT_SERVER_ADDRESS=
+WECHAT_SERVER_TOKEN=
+WECHAT_QRCODE_URL=
 
 # === 开发模式 ===
 MOCK_SUB2API=false        # true 时使用测试图片
@@ -1266,7 +1270,7 @@ docker-down:
 | 3.2 | 日志系统 | ✅ | 2026-04-29 | 已实现管理员日志 API：生成日志分页/状态/用户/时间筛选、登录日志分页/用户/时间筛选、按 `before` 时间批量删除；新增基础 `AdminRequired` 权限中间件（3.4 会继续扩展后台功能）；测试覆盖普通用户 403、查询筛选、批量删除，构建通过 |
 | 3.3 | 渠道管理 | ✅ | 2026-04-29 | 已实现管理员渠道 API：列表、创建、编辑、删除、`/test` 调用 `/v1/models` 连通性；字段覆盖 Name/BaseURL/APIKey/Headers/Status/Weight/Remark，BaseURL 自动去尾斜杠，禁用渠道不参与生成调度（沿用 2.3 `status=1` 选择逻辑）；测试覆盖 CRUD 和连通性，构建通过 |
 | 3.4 | 管理员后台 | ✅ | 2026-04-29 | 已实现后台核心 API：用户分页/搜索、封禁/解封、角色修改、用户生成记录、管理员充值、全局积分流水、Prompt 模板 CRUD、系统设置批量读写；封禁用户登录返回 403；前端新增 `/admin` 工作台，提供用户/积分/模板/设置/日志/渠道入口；修正 `username` 唯一索引与模型 JSON 字段契约；`go test ./controller`、`CGO_ENABLED=0 go test ./...`、`CGO_ENABLED=0 go build -o image-show.exe .`、`pnpm.cmd build` 通过 |
-| 3.5 | 微信登录 | ⬜ | | |
+| 3.5 | 微信登录 | ✅ | 2026-04-29 | 按用户确认采用 new-api WeChat Server 验证码模式；新增配置 `WECHAT_AUTH_ENABLED`、`WECHAT_SERVER_ADDRESS`、`WECHAT_SERVER_TOKEN`、`WECHAT_QRCODE_URL`，并支持后台设置覆盖；实现 `/api/auth/wechat/qrcode`、`/callback`、`/status`、`POST/DELETE /bind`，支持 OpenID 已绑定直接登录、未绑定且注册开启时自动创建用户、已登录用户绑定/解绑；前端登录页新增微信入口；测试覆盖二维码配置、扫码创建、已有用户复用、绑定/解绑、未开启 403，`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过 |
 | 4.1 | 图片历史+删除 | ⬜ | | |
 | 4.2 | 图片生命周期 | ⬜ | | |
 | 4.3 | 前端交互打磨 | ⬜ | | |
