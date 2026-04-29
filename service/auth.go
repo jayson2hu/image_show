@@ -82,6 +82,10 @@ func Login(email, password, ip, userAgent string) (*AuthResult, error) {
 		recordLoginLog(user.ID, ip, userAgent, false)
 		return nil, ErrInvalidCredentials
 	}
+	if user.Status != 1 {
+		recordLoginLog(user.ID, ip, userAgent, false)
+		return nil, ErrUserDisabled
+	}
 
 	now := time.Now()
 	user.LastLoginAt = &now

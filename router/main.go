@@ -38,6 +38,18 @@ func Register(r *gin.Engine) {
 	admin.PUT("/channels/:id", controller.AdminUpdateChannel)
 	admin.DELETE("/channels/:id", controller.AdminDeleteChannel)
 	admin.POST("/channels/:id/test", controller.AdminTestChannel)
+	admin.GET("/users", controller.AdminUsers)
+	admin.PUT("/users/:id/status", controller.AdminUpdateUserStatus)
+	admin.PUT("/users/:id/role", controller.AdminUpdateUserRole)
+	admin.GET("/users/:id/generations", controller.AdminUserGenerations)
+	admin.POST("/users/:id/credits", controller.AdminTopupCredits)
+	admin.GET("/credits/logs", controller.AdminCreditLogs)
+	admin.GET("/prompt-templates", controller.AdminPromptTemplates)
+	admin.POST("/prompt-templates", controller.AdminCreatePromptTemplate)
+	admin.PUT("/prompt-templates/:id", controller.AdminUpdatePromptTemplate)
+	admin.DELETE("/prompt-templates/:id", controller.AdminDeletePromptTemplate)
+	admin.GET("/settings", controller.AdminSettings)
+	admin.PUT("/settings", controller.AdminUpdateSettings)
 
 	registerWebRoutes(r)
 }

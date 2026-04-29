@@ -6,6 +6,8 @@ interface User {
   id: number
   email: string
   credits: number
+  role: number
+  status: number
 }
 
 export const useUserStore = defineStore('user', {

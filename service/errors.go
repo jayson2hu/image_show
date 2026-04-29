@@ -8,4 +8,5 @@ var (
 	ErrEmailExists             = errors.New("email already exists")
 	ErrInvalidCredentials      = errors.New("invalid credentials")
 	ErrRegisterDisabled        = errors.New("registration is disabled")
+	ErrUserDisabled            = errors.New("user is disabled")
 )

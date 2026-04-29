@@ -78,6 +78,10 @@ func Login(c *gin.Context) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 			return
 		}
+		if errors.Is(err, service.ErrUserDisabled) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "user is disabled"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "login failed"})
 		return
 	}
