@@ -930,10 +930,12 @@
    - localStorage 存储偏好
 
 **自测验收**：
-- [ ] 取消生成正常，积分退还逻辑正确
-- [ ] 错误重试正常
-- [ ] 移动端布局正常（Chrome DevTools 模拟）
-- [ ] 暗色主题切换正常，刷新后保持
+- [x] 取消生成正常，积分退还逻辑正确
+- [x] 错误重试正常
+- [x] 移动端布局正常（Chrome DevTools 模拟）
+- [x] 暗色主题切换正常，刷新后保持
+
+**实现说明（2026-04-29）**：取消生成按状态处理：`pending(status=0)` 取消会退还已预扣积分；已进入 `generating/uploading` 视为 Sub2API/R2 已处理，不退还，只标记 `cancelled(status=5)`。生成协程更新状态时会跳过已取消任务，避免取消后又写回 completed/failed。
 
 ---
 
@@ -1275,7 +1277,7 @@ docker-down:
 | 3.5 | 微信登录 | ✅ | 2026-04-29 | 按用户确认采用 new-api WeChat Server 验证码模式；新增配置 `WECHAT_AUTH_ENABLED`、`WECHAT_SERVER_ADDRESS`、`WECHAT_SERVER_TOKEN`、`WECHAT_QRCODE_URL`，并支持后台设置覆盖；实现 `/api/auth/wechat/qrcode`、`/callback`、`/status`、`POST/DELETE /bind`，支持 OpenID 已绑定直接登录、未绑定且注册开启时自动创建用户、已登录用户绑定/解绑；前端登录页新增微信入口；测试覆盖二维码配置、扫码创建、已有用户复用、绑定/解绑、未开启 403，`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过 |
 | 4.1 | 图片历史+删除 | ✅ | 2026-04-29 | 已实现用户图片历史 `GET /api/generations`、详情 `GET /api/generations/:id`、软删除 `DELETE /api/generations/:id`，仅返回当前用户且排除软删除；详情接口对 R2 Key 刷新 1 小时访问 URL；管理员新增 `GET /api/admin/generations` 和批量软删 `DELETE /api/admin/generations/batch`，支持可选真删 R2 对象；前端新增 `/history` 网格、分页加载、查看大图、下载和删除确认；测试覆盖用户隔离、软删除隐藏、管理员批量删除，`go test ./controller`、`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过。真实 R2 删除需配置凭据后外部验收 |
 | 4.2 | 图片生命周期 | ✅ | 2026-04-29 | 已实现生命周期前缀：免费/匿名图片使用 `generations/free/{YYYY-MM}/...`，已有管理员充值流水的付费用户图片使用 `generations/paid/{YYYY-MM}/...`；管理员充值后调用迁移逻辑，将该用户旧 `free` R2 Key 升级到 `paid`，有 R2 配置时 Copy + Delete 对象并更新 DB；新增 `docs/r2-lifecycle.md` 记录 Cloudflare 规则：`generations/free/` 7 天过期，`generations/paid/` 不自动清理；测试覆盖 free/paid key 与充值后旧图 key 迁移，`go test ./service`、`CGO_ENABLED=0 go test ./...`、后端构建通过。真实 R2 迁移需配置凭据后外部验收 |
-| 4.3 | 前端交互打磨 | ⬜ | | |
+| 4.3 | 前端交互打磨 | ✅ | 2026-04-29 | 已实现 `POST /api/generations/:id/cancel`，pending 取消退积分、处理中取消不退积分，协程状态更新尊重 cancelled；前端生成进度卡新增取消按钮，失败后支持用相同参数重试；首页移动端输入区和按钮改为触摸友好尺寸；新增跟随系统初始值、手动切换、localStorage 持久化的暗色主题；测试覆盖 pending 取消退款与 processing 取消不退款，`go test ./controller ./service`、`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过 |
 | 4.4 | 安全加固 | ⬜ | | |
 | 5.1 | 积分套餐 | ⬜ | | |
 | 5.2 | 支付接入 | ⬜ | | |

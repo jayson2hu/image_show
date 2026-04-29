@@ -31,6 +31,7 @@ func Register(r *gin.Engine) {
 	api.POST("/generations", middleware.OptionalAuth(), middleware.GenerationRateLimit(), controller.CreateGeneration)
 	api.GET("/generations/:id", middleware.AuthRequired(), controller.GenerationDetail)
 	api.DELETE("/generations/:id", middleware.AuthRequired(), controller.DeleteGeneration)
+	api.POST("/generations/:id/cancel", middleware.AuthRequired(), controller.CancelGeneration)
 	api.GET("/generations/:id/stream", controller.StreamGeneration)
 	api.GET("/prompt-templates", controller.PromptTemplates)
 	credits := api.Group("/credits", middleware.AuthRequired())

@@ -90,25 +90,56 @@ func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymous
 }
 
 func runGeneration(id int64, prompt, quality, size, ip string) {
-	updateGenerationStatus(id, 1, "正在生成图片...", "", "")
+	if isGenerationCancelled(id) {
+		return
+	}
+	updateGenerationStatus(id, 1, "generating image...", "", "")
 	result, err := GenerateImageViaChannels(prompt, quality, size, ip)
+	if isGenerationCancelled(id) {
+		return
+	}
 	if err != nil {
 		refundGenerationCredits(id)
-		updateGenerationStatus(id, 4, "生成失败，请重试", "", err.Error())
+		updateGenerationStatus(id, 4, "generation failed", "", err.Error())
 		return
 	}
 
-	updateGenerationStatus(id, 2, "正在上传图片...", "", "")
+	updateGenerationStatus(id, 2, "uploading image...", "", "")
 	imageURL, r2Key, err := StoreGeneratedImage(id, result)
-	if err != nil {
-		refundGenerationCredits(id)
-		updateGenerationStatus(id, 4, "图片上传失败，请重试", "", err.Error())
+	if isGenerationCancelled(id) {
 		return
 	}
-	updateGenerationStatus(id, 3, "生成完成", imageURL, "")
-	if r2Key != "" {
-		_ = model.DB.Model(&model.Generation{}).Where("id = ?", id).Update("r2_key", r2Key).Error
+	if err != nil {
+		refundGenerationCredits(id)
+		updateGenerationStatus(id, 4, "image upload failed", "", err.Error())
+		return
 	}
+	updateGenerationStatus(id, 3, "generation completed", imageURL, "")
+	if r2Key != "" {
+		_ = model.DB.Model(&model.Generation{}).Where("id = ? AND status <> ?", id, 5).Update("r2_key", r2Key).Error
+	}
+}
+
+func CancelGeneration(id, userID int64) (bool, error) {
+	var generation model.Generation
+	if err := model.DB.Where("id = ? AND user_id = ?", id, userID).First(&generation).Error; err != nil {
+		return false, err
+	}
+	if generation.Status == 5 {
+		return false, nil
+	}
+	refunded := false
+	if generation.Status == 0 && generation.UserID != nil && generation.CreditsCost > 0 {
+		if err := Refund(*generation.UserID, generation.CreditsCost, generation.ID); err != nil {
+			return false, err
+		}
+		refunded = true
+	}
+	if err := model.DB.Model(&model.Generation{}).Where("id = ?", id).Update("status", 5).Error; err != nil {
+		return false, err
+	}
+	Notifier.Publish(id, GenerationEvent{Status: 5, Message: "generation cancelled"})
+	return refunded, nil
 }
 
 func refundGenerationCredits(id int64) {
@@ -132,11 +163,19 @@ func updateGenerationStatus(id int64, status int, message, imageURL, errMsg stri
 	if errMsg != "" {
 		updates["error_msg"] = errMsg
 	}
-	_ = model.DB.Model(&model.Generation{}).Where("id = ?", id).Updates(updates).Error
+	_ = model.DB.Model(&model.Generation{}).Where("id = ? AND status <> ?", id, 5).Updates(updates).Error
 	Notifier.Publish(id, GenerationEvent{
 		Status:   status,
 		Message:  message,
 		ImageURL: imageURL,
 		Error:    errMsg,
 	})
+}
+
+func isGenerationCancelled(id int64) bool {
+	var generation model.Generation
+	if err := model.DB.Select("status").First(&generation, id).Error; err != nil {
+		return false
+	}
+	return generation.Status == 5
 }

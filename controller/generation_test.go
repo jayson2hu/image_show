@@ -208,6 +208,69 @@ func TestGenerationFailureRefundsCredits(t *testing.T) {
 	t.Fatal("generation did not fail in time")
 }
 
+func TestCancelPendingGenerationRefundsCredits(t *testing.T) {
+	engine := setupAuthTest(t)
+	user := model.User{Email: "cancel@example.com", Role: 1, Status: 1, Credits: 0.8}
+	if err := model.DB.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	token, err := service.GenerateToken(user.ID, user.Role)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	generation := model.Generation{UserID: &user.ID, Prompt: "cancel", Quality: "low", Size: "1024x1024", CreditsCost: 0.2, Status: 0}
+	if err := model.DB.Create(&generation).Error; err != nil {
+		t.Fatalf("create generation: %v", err)
+	}
+
+	rec := adminRequest(engine, http.MethodPost, "/api/generations/"+jsonNumber(generation.ID)+"/cancel", token)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"refunded":true`) {
+		t.Fatalf("cancel status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var updated model.Generation
+	if err := model.DB.First(&updated, generation.ID).Error; err != nil {
+		t.Fatalf("load generation: %v", err)
+	}
+	if updated.Status != 5 {
+		t.Fatalf("expected cancelled status, got %d", updated.Status)
+	}
+	balance, err := service.GetBalance(user.ID)
+	if err != nil {
+		t.Fatalf("get balance: %v", err)
+	}
+	if balance != 1 {
+		t.Fatalf("expected refunded balance 1, got %v", balance)
+	}
+}
+
+func TestCancelProcessingGenerationDoesNotRefund(t *testing.T) {
+	engine := setupAuthTest(t)
+	user := model.User{Email: "processing@example.com", Role: 1, Status: 1, Credits: 0.8}
+	if err := model.DB.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	token, err := service.GenerateToken(user.ID, user.Role)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	generation := model.Generation{UserID: &user.ID, Prompt: "cancel", Quality: "low", Size: "1024x1024", CreditsCost: 0.2, Status: 1}
+	if err := model.DB.Create(&generation).Error; err != nil {
+		t.Fatalf("create generation: %v", err)
+	}
+
+	rec := adminRequest(engine, http.MethodPost, "/api/generations/"+jsonNumber(generation.ID)+"/cancel", token)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"refunded":false`) {
+		t.Fatalf("cancel status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	balance, err := service.GetBalance(user.ID)
+	if err != nil {
+		t.Fatalf("get balance: %v", err)
+	}
+	if balance != 0.8 {
+		t.Fatalf("expected unchanged balance 0.8, got %v", balance)
+	}
+}
+
 func TestSSEFormatUsesStatusEvent(t *testing.T) {
 	body := bytes.NewBufferString("event:status\ndata:{\"status\":0}\n\n")
 	scanner := bufio.NewScanner(body)

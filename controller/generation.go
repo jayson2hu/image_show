@@ -83,6 +83,20 @@ func DeleteGeneration(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+func CancelGeneration(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	userID := c.GetInt64("userID")
+	refunded, err := service.CancelGeneration(id, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cancel generation"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "refunded": refunded})
+}
+
 func CreateGeneration(c *gin.Context) {
 	var req createGenerationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
