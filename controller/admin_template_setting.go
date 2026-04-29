@@ -85,6 +85,7 @@ func AdminSettings(c *gin.Context) {
 		"wechat_server_address": model.GetSettingValue("wechat_server_address", ""),
 		"wechat_server_token":   model.GetSettingValue("wechat_server_token", ""),
 		"wechat_qrcode_url":     model.GetSettingValue("wechat_qrcode_url", ""),
+		"ip_blacklist":          model.GetSettingValue("ip_blacklist", ""),
 	}
 	for _, item := range items {
 		values[item.Key] = item.Value

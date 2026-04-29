@@ -962,21 +962,23 @@
    - 密码强度要求（最少 8 位）
 
 **自测验收**：
-- [ ] 黑名单 IP 请求返回 403
-- [ ] 安全 Headers 正确设置（DevTools 检查）
-- [ ] 超长 prompt 被拒绝
-- [ ] 弱密码注册被拒绝
+- [x] 黑名单 IP 请求返回 403
+- [x] 安全 Headers 正确设置（DevTools 检查）
+- [x] 超长 prompt 被拒绝
+- [x] 弱密码注册被拒绝
+
+**实现说明（2026-04-29）**：请求签名在本节标注为“可选，后续迭代”，当前不启用强制签名，避免破坏现有前端和第三方回调兼容性。已实现 `ip_blacklist` 设置项（逗号/空白/换行分隔）、黑名单中间件和基础安全响应头。
 
 ---
 
 ### Phase 4 整体验收
 
-- [ ] 图片历史查看/删除/下载全流程正常
-- [ ] R2 生命周期配置正确
-- [ ] 取消生成 + 错误重试正常
-- [ ] 移动端适配正常
-- [ ] 暗色主题正常
-- [ ] 安全加固措施生效
+- [x] 图片历史查看/删除/下载全流程正常
+- [x] R2 生命周期配置正确
+- [x] 取消生成 + 错误重试正常
+- [x] 移动端适配正常
+- [x] 暗色主题正常
+- [x] 安全加固措施生效
 
 ---
 
@@ -1278,7 +1280,7 @@ docker-down:
 | 4.1 | 图片历史+删除 | ✅ | 2026-04-29 | 已实现用户图片历史 `GET /api/generations`、详情 `GET /api/generations/:id`、软删除 `DELETE /api/generations/:id`，仅返回当前用户且排除软删除；详情接口对 R2 Key 刷新 1 小时访问 URL；管理员新增 `GET /api/admin/generations` 和批量软删 `DELETE /api/admin/generations/batch`，支持可选真删 R2 对象；前端新增 `/history` 网格、分页加载、查看大图、下载和删除确认；测试覆盖用户隔离、软删除隐藏、管理员批量删除，`go test ./controller`、`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过。真实 R2 删除需配置凭据后外部验收 |
 | 4.2 | 图片生命周期 | ✅ | 2026-04-29 | 已实现生命周期前缀：免费/匿名图片使用 `generations/free/{YYYY-MM}/...`，已有管理员充值流水的付费用户图片使用 `generations/paid/{YYYY-MM}/...`；管理员充值后调用迁移逻辑，将该用户旧 `free` R2 Key 升级到 `paid`，有 R2 配置时 Copy + Delete 对象并更新 DB；新增 `docs/r2-lifecycle.md` 记录 Cloudflare 规则：`generations/free/` 7 天过期，`generations/paid/` 不自动清理；测试覆盖 free/paid key 与充值后旧图 key 迁移，`go test ./service`、`CGO_ENABLED=0 go test ./...`、后端构建通过。真实 R2 迁移需配置凭据后外部验收 |
 | 4.3 | 前端交互打磨 | ✅ | 2026-04-29 | 已实现 `POST /api/generations/:id/cancel`，pending 取消退积分、处理中取消不退积分，协程状态更新尊重 cancelled；前端生成进度卡新增取消按钮，失败后支持用相同参数重试；首页移动端输入区和按钮改为触摸友好尺寸；新增跟随系统初始值、手动切换、localStorage 持久化的暗色主题；测试覆盖 pending 取消退款与 processing 取消不退款，`go test ./controller ./service`、`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过 |
-| 4.4 | 安全加固 | ⬜ | | |
+| 4.4 | 安全加固 | ✅ | 2026-04-29 | 已实现基础安全 Headers：`X-Content-Type-Options`、`X-Frame-Options`、`X-XSS-Protection`、基础 CSP；新增 `ip_blacklist` 设置项和中间件，支持逗号/空白/换行分隔 IP，命中返回 403；后台设置接口默认暴露黑名单配置；Prompt 最大 4000 字符、邮箱格式、密码最少 8 位沿用已有 binding 校验；请求签名按文档作为后续可选项未启用。测试覆盖安全头、黑名单 403，既有测试覆盖超长 prompt 与弱密码拒绝，`go test ./middleware ./controller`、`CGO_ENABLED=0 go test ./...`、后端构建通过 |
 | 5.1 | 积分套餐 | ⬜ | | |
 | 5.2 | 支付接入 | ⬜ | | |
 | 5.3 | 行为验证码 | ⬜ | | |

@@ -7,7 +7,7 @@ import (
 )
 
 func Register(r *gin.Engine) {
-	r.Use(gin.Logger(), gin.Recovery(), middleware.RealIP())
+	r.Use(gin.Logger(), gin.Recovery(), middleware.SecurityHeaders(), middleware.RealIP(), middleware.IPBlacklist())
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
