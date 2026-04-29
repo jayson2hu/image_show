@@ -1008,9 +1008,9 @@
 4. 初始套餐：入门包(10积分/¥9.9/30天)、标准包(50积分/¥39.9/90天)、专业包(200积分/¥99.9/180天)
 
 **自测验收**：
-- [ ] 管理后台创建/编辑/上下架套餐正常
-- [ ] 前端展示套餐列表正常
-- [ ] 套餐价格和积分显示正确
+- [x] 管理后台创建/编辑/上下架套餐正常
+- [x] 前端展示套餐列表正常
+- [x] 套餐价格和积分显示正确
 
 ---
 
@@ -1281,7 +1281,7 @@ docker-down:
 | 4.2 | 图片生命周期 | ✅ | 2026-04-29 | 已实现生命周期前缀：免费/匿名图片使用 `generations/free/{YYYY-MM}/...`，已有管理员充值流水的付费用户图片使用 `generations/paid/{YYYY-MM}/...`；管理员充值后调用迁移逻辑，将该用户旧 `free` R2 Key 升级到 `paid`，有 R2 配置时 Copy + Delete 对象并更新 DB；新增 `docs/r2-lifecycle.md` 记录 Cloudflare 规则：`generations/free/` 7 天过期，`generations/paid/` 不自动清理；测试覆盖 free/paid key 与充值后旧图 key 迁移，`go test ./service`、`CGO_ENABLED=0 go test ./...`、后端构建通过。真实 R2 迁移需配置凭据后外部验收 |
 | 4.3 | 前端交互打磨 | ✅ | 2026-04-29 | 已实现 `POST /api/generations/:id/cancel`，pending 取消退积分、处理中取消不退积分，协程状态更新尊重 cancelled；前端生成进度卡新增取消按钮，失败后支持用相同参数重试；首页移动端输入区和按钮改为触摸友好尺寸；新增跟随系统初始值、手动切换、localStorage 持久化的暗色主题；测试覆盖 pending 取消退款与 processing 取消不退款，`go test ./controller ./service`、`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过 |
 | 4.4 | 安全加固 | ✅ | 2026-04-29 | 已实现基础安全 Headers：`X-Content-Type-Options`、`X-Frame-Options`、`X-XSS-Protection`、基础 CSP；新增 `ip_blacklist` 设置项和中间件，支持逗号/空白/换行分隔 IP，命中返回 403；后台设置接口默认暴露黑名单配置；Prompt 最大 4000 字符、邮箱格式、密码最少 8 位沿用已有 binding 校验；请求签名按文档作为后续可选项未启用。测试覆盖安全头、黑名单 403，既有测试覆盖超长 prompt 与弱密码拒绝，`go test ./middleware ./controller`、`CGO_ENABLED=0 go test ./...`、后端构建通过 |
-| 5.1 | 积分套餐 | ⬜ | | |
+| 5.1 | 积分套餐 | ✅ | 2026-04-29 | 已新增 `packages` 表（金额字段使用跨库 `numeric`）、AutoMigrate 与默认三档套餐种子：入门包 10/¥9.9/30 天、标准包 50/¥39.9/90 天、专业包 200/¥99.9/180 天；新增公开 `GET /api/packages` 和管理员套餐 CRUD：`GET/POST/PUT/DELETE /api/admin/packages`，支持上下架状态；前端新增 `/packages` 套餐展示页和导航入口，购买按钮等待 5.2 支付接入；测试覆盖默认套餐、公开展示、后台创建/编辑/下架/删除，`go test ./controller ./model`、`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过 |
 | 5.2 | 支付接入 | ⬜ | | |
 | 5.3 | 行为验证码 | ⬜ | | |
 | 5.4 | 监控告警 | ⬜ | | |

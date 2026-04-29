@@ -10,6 +10,7 @@ const router = createRouter({
     { path: '/register', name: 'register', component: () => import('@/views/Register.vue') },
     { path: '/admin', name: 'admin', component: () => import('@/views/admin/AdminDashboard.vue') },
     { path: '/history', name: 'history', component: () => import('@/views/History.vue') },
+    { path: '/packages', name: 'packages', component: () => import('@/views/Packages.vue') },
   ],
 })
 

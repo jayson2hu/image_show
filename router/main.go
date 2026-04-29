@@ -34,6 +34,7 @@ func Register(r *gin.Engine) {
 	api.POST("/generations/:id/cancel", middleware.AuthRequired(), controller.CancelGeneration)
 	api.GET("/generations/:id/stream", controller.StreamGeneration)
 	api.GET("/prompt-templates", controller.PromptTemplates)
+	api.GET("/packages", controller.Packages)
 	credits := api.Group("/credits", middleware.AuthRequired())
 	credits.GET("/balance", controller.CreditBalance)
 	credits.GET("/logs", controller.CreditLogs)
@@ -61,6 +62,10 @@ func Register(r *gin.Engine) {
 	admin.PUT("/settings", controller.AdminUpdateSettings)
 	admin.GET("/generations", controller.AdminGenerations)
 	admin.DELETE("/generations/batch", controller.AdminBatchDeleteGenerations)
+	admin.GET("/packages", controller.AdminPackages)
+	admin.POST("/packages", controller.AdminCreatePackage)
+	admin.PUT("/packages/:id", controller.AdminUpdatePackage)
+	admin.DELETE("/packages/:id", controller.AdminDeletePackage)
 
 	registerWebRoutes(r)
 }

@@ -40,9 +40,13 @@ func InitDB() error {
 		&Channel{},
 		&Setting{},
 		&PromptTemplate{},
+		&Package{},
 		&AnonymousIdentity{},
 	); err != nil {
 		return fmt.Errorf("auto migrate: %w", err)
+	}
+	if err := seedDefaultPackages(db); err != nil {
+		return err
 	}
 
 	DB = db
@@ -58,6 +62,22 @@ func CloseDB() error {
 		return err
 	}
 	return sqlDB.Close()
+}
+
+func seedDefaultPackages(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&Package{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	defaults := []Package{
+		{Name: "入门包", Credits: 10, Price: 9.9, ValidDays: 30, SortOrder: 1, Status: 1},
+		{Name: "标准包", Credits: 50, Price: 39.9, ValidDays: 90, SortOrder: 2, Status: 1},
+		{Name: "专业包", Credits: 200, Price: 99.9, ValidDays: 180, SortOrder: 3, Status: 1},
+	}
+	return db.Create(&defaults).Error
 }
 
 func openDB(driver, dsn string) (*gorm.DB, error) {

@@ -89,6 +89,18 @@ type PromptTemplate struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type Package struct {
+	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name      string    `gorm:"size:64" json:"name"`
+	Credits   float64   `gorm:"type:numeric" json:"credits"`
+	Price     float64   `gorm:"type:numeric" json:"price"`
+	ValidDays int       `json:"valid_days"`
+	SortOrder int       `gorm:"default:0" json:"sort_order"`
+	Status    int       `gorm:"default:1" json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type AnonymousIdentity struct {
 	ID              int64      `gorm:"primaryKey;autoIncrement" json:"id"`
 	AnonymousID     string     `gorm:"size:128;uniqueIndex" json:"anonymous_id"`

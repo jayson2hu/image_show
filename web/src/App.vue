@@ -48,6 +48,9 @@ onUnmounted(() => {
       <nav class="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
         <RouterLink to="/" class="text-lg font-semibold text-ink dark:text-white">Image Show</RouterLink>
         <div class="flex flex-wrap items-center gap-2 text-sm">
+          <RouterLink class="min-h-10 rounded px-3 py-2 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800" to="/packages">
+            套餐
+          </RouterLink>
           <button class="min-h-10 rounded border border-slate-300 px-3 py-1.5 dark:border-slate-600" type="button" @click="toggleTheme">
             {{ theme === 'dark' ? '浅色' : '深色' }}
           </button>
