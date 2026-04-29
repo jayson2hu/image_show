@@ -101,6 +101,20 @@ type Package struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type Order struct {
+	ID         int64      `gorm:"primaryKey;autoIncrement" json:"id"`
+	OrderNo    string     `gorm:"size:64;uniqueIndex" json:"order_no"`
+	UserID     int64      `gorm:"index" json:"user_id"`
+	PackageID  int64      `gorm:"index" json:"package_id"`
+	Amount     float64    `gorm:"type:numeric" json:"amount"`
+	Status     int        `gorm:"default:0;index" json:"status"`
+	PayMethod  string     `gorm:"size:32" json:"pay_method"`
+	PayTradeNo string     `gorm:"size:128" json:"pay_trade_no"`
+	PaidAt     *time.Time `json:"paid_at"`
+	CreatedAt  time.Time  `gorm:"index" json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
 type AnonymousIdentity struct {
 	ID              int64      `gorm:"primaryKey;autoIncrement" json:"id"`
 	AnonymousID     string     `gorm:"size:128;uniqueIndex" json:"anonymous_id"`

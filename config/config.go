@@ -32,6 +32,11 @@ type Config struct {
 	WeChatServer   string
 	WeChatToken    string
 	WeChatQRCode   string
+	ServerAddress  string
+	PayAddress     string
+	EpayID         string
+	EpayKey        string
+	EpayPayMethods string
 }
 
 var AppConfig *Config
@@ -62,6 +67,11 @@ func LoadConfig() *Config {
 		WeChatServer:   getEnv("WECHAT_SERVER_ADDRESS", ""),
 		WeChatToken:    getEnv("WECHAT_SERVER_TOKEN", ""),
 		WeChatQRCode:   getEnv("WECHAT_QRCODE_URL", ""),
+		ServerAddress:  getEnv("SERVER_ADDRESS", ""),
+		PayAddress:     getEnv("PAY_ADDRESS", ""),
+		EpayID:         getEnv("EPAY_ID", ""),
+		EpayKey:        getEnv("EPAY_KEY", ""),
+		EpayPayMethods: getEnv("EPAY_PAY_METHODS", "alipay,wxpay"),
 	}
 	AppConfig = cfg
 	return cfg

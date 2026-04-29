@@ -9,6 +9,7 @@ import (
 	"github.com/jayson2hu/image-show/config"
 	"github.com/jayson2hu/image-show/model"
 	"github.com/jayson2hu/image-show/router"
+	"github.com/jayson2hu/image-show/service"
 )
 
 func main() {
@@ -23,6 +24,10 @@ func main() {
 	if cfg.AppEnv == common.EnvProduction {
 		gin.SetMode(gin.ReleaseMode)
 	}
+
+	stopOrderExpiry := make(chan struct{})
+	service.StartOrderExpiryLoop(stopOrderExpiry)
+	defer close(stopOrderExpiry)
 
 	engine := gin.New()
 	router.Register(engine)

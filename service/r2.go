@@ -218,7 +218,7 @@ func userHasPaidCredit(userID int64) bool {
 		return false
 	}
 	var count int64
-	if err := model.DB.Model(&model.CreditLog{}).Where("user_id = ? AND type = ?", userID, 3).Count(&count).Error; err != nil {
+	if err := model.DB.Model(&model.CreditLog{}).Where("user_id = ? AND type IN ?", userID, []int{3, CreditLogTypePaymentTopup}).Count(&count).Error; err != nil {
 		return false
 	}
 	return count > 0

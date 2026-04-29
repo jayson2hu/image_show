@@ -41,6 +41,7 @@ func InitDB() error {
 		&Setting{},
 		&PromptTemplate{},
 		&Package{},
+		&Order{},
 		&AnonymousIdentity{},
 	); err != nil {
 		return fmt.Errorf("auto migrate: %w", err)
