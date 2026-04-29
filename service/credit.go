@@ -83,7 +83,7 @@ func Refund(userID int64, amount float64, generationID int64) error {
 }
 
 func AdminTopup(userID, operatorID int64, amount float64, remark string) error {
-	return model.DB.Transaction(func(tx *gorm.DB) error {
+	if err := model.DB.Transaction(func(tx *gorm.DB) error {
 		var user model.User
 		if err := tx.First(&user, userID).Error; err != nil {
 			return err
@@ -100,7 +100,10 @@ func AdminTopup(userID, operatorID int64, amount float64, remark string) error {
 			Remark:     remark,
 			OperatorID: &operatorID,
 		}).Error
-	})
+	}); err != nil {
+		return err
+	}
+	return PromoteUserGenerationsToPaid(userID)
 }
 
 func RegisterGift(tx *gorm.DB, user *model.User) error {

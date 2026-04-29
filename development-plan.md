@@ -900,9 +900,11 @@
 4. 文档记录 R2 Lifecycle 配置步骤
 
 **自测验收**：
-- [ ] 免费用户图片 R2 Key 包含 `free/` 前缀
-- [ ] 付费用户图片 R2 Key 包含 `paid/` 前缀
-- [ ] R2 Lifecycle Rule 配置文档完整
+- [x] 免费用户图片 R2 Key 包含 `free/` 前缀
+- [x] 付费用户图片 R2 Key 包含 `paid/` 前缀
+- [x] R2 Lifecycle Rule 配置文档完整（见 `docs/r2-lifecycle.md`）
+
+**执行决策（2026-04-29）**：用户确认“充值后旧图不被清理”。因此 4.2 采用 R2 对象迁移方案：管理员充值成功后，将该用户已有 `generations/free/` R2 Key 迁移为 `generations/paid/`，有 R2 配置时执行 Copy + Delete 并更新数据库；无 R2 配置时仍更新数据库 Key 以覆盖本地自测路径。真实 R2 Copy/Delete 需配置 Cloudflare 凭据后外部验收。
 
 ---
 
@@ -1272,7 +1274,7 @@ docker-down:
 | 3.4 | 管理员后台 | ✅ | 2026-04-29 | 已实现后台核心 API：用户分页/搜索、封禁/解封、角色修改、用户生成记录、管理员充值、全局积分流水、Prompt 模板 CRUD、系统设置批量读写；封禁用户登录返回 403；前端新增 `/admin` 工作台，提供用户/积分/模板/设置/日志/渠道入口；修正 `username` 唯一索引与模型 JSON 字段契约；`go test ./controller`、`CGO_ENABLED=0 go test ./...`、`CGO_ENABLED=0 go build -o image-show.exe .`、`pnpm.cmd build` 通过 |
 | 3.5 | 微信登录 | ✅ | 2026-04-29 | 按用户确认采用 new-api WeChat Server 验证码模式；新增配置 `WECHAT_AUTH_ENABLED`、`WECHAT_SERVER_ADDRESS`、`WECHAT_SERVER_TOKEN`、`WECHAT_QRCODE_URL`，并支持后台设置覆盖；实现 `/api/auth/wechat/qrcode`、`/callback`、`/status`、`POST/DELETE /bind`，支持 OpenID 已绑定直接登录、未绑定且注册开启时自动创建用户、已登录用户绑定/解绑；前端登录页新增微信入口；测试覆盖二维码配置、扫码创建、已有用户复用、绑定/解绑、未开启 403，`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过 |
 | 4.1 | 图片历史+删除 | ✅ | 2026-04-29 | 已实现用户图片历史 `GET /api/generations`、详情 `GET /api/generations/:id`、软删除 `DELETE /api/generations/:id`，仅返回当前用户且排除软删除；详情接口对 R2 Key 刷新 1 小时访问 URL；管理员新增 `GET /api/admin/generations` 和批量软删 `DELETE /api/admin/generations/batch`，支持可选真删 R2 对象；前端新增 `/history` 网格、分页加载、查看大图、下载和删除确认；测试覆盖用户隔离、软删除隐藏、管理员批量删除，`go test ./controller`、`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过。真实 R2 删除需配置凭据后外部验收 |
-| 4.2 | 图片生命周期 | ⬜ | | |
+| 4.2 | 图片生命周期 | ✅ | 2026-04-29 | 已实现生命周期前缀：免费/匿名图片使用 `generations/free/{YYYY-MM}/...`，已有管理员充值流水的付费用户图片使用 `generations/paid/{YYYY-MM}/...`；管理员充值后调用迁移逻辑，将该用户旧 `free` R2 Key 升级到 `paid`，有 R2 配置时 Copy + Delete 对象并更新 DB；新增 `docs/r2-lifecycle.md` 记录 Cloudflare 规则：`generations/free/` 7 天过期，`generations/paid/` 不自动清理；测试覆盖 free/paid key 与充值后旧图 key 迁移，`go test ./service`、`CGO_ENABLED=0 go test ./...`、后端构建通过。真实 R2 迁移需配置凭据后外部验收 |
 | 4.3 | 前端交互打磨 | ⬜ | | |
 | 4.4 | 安全加固 | ⬜ | | |
 | 5.1 | 积分套餐 | ⬜ | | |

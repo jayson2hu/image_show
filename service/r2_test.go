@@ -10,20 +10,55 @@ import (
 )
 
 func TestBuildR2KeyForAnonymousAndUser(t *testing.T) {
+	setupServiceDB(t)
 	userID := int64(7)
 	generation := &model.Generation{
 		ID:        42,
 		UserID:    &userID,
 		CreatedAt: time.Date(2026, 4, 29, 0, 0, 0, 0, time.UTC),
 	}
-	if key := BuildR2Key(generation); key != "generations/user-7/2026-04/42.png" {
-		t.Fatalf("unexpected user key: %s", key)
+	if key := BuildR2Key(generation); key != "generations/free/2026-04/user-7-42.png" {
+		t.Fatalf("unexpected free user key: %s", key)
+	}
+	if err := model.DB.Create(&model.CreditLog{UserID: userID, Type: 3, Amount: 1, Balance: 1}).Error; err != nil {
+		t.Fatalf("create paid credit log: %v", err)
+	}
+	if key := BuildR2Key(generation); key != "generations/paid/2026-04/user-7-42.png" {
+		t.Fatalf("unexpected paid user key: %s", key)
 	}
 
 	generation.UserID = nil
 	generation.AnonymousID = "ip/fingerprint value"
-	if key := BuildR2Key(generation); key != "generations/anon-ip-fingerprint-value/2026-04/42.png" {
+	if key := BuildR2Key(generation); key != "generations/free/2026-04/anon-ip-fingerprint-value-42.png" {
 		t.Fatalf("unexpected anonymous key: %s", key)
+	}
+}
+
+func TestAdminTopupPromotesFreeR2KeysToPaid(t *testing.T) {
+	setupServiceDB(t)
+	config.AppConfig.R2Endpoint = ""
+	operatorID := int64(1)
+	user := model.User{Email: "paid@example.com", Status: 1, Credits: 0}
+	if err := model.DB.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	generation := model.Generation{
+		UserID: &user.ID,
+		R2Key:  "generations/free/2026-04/user-2-99.png",
+		Status: 3,
+	}
+	if err := model.DB.Create(&generation).Error; err != nil {
+		t.Fatalf("create generation: %v", err)
+	}
+	if err := AdminTopup(user.ID, operatorID, 10, "paid"); err != nil {
+		t.Fatalf("admin topup: %v", err)
+	}
+	var updated model.Generation
+	if err := model.DB.First(&updated, generation.ID).Error; err != nil {
+		t.Fatalf("load generation: %v", err)
+	}
+	if updated.R2Key != "generations/paid/2026-04/user-2-99.png" {
+		t.Fatalf("expected paid key, got %s", updated.R2Key)
 	}
 }
 
