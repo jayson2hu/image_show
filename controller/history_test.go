@@ -1,0 +1,90 @@
+package controller_test
+
+import (
+	"encoding/json"
+	"net/http"
+	"testing"
+
+	"github.com/jayson2hu/image-show/model"
+)
+
+func TestUserGenerationHistoryDetailAndSoftDelete(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 1)
+	userID := tokenUserID(t, token)
+	otherID := userID + 100
+	generation := model.Generation{
+		UserID:   &userID,
+		Prompt:   "history",
+		Quality:  "low",
+		Size:     "1024x1024",
+		Status:   3,
+		ImageURL: "data:image/png;base64,abc",
+	}
+	if err := model.DB.Create(&generation).Error; err != nil {
+		t.Fatalf("create generation: %v", err)
+	}
+	if err := model.DB.Create(&model.Generation{UserID: &otherID, Prompt: "other", Status: 3}).Error; err != nil {
+		t.Fatalf("create other generation: %v", err)
+	}
+
+	list := adminRequest(engine, http.MethodGet, "/api/generations?page=1&pageSize=10", token)
+	if list.Code != http.StatusOK {
+		t.Fatalf("list status=%d body=%s", list.Code, list.Body.String())
+	}
+	var listResp struct {
+		Total int64 `json:"total"`
+	}
+	_ = json.Unmarshal(list.Body.Bytes(), &listResp)
+	if listResp.Total != 1 {
+		t.Fatalf("expected one owned generation, got %d", listResp.Total)
+	}
+
+	detail := adminRequest(engine, http.MethodGet, "/api/generations/"+jsonNumber(generation.ID), token)
+	if detail.Code != http.StatusOK {
+		t.Fatalf("detail status=%d body=%s", detail.Code, detail.Body.String())
+	}
+
+	del := adminRequest(engine, http.MethodDelete, "/api/generations/"+jsonNumber(generation.ID), token)
+	if del.Code != http.StatusOK {
+		t.Fatalf("delete status=%d body=%s", del.Code, del.Body.String())
+	}
+	list = adminRequest(engine, http.MethodGet, "/api/generations", token)
+	_ = json.Unmarshal(list.Body.Bytes(), &listResp)
+	if listResp.Total != 0 {
+		t.Fatalf("expected deleted generation hidden, got %d", listResp.Total)
+	}
+}
+
+func TestAdminGenerationBatchDelete(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 10)
+	userID := int64(42)
+	one := model.Generation{UserID: &userID, Prompt: "one", Status: 3}
+	two := model.Generation{UserID: &userID, Prompt: "two", Status: 3}
+	if err := model.DB.Create(&one).Error; err != nil {
+		t.Fatalf("create one: %v", err)
+	}
+	if err := model.DB.Create(&two).Error; err != nil {
+		t.Fatalf("create two: %v", err)
+	}
+
+	list := adminRequest(engine, http.MethodGet, "/api/admin/generations?user_id=42", token)
+	if list.Code != http.StatusOK {
+		t.Fatalf("admin list status=%d body=%s", list.Code, list.Body.String())
+	}
+	batch := adminJSON(engine, http.MethodDelete, "/api/admin/generations/batch", map[string]interface{}{
+		"ids":       []int64{one.ID, two.ID},
+		"delete_r2": false,
+	}, token)
+	if batch.Code != http.StatusOK {
+		t.Fatalf("batch delete status=%d body=%s", batch.Code, batch.Body.String())
+	}
+	var count int64
+	if err := model.DB.Model(&model.Generation{}).Where("is_deleted = ?", true).Count(&count).Error; err != nil {
+		t.Fatalf("count deleted: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("expected two soft deleted generations, got %d", count)
+	}
+}

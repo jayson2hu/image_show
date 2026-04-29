@@ -118,6 +118,34 @@ func StoreGeneratedImage(generationID int64, result *ImageGenerationResult) (ima
 	return url, key, nil
 }
 
+func RefreshImageURL(generation *model.Generation) (string, error) {
+	if generation.R2Key == "" {
+		return generation.ImageURL, nil
+	}
+	r2Client, err := NewR2ClientFromConfig()
+	if err != nil {
+		return "", err
+	}
+	if r2Client == nil {
+		return generation.ImageURL, nil
+	}
+	return r2Client.GeneratePresignedURL(generation.R2Key, time.Hour)
+}
+
+func DeleteR2Object(key string) error {
+	if key == "" {
+		return nil
+	}
+	r2Client, err := NewR2ClientFromConfig()
+	if err != nil {
+		return err
+	}
+	if r2Client == nil {
+		return nil
+	}
+	return r2Client.Delete(key)
+}
+
 func BuildR2Key(generation *model.Generation) string {
 	owner := "anon"
 	if generation.UserID != nil {

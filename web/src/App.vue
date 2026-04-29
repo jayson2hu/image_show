@@ -36,6 +36,9 @@ onUnmounted(() => {
           <template v-if="userStore.user">
             <span class="hidden text-slate-600 sm:inline">{{ userStore.user.email }}</span>
             <span class="rounded bg-teal px-2 py-1 text-white">{{ userStore.user.credits }} 积分</span>
+            <RouterLink class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-100" to="/history">
+              历史
+            </RouterLink>
             <RouterLink
               v-if="userStore.user.role >= 10"
               class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-100"

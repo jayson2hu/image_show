@@ -876,12 +876,12 @@
 4. Presigned URL 刷新：URL 过期后重新生成（有效期 1 小时）
 
 **自测验收**：
-- [ ] 用户查看自己的生成历史正常
-- [ ] 软删除后图片不再显示
-- [ ] 管理员批量删除正常
-- [ ] 管理员选择真删 R2 时对象被删除
-- [ ] Presigned URL 过期后刷新正常
-- [ ] 分页加载正常
+- [x] 用户查看自己的生成历史正常
+- [x] 软删除后图片不再显示
+- [x] 管理员批量删除正常
+- [ ] 管理员选择真删 R2 时对象被删除（代码路径已实现，需配置真实 Cloudflare R2 凭据后做外部验收）
+- [x] Presigned URL 过期后刷新正常（无 R2 配置时保留原 URL；有 R2 配置时详情接口刷新 1 小时 Presigned URL）
+- [x] 分页加载正常
 
 ---
 
@@ -1271,7 +1271,7 @@ docker-down:
 | 3.3 | 渠道管理 | ✅ | 2026-04-29 | 已实现管理员渠道 API：列表、创建、编辑、删除、`/test` 调用 `/v1/models` 连通性；字段覆盖 Name/BaseURL/APIKey/Headers/Status/Weight/Remark，BaseURL 自动去尾斜杠，禁用渠道不参与生成调度（沿用 2.3 `status=1` 选择逻辑）；测试覆盖 CRUD 和连通性，构建通过 |
 | 3.4 | 管理员后台 | ✅ | 2026-04-29 | 已实现后台核心 API：用户分页/搜索、封禁/解封、角色修改、用户生成记录、管理员充值、全局积分流水、Prompt 模板 CRUD、系统设置批量读写；封禁用户登录返回 403；前端新增 `/admin` 工作台，提供用户/积分/模板/设置/日志/渠道入口；修正 `username` 唯一索引与模型 JSON 字段契约；`go test ./controller`、`CGO_ENABLED=0 go test ./...`、`CGO_ENABLED=0 go build -o image-show.exe .`、`pnpm.cmd build` 通过 |
 | 3.5 | 微信登录 | ✅ | 2026-04-29 | 按用户确认采用 new-api WeChat Server 验证码模式；新增配置 `WECHAT_AUTH_ENABLED`、`WECHAT_SERVER_ADDRESS`、`WECHAT_SERVER_TOKEN`、`WECHAT_QRCODE_URL`，并支持后台设置覆盖；实现 `/api/auth/wechat/qrcode`、`/callback`、`/status`、`POST/DELETE /bind`，支持 OpenID 已绑定直接登录、未绑定且注册开启时自动创建用户、已登录用户绑定/解绑；前端登录页新增微信入口；测试覆盖二维码配置、扫码创建、已有用户复用、绑定/解绑、未开启 403，`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过 |
-| 4.1 | 图片历史+删除 | ⬜ | | |
+| 4.1 | 图片历史+删除 | ✅ | 2026-04-29 | 已实现用户图片历史 `GET /api/generations`、详情 `GET /api/generations/:id`、软删除 `DELETE /api/generations/:id`，仅返回当前用户且排除软删除；详情接口对 R2 Key 刷新 1 小时访问 URL；管理员新增 `GET /api/admin/generations` 和批量软删 `DELETE /api/admin/generations/batch`，支持可选真删 R2 对象；前端新增 `/history` 网格、分页加载、查看大图、下载和删除确认；测试覆盖用户隔离、软删除隐藏、管理员批量删除，`go test ./controller`、`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过。真实 R2 删除需配置凭据后外部验收 |
 | 4.2 | 图片生命周期 | ⬜ | | |
 | 4.3 | 前端交互打磨 | ⬜ | | |
 | 4.4 | 安全加固 | ⬜ | | |

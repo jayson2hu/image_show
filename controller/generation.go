@@ -20,6 +20,69 @@ type createGenerationRequest struct {
 	AnonymousID string `json:"anonymous_id"`
 }
 
+type batchDeleteGenerationsRequest struct {
+	IDs      []int64 `json:"ids" binding:"required"`
+	DeleteR2 bool    `json:"delete_r2"`
+}
+
+func ListGenerations(c *gin.Context) {
+	page, pageSize := pagination(c)
+	userID := c.GetInt64("userID")
+	query := model.DB.Model(&model.Generation{}).Where("user_id = ? AND is_deleted = ?", userID, false)
+
+	var total int64
+	var items []model.Generation
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count generations"})
+		return
+	}
+	if err := query.Order("created_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&items).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list generations"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items, "total": total, "page": page, "pageSize": pageSize})
+}
+
+func GenerationDetail(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	userID := c.GetInt64("userID")
+	var generation model.Generation
+	if err := model.DB.Where("id = ? AND user_id = ? AND is_deleted = ?", id, userID, false).First(&generation).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "generation not found"})
+		return
+	}
+	url, err := service.RefreshImageURL(&generation)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to refresh image url"})
+		return
+	}
+	generation.ImageURL = url
+	c.JSON(http.StatusOK, gin.H{"item": generation})
+}
+
+func DeleteGeneration(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	userID := c.GetInt64("userID")
+	result := model.DB.Model(&model.Generation{}).
+		Where("id = ? AND user_id = ?", id, userID).
+		Update("is_deleted", true)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete generation"})
+		return
+	}
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "generation not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 func CreateGeneration(c *gin.Context) {
 	var req createGenerationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -66,6 +129,59 @@ func CreateGeneration(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status})
+}
+
+func AdminGenerations(c *gin.Context) {
+	page, pageSize := pagination(c)
+	query := model.DB.Model(&model.Generation{})
+	if userID := c.Query("user_id"); userID != "" {
+		query = query.Where("user_id = ?", userID)
+	}
+	if status := c.Query("status"); status != "" {
+		if parsed, err := strconv.Atoi(status); err == nil {
+			query = query.Where("status = ?", parsed)
+		}
+	}
+	query = applyTimeRange(c, query)
+
+	var total int64
+	var items []model.Generation
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count generations"})
+		return
+	}
+	if err := query.Order("created_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&items).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list generations"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items, "total": total, "page": page, "pageSize": pageSize})
+}
+
+func AdminBatchDeleteGenerations(c *gin.Context) {
+	var req batchDeleteGenerationsRequest
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	if req.DeleteR2 {
+		var generations []model.Generation
+		if err := model.DB.Where("id IN ?", req.IDs).Find(&generations).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load generations"})
+			return
+		}
+		for _, generation := range generations {
+			if err := service.DeleteR2Object(generation.R2Key); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete r2 object"})
+				return
+			}
+		}
+	}
+	result := model.DB.Model(&model.Generation{}).Where("id IN ?", req.IDs).Update("is_deleted", true)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete generations"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": result.RowsAffected})
 }
 
 func StreamGeneration(c *gin.Context) {

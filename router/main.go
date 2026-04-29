@@ -27,7 +27,10 @@ func Register(r *gin.Engine) {
 	auth.GET("/wechat/status", controller.WeChatStatus)
 	auth.POST("/wechat/bind", middleware.AuthRequired(), controller.WeChatBind)
 	auth.DELETE("/wechat/bind", middleware.AuthRequired(), controller.WeChatUnbind)
+	api.GET("/generations", middleware.AuthRequired(), controller.ListGenerations)
 	api.POST("/generations", middleware.OptionalAuth(), middleware.GenerationRateLimit(), controller.CreateGeneration)
+	api.GET("/generations/:id", middleware.AuthRequired(), controller.GenerationDetail)
+	api.DELETE("/generations/:id", middleware.AuthRequired(), controller.DeleteGeneration)
 	api.GET("/generations/:id/stream", controller.StreamGeneration)
 	api.GET("/prompt-templates", controller.PromptTemplates)
 	credits := api.Group("/credits", middleware.AuthRequired())
@@ -55,6 +58,8 @@ func Register(r *gin.Engine) {
 	admin.DELETE("/prompt-templates/:id", controller.AdminDeletePromptTemplate)
 	admin.GET("/settings", controller.AdminSettings)
 	admin.PUT("/settings", controller.AdminUpdateSettings)
+	admin.GET("/generations", controller.AdminGenerations)
+	admin.DELETE("/generations/batch", controller.AdminBatchDeleteGenerations)
 
 	registerWebRoutes(r)
 }
