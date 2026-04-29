@@ -94,6 +94,56 @@ func TestCreateGenerationRequiresFingerprintForTrial(t *testing.T) {
 	}
 }
 
+func TestCreateGenerationRequiresCaptchaWhenEnabled(t *testing.T) {
+	engine := setupAuthTest(t)
+	enableCaptchaForTest(t)
+	token := createGenerationUser(t, 3)
+
+	rec := postJSONWithToken(engine, "/api/generations", map[string]string{
+		"prompt":  "a small house",
+		"quality": "low",
+		"size":    "1024x1024",
+	}, token)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 without captcha, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCreateGenerationAcceptsValidCaptcha(t *testing.T) {
+	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
+	enableCaptchaForTest(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if r.Form.Get("secret") != "secret" || r.Form.Get("response") != "token-ok" {
+			t.Fatalf("unexpected captcha form: %v", r.Form)
+		}
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}))
+	defer server.Close()
+	defer service.SetCaptchaVerifyURLForTest(server.URL)()
+	token := createGenerationUser(t, 3)
+
+	rec := postJSONWithToken(engine, "/api/generations", map[string]string{
+		"prompt":        "a small house",
+		"quality":       "low",
+		"size":          "1024x1024",
+		"captcha_token": "token-ok",
+	}, token)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 with captcha, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var createResp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &createResp); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	waitGenerationStatus(t, createResp.ID, 3)
+}
+
 func TestAnonymousTrialOnceAndForcesLow(t *testing.T) {
 	engine := setupAuthTest(t)
 	config.AppConfig.MockSub2API = true
@@ -333,4 +383,16 @@ func waitGenerationStatus(t *testing.T, id int64, status int) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatalf("generation %d did not reach status %d", id, status)
+}
+
+func enableCaptchaForTest(t *testing.T) {
+	t.Helper()
+	settings := []model.Setting{
+		{Key: "captcha_enabled", Value: "true"},
+		{Key: "turnstile_site_key", Value: "site"},
+		{Key: "turnstile_secret", Value: "secret"},
+	}
+	if err := model.DB.Create(&settings).Error; err != nil {
+		t.Fatalf("create captcha settings: %v", err)
+	}
 }

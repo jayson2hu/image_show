@@ -14,10 +14,11 @@ import (
 )
 
 type createGenerationRequest struct {
-	Prompt      string `json:"prompt" binding:"required,max=4000"`
-	Quality     string `json:"quality" binding:"required,oneof=low medium high"`
-	Size        string `json:"size" binding:"required"`
-	AnonymousID string `json:"anonymous_id"`
+	Prompt       string `json:"prompt" binding:"required,max=4000"`
+	Quality      string `json:"quality" binding:"required,oneof=low medium high"`
+	Size         string `json:"size" binding:"required"`
+	AnonymousID  string `json:"anonymous_id"`
+	CaptchaToken string `json:"captcha_token"`
 }
 
 type batchDeleteGenerationsRequest struct {
@@ -103,6 +104,10 @@ func CreateGeneration(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
+	if err := service.VerifyCaptcha(req.CaptchaToken, common.GetRealIP(c)); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
 
 	var userID *int64
 	if value, exists := c.Get("userID"); exists {
@@ -143,6 +148,10 @@ func CreateGeneration(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status})
+}
+
+func CaptchaConfig(c *gin.Context) {
+	c.JSON(http.StatusOK, service.GetCaptchaConfig())
 }
 
 func AdminGenerations(c *gin.Context) {
