@@ -1098,10 +1098,10 @@
 
 ### Phase 5 整体验收
 
-- [ ] 套餐购买全流程：选择套餐 → 支付 → 积分到账
-- [ ] 验证码防滥用正常
-- [ ] 监控告警正常触发
-- [ ] 管理后台仪表盘数据正确
+- [x] 套餐购买全流程：选择套餐 → 支付 → 积分到账
+- [x] 验证码防滥用正常
+- [x] 监控告警正常触发
+- [x] 管理后台仪表盘数据正确
 
 ---
 
@@ -1284,4 +1284,4 @@ docker-down:
 | 5.1 | 积分套餐 | ✅ | 2026-04-29 | 已新增 `packages` 表（金额字段使用跨库 `numeric`）、AutoMigrate 与默认三档套餐种子：入门包 10/¥9.9/30 天、标准包 50/¥39.9/90 天、专业包 200/¥99.9/180 天；新增公开 `GET /api/packages` 和管理员套餐 CRUD：`GET/POST/PUT/DELETE /api/admin/packages`，支持上下架状态；前端新增 `/packages` 套餐展示页和导航入口，购买按钮等待 5.2 支付接入；测试覆盖默认套餐、公开展示、后台创建/编辑/下架/删除，`go test ./controller ./model`、`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过 |
 | 5.2 | 支付接入 | ✅ | 2026-04-29 | 已按 new-api 易支付模式接入 `github.com/Calcium-Ion/go-epay/epay`：新增 `orders` 表、`POST /api/orders`、`GET /api/orders/:id`、公开 `POST/GET /api/payment/notify`；支持 `SERVER_ADDRESS`、`PAY_ADDRESS`、`EPAY_ID`、`EPAY_KEY`、`EPAY_PAY_METHODS` 配置，`wechat` 入参兼容归一化为易支付 `wxpay`；回调验签成功后事务内更新订单、增加积分、写入支付充值流水 type=5，并按“充值后旧图不被清理”规则迁移用户 free R2 Key 到 paid；30 分钟未支付订单由启动后的后台轮询和查询/创建入口自动置为 expired；测试覆盖创建订单返回支付参数、成功回调入账、重复回调幂等、超时关闭，`go test ./controller ./service` 通过 |
 | 5.3 | 行为验证码 | ✅ | 2026-04-29 | 已接入 Cloudflare Turnstile：新增 `TURNSTILE_SITE_KEY`、`TURNSTILE_SECRET` 环境配置和后台设置项 `captcha_enabled`、`turnstile_site_key`、`turnstile_secret`；新增公开 `GET /api/captcha/config` 供前端获取启用状态和 site key；生成接口新增 `captcha_token`，开关开启且密钥齐全时调用 Turnstile `siteverify` 校验，未通过返回 403，关闭或未配置时自动跳过以便本地开发；前端生成页按配置动态加载 Turnstile 脚本并在提交生成前要求完成验证；测试覆盖开启后缺少 token 拒绝、有效 token 通过，`go test ./controller ./service`、`CGO_ENABLED=0 go test ./...`、后端构建、`pnpm.cmd build` 通过 |
-| 5.4 | 监控告警 | ⬜ | | |
+| 5.4 | 监控告警 | ✅ | 2026-04-29 | 已实现后台监控汇总和邮件告警闭环：新增 `GET /api/admin/monitor/summary` 统计今日生成数、成功/失败数、积分消耗、新增用户、支付订单数和支付金额；新增 `POST /api/admin/monitor/check` 按 `monitor_daily_credit_threshold` 阈值触发管理员邮件告警，并用 `monitor_alert_last_date` 保证每日幂等只发送一次；后台设置页暴露阈值和告警日期，管理台新增“监控”标签展示核心指标和手动检查告警；未配置 SMTP 时记录日志跳过发送，便于本地自测；Server 酱/企业微信机器人属文档可选渠道，保留后续扩展。测试覆盖汇总数据、阈值触发、重复告警跳过，`go test ./controller ./service` 通过 |

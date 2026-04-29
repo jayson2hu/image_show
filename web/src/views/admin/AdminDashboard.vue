@@ -60,6 +60,19 @@ interface Channel {
   weight: number
 }
 
+interface MonitorSummary {
+  date: string
+  generation_count: number
+  completed_count: number
+  failed_count: number
+  credits_consumed: number
+  new_users: number
+  paid_order_count: number
+  paid_order_amount: number
+  alert_threshold: number
+  alert_triggered: boolean
+}
+
 const router = useRouter()
 const userStore = useUserStore()
 const activeTab = ref('users')
@@ -73,6 +86,7 @@ const creditLogs = ref<Page<CreditLog>>({ items: [], total: 0, page: 1, pageSize
 const templates = ref<PromptTemplate[]>([])
 const channels = ref<Channel[]>([])
 const settings = ref<Record<string, string>>({})
+const monitor = ref<MonitorSummary | null>(null)
 const creditForm = ref({ amount: 1, remark: '' })
 const templateForm = ref<PromptTemplate>({ id: 0, category: 'default', label: '', prompt: '', sort_order: 0, status: 1 })
 
@@ -81,6 +95,7 @@ const tabs = [
   { id: 'credits', label: '积分' },
   { id: 'templates', label: '模板' },
   { id: 'settings', label: '设置' },
+  { id: 'monitor', label: '监控' },
   { id: 'logs', label: '日志' },
   { id: 'channels', label: '渠道' },
 ]
@@ -190,6 +205,19 @@ async function loadChannels() {
   channels.value = response.data.items
 }
 
+async function loadMonitor() {
+  const response = await api.get('/admin/monitor/summary')
+  monitor.value = response.data
+}
+
+async function checkMonitorAlert() {
+  await guarded(async () => {
+    const response = await api.post('/admin/monitor/check')
+    message.value = response.data.sent ? '告警已发送' : '未触发或今日已发送'
+    await loadMonitor()
+  })
+}
+
 function fmtTime(value: string) {
   return value ? new Date(value).toLocaleString() : '-'
 }
@@ -200,7 +228,7 @@ onMounted(async () => {
     await router.push('/')
     return
   }
-  await Promise.all([loadUsers(), loadCreditLogs(), loadTemplates(), loadSettings(), loadChannels()])
+  await Promise.all([loadUsers(), loadCreditLogs(), loadTemplates(), loadSettings(), loadChannels(), loadMonitor()])
 })
 </script>
 
@@ -353,6 +381,36 @@ onMounted(async () => {
       </label>
       <button class="rounded bg-teal px-4 py-2 text-white" type="submit">保存设置</button>
     </form>
+
+    <div v-if="activeTab === 'monitor' && monitor" class="space-y-4">
+      <div class="grid gap-3 md:grid-cols-4">
+        <div class="rounded border border-slate-200 bg-white p-4">
+          <div class="text-sm text-slate-500">今日生成</div>
+          <div class="mt-2 text-2xl font-semibold">{{ monitor.generation_count }}</div>
+        </div>
+        <div class="rounded border border-slate-200 bg-white p-4">
+          <div class="text-sm text-slate-500">成功 / 失败</div>
+          <div class="mt-2 text-2xl font-semibold">{{ monitor.completed_count }} / {{ monitor.failed_count }}</div>
+        </div>
+        <div class="rounded border border-slate-200 bg-white p-4">
+          <div class="text-sm text-slate-500">积分消耗</div>
+          <div class="mt-2 text-2xl font-semibold">{{ monitor.credits_consumed }}</div>
+        </div>
+        <div class="rounded border border-slate-200 bg-white p-4">
+          <div class="text-sm text-slate-500">支付金额</div>
+          <div class="mt-2 text-2xl font-semibold">¥{{ monitor.paid_order_amount }}</div>
+        </div>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-4 text-sm">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div class="font-medium">每日积分阈值 {{ monitor.alert_threshold }}</div>
+            <div class="mt-1 text-slate-600">{{ monitor.alert_triggered ? '当前已触发告警条件' : '当前未触发告警条件' }}</div>
+          </div>
+          <button class="rounded bg-coral px-4 py-2 text-white" type="button" @click="checkMonitorAlert">检查告警</button>
+        </div>
+      </div>
+    </div>
 
     <div v-if="activeTab === 'logs'" class="rounded border border-slate-200 bg-white p-4 text-sm">
       <p class="text-slate-700">生成日志和登录日志接口已接入后端；当前页面先保留入口，详细筛选在后续日志管理页扩展。</p>

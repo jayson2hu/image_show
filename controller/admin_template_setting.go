@@ -80,15 +80,17 @@ func AdminSettings(c *gin.Context) {
 		return
 	}
 	values := map[string]string{
-		"register_enabled":      model.GetSettingValue("register_enabled", "true"),
-		"wechat_auth_enabled":   model.GetSettingValue("wechat_auth_enabled", "false"),
-		"wechat_server_address": model.GetSettingValue("wechat_server_address", ""),
-		"wechat_server_token":   model.GetSettingValue("wechat_server_token", ""),
-		"wechat_qrcode_url":     model.GetSettingValue("wechat_qrcode_url", ""),
-		"ip_blacklist":          model.GetSettingValue("ip_blacklist", ""),
-		"captcha_enabled":       model.GetSettingValue("captcha_enabled", "false"),
-		"turnstile_site_key":    model.GetSettingValue("turnstile_site_key", ""),
-		"turnstile_secret":      model.GetSettingValue("turnstile_secret", ""),
+		"register_enabled":               model.GetSettingValue("register_enabled", "true"),
+		"wechat_auth_enabled":            model.GetSettingValue("wechat_auth_enabled", "false"),
+		"wechat_server_address":          model.GetSettingValue("wechat_server_address", ""),
+		"wechat_server_token":            model.GetSettingValue("wechat_server_token", ""),
+		"wechat_qrcode_url":              model.GetSettingValue("wechat_qrcode_url", ""),
+		"ip_blacklist":                   model.GetSettingValue("ip_blacklist", ""),
+		"captcha_enabled":                model.GetSettingValue("captcha_enabled", "false"),
+		"turnstile_site_key":             model.GetSettingValue("turnstile_site_key", ""),
+		"turnstile_secret":               model.GetSettingValue("turnstile_secret", ""),
+		"monitor_daily_credit_threshold": model.GetSettingValue("monitor_daily_credit_threshold", "0"),
+		"monitor_alert_last_date":        model.GetSettingValue("monitor_alert_last_date", ""),
 	}
 	for _, item := range items {
 		values[item.Key] = item.Value
