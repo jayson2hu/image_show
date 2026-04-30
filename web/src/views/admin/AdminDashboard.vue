@@ -111,6 +111,7 @@ const tabs = [
 const isAdmin = computed(() => (userStore.user?.role || 0) >= 10)
 const enabledChannels = computed(() => channels.value.filter((item) => item.status === 1).length)
 const currentTab = computed(() => tabs.find((item) => item.id === activeTab.value) || tabs[0])
+const settingEntries = computed(() => Object.keys(settings.value).sort())
 const overviewCards = computed(() => [
   { label: '今日生成', value: monitor.value?.generation_count ?? 0, hint: `${monitor.value?.completed_count ?? 0} 成功 / ${monitor.value?.failed_count ?? 0} 失败` },
   { label: '新增用户', value: monitor.value?.new_users ?? 0, hint: `当前用户 ${users.value.total}` },
@@ -292,6 +293,39 @@ function templateCategoryText(category: string) {
 function generationStatus(status: number) {
   const map: Record<number, string> = { 0: '待处理', 1: '生成中', 2: '上传中', 3: '完成', 4: '失败', 5: '取消' }
   return map[status] || `状态 ${status}`
+}
+
+function settingLabel(key: string) {
+  const map: Record<string, string> = {
+    r2_endpoint: 'Cloudflare R2 Endpoint',
+    r2_access_key: 'Cloudflare R2 Access Key',
+    r2_secret_key: 'Cloudflare R2 Secret Key',
+    r2_bucket: 'Cloudflare R2 Bucket',
+    r2_public_url: 'Cloudflare R2 Public URL / CDN',
+    enabled_image_sizes: '可用图片尺寸',
+    captcha_enabled: 'Turnstile 验证开关',
+    turnstile_site_key: 'Turnstile Site Key',
+    turnstile_secret: 'Turnstile Secret',
+    register_enabled: '注册开关',
+    ip_blacklist: 'IP 黑名单',
+  }
+  return map[key] || key
+}
+
+function settingHelp(key: string) {
+  const map: Record<string, string> = {
+    r2_endpoint: '形如 https://<account_id>.r2.cloudflarestorage.com',
+    r2_access_key: 'Cloudflare R2 API Token 的 Access Key ID',
+    r2_secret_key: 'Cloudflare R2 API Token 的 Secret Access Key',
+    r2_bucket: 'R2 bucket 名称，例如 image-show',
+    r2_public_url: '可选。绑定自定义域名或 CDN 后填写，例如 https://cdn.example.com；为空时使用 1 小时签名链接。',
+    enabled_image_sizes: '逗号分隔，例如 1024x1024,1024x1536,1536x1024',
+  }
+  return map[key] || ''
+}
+
+function settingInputType(key: string) {
+  return key.includes('secret') || key.includes('password') || key.includes('access_key') ? 'password' : 'text'
 }
 
 onMounted(async () => {
@@ -562,9 +596,10 @@ onMounted(async () => {
 
         <form v-if="activeTab === 'settings'" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="saveSettings">
           <div class="grid gap-4 md:grid-cols-2">
-            <label v-for="(_, key) in settings" :key="key" class="block text-sm">
-              <span class="font-medium text-slate-700">{{ key }}</span>
-              <input v-model="settings[key]" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" />
+            <label v-for="key in settingEntries" :key="key" class="block text-sm">
+              <span class="font-medium text-slate-700">{{ settingLabel(key) }}</span>
+              <input v-model="settings[key]" :type="settingInputType(key)" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" />
+              <span v-if="settingHelp(key)" class="mt-1 block text-xs text-slate-500">{{ settingHelp(key) }}</span>
             </label>
           </div>
           <button class="mt-5 rounded-lg bg-slate-950 px-4 py-2 text-white" type="submit">保存设置</button>

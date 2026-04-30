@@ -59,4 +59,15 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 	if getSettings.Code != http.StatusOK {
 		t.Fatalf("get settings=%d body=%s", getSettings.Code, getSettings.Body.String())
 	}
+	var settingsResp struct {
+		Items map[string]string `json:"items"`
+	}
+	if err := json.Unmarshal(getSettings.Body.Bytes(), &settingsResp); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	for _, key := range []string{"r2_endpoint", "r2_access_key", "r2_secret_key", "r2_bucket", "r2_public_url"} {
+		if _, ok := settingsResp.Items[key]; !ok {
+			t.Fatalf("missing r2 setting %s in %#v", key, settingsResp.Items)
+		}
+	}
 }

@@ -81,6 +81,35 @@ func TestStoreGeneratedImageWithoutR2ReturnsDataURL(t *testing.T) {
 	}
 }
 
+func TestR2SettingsPreferAdminSettingsOverEnv(t *testing.T) {
+	setupServiceDB(t)
+	config.AppConfig.R2Endpoint = "https://env.r2.cloudflarestorage.com"
+	config.AppConfig.R2AccessKey = "env-access"
+	config.AppConfig.R2SecretKey = "env-secret"
+	config.AppConfig.R2Bucket = "env-bucket"
+	config.AppConfig.R2PublicURL = "https://env-cdn.example.com"
+	if err := model.DB.Create(&model.Setting{Key: "r2_endpoint", Value: "https://admin.r2.cloudflarestorage.com"}).Error; err != nil {
+		t.Fatalf("create endpoint setting: %v", err)
+	}
+	if err := model.DB.Create(&model.Setting{Key: "r2_access_key", Value: "admin-access"}).Error; err != nil {
+		t.Fatalf("create access key setting: %v", err)
+	}
+	if err := model.DB.Create(&model.Setting{Key: "r2_secret_key", Value: "admin-secret"}).Error; err != nil {
+		t.Fatalf("create secret key setting: %v", err)
+	}
+	if err := model.DB.Create(&model.Setting{Key: "r2_bucket", Value: "admin-bucket"}).Error; err != nil {
+		t.Fatalf("create bucket setting: %v", err)
+	}
+	if err := model.DB.Create(&model.Setting{Key: "r2_public_url", Value: "https://admin-cdn.example.com"}).Error; err != nil {
+		t.Fatalf("create public url setting: %v", err)
+	}
+
+	settings := r2SettingsFromConfig()
+	if settings.endpoint != "https://admin.r2.cloudflarestorage.com" || settings.accessKey != "admin-access" || settings.secretKey != "admin-secret" || settings.bucket != "admin-bucket" || settings.publicURL != "https://admin-cdn.example.com" {
+		t.Fatalf("unexpected settings: %+v", settings)
+	}
+}
+
 func TestRegisterClaimsAnonymousGenerations(t *testing.T) {
 	setupServiceDB(t)
 	email := "claim@example.com"

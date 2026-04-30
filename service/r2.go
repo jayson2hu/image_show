@@ -25,25 +25,44 @@ type R2Client struct {
 }
 
 func NewR2ClientFromConfig() (*R2Client, error) {
-	cfg := config.AppConfig
-	if cfg == nil {
-		cfg = config.LoadConfig()
-	}
-	if cfg.R2Endpoint == "" || cfg.R2AccessKey == "" || cfg.R2SecretKey == "" || cfg.R2Bucket == "" {
+	cfg := r2SettingsFromConfig()
+	if cfg.endpoint == "" || cfg.accessKey == "" || cfg.secretKey == "" || cfg.bucket == "" {
 		return nil, nil
 	}
 	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
 		awsconfig.WithRegion("auto"),
-		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.R2AccessKey, cfg.R2SecretKey, "")),
+		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.accessKey, cfg.secretKey, "")),
 	)
 	if err != nil {
 		return nil, err
 	}
 	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
-		o.BaseEndpoint = aws.String(cfg.R2Endpoint)
+		o.BaseEndpoint = aws.String(cfg.endpoint)
 		o.UsePathStyle = true
 	})
-	return &R2Client{client: client, bucket: cfg.R2Bucket, cdnURL: strings.TrimRight(cfg.R2PublicURL, "/")}, nil
+	return &R2Client{client: client, bucket: cfg.bucket, cdnURL: strings.TrimRight(cfg.publicURL, "/")}, nil
+}
+
+type r2Settings struct {
+	endpoint  string
+	accessKey string
+	secretKey string
+	bucket    string
+	publicURL string
+}
+
+func r2SettingsFromConfig() r2Settings {
+	cfg := config.AppConfig
+	if cfg == nil {
+		cfg = config.LoadConfig()
+	}
+	return r2Settings{
+		endpoint:  model.GetSettingValue("r2_endpoint", cfg.R2Endpoint),
+		accessKey: model.GetSettingValue("r2_access_key", cfg.R2AccessKey),
+		secretKey: model.GetSettingValue("r2_secret_key", cfg.R2SecretKey),
+		bucket:    model.GetSettingValue("r2_bucket", cfg.R2Bucket),
+		publicURL: model.GetSettingValue("r2_public_url", cfg.R2PublicURL),
+	}
 }
 
 func (r *R2Client) Upload(key string, data []byte, contentType string) error {

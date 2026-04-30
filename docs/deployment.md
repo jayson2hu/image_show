@@ -220,6 +220,7 @@ MOCK_SUB2API=false
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` 用于首次启动或重置管理员账号；生产环境必须显式配置才会写入管理员。
 - `MOCK_SUB2API=false`，否则会返回测试图片。
 - `R2_PUBLIC_URL` 如果配置 CDN 域名，图片访问会直接走 CDN；为空时后端使用临时签名 URL。
+- R2 也可以在后台 `/admin` 的“设置”页维护，字段为 `r2_endpoint`、`r2_access_key`、`r2_secret_key`、`r2_bucket`、`r2_public_url`；后台保存值优先于环境变量，环境变量作为兜底。
 - `EPAY_PAY_METHODS` 当前默认支持 `alipay,wxpay`。前端当前默认创建 `alipay` 订单。
 
 ## 5. 数据库与迁移
