@@ -67,7 +67,7 @@ func LoadConfig() *Config {
 		SMTPPassword:     getEnv("SMTP_PASSWORD", ""),
 		SMTPFrom:         getEnv("SMTP_FROM", ""),
 		Sub2APIBaseURL:   getEnv("SUB2API_BASE_URL", "http://sub2api:8080"),
-		ImageModel:       getEnv("IMAGE_MODEL", "gpt-image-1"),
+		ImageModel:       getEnv("IMAGE_MODEL", "gpt-image-2"),
 		MockSub2API:      getEnvBool("MOCK_SUB2API", false),
 		WeChatEnabled:    getEnvBool("WECHAT_AUTH_ENABLED", false),
 		WeChatServer:     getEnv("WECHAT_SERVER_ADDRESS", ""),

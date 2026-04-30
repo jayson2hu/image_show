@@ -37,7 +37,7 @@ func TestSub2APIClientGenerateImagePassesHeaders(t *testing.T) {
 	if result.Base64Data != "abc" || gotIP != "1.2.3.4" {
 		t.Fatalf("unexpected result=%+v ip=%s", result, gotIP)
 	}
-	if gotRequest.Model != "gpt-image-1" || gotRequest.Size != "1024x1024" {
+	if gotRequest.Model != "gpt-image-2" || gotRequest.Size != "1024x1024" {
 		t.Fatalf("unexpected request: %+v", gotRequest)
 	}
 }

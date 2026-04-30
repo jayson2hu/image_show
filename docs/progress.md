@@ -30,16 +30,38 @@
 
 - 决策：
   - 不写死生成模型名，后台增加 `image_model` 配置项。
-  - 默认仍使用 OpenAI 官方模型 `gpt-image-1`。
-  - 官方文档当前没有 `gpt-image-2`；如 sub2api 自身支持自定义模型名，可在后台设置中切换。
+  - 此处当时按旧文档误判默认模型为 `gpt-image-1`，已在后续“gpt-image-2 模型修正”中更正。
 
 - 完成：
-  - 新增环境变量 `IMAGE_MODEL`，默认 `gpt-image-1`。
+  - 新增环境变量 `IMAGE_MODEL`。
   - 生成请求模型名改为读取后台设置 `image_model`，没有后台设置时回退环境变量。
   - 后台设置页增加生成模型配置说明。
 
 - 自测记录：
   - `go test ./service ./controller ./config`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。
+
+## 2026-04-30 gpt-image-2 模型修正
+
+- 问题：
+  - 用户确认生成模型应为 `gpt-image-2`。
+  - 重新核对官方文档后确认 `gpt-image-2` 是 OpenAI 官方 Image API 模型，上次记录“没有 gpt-image-2”是错误判断。
+
+- 决策：
+  - 默认生成模型改为 `gpt-image-2`。
+  - 仍保留后台 `image_model` 配置，便于 sub2api 使用其他模型名。
+  - `/v1/images/generations` 的 `size` 参数当前仍应保守使用 `1024x1024`、`1024x1536`、`1536x1024`，其他前端尺寸由后端映射后再缩放。
+
+- 完成：
+  - 更新 `IMAGE_MODEL` 默认值、后台设置默认值、前端说明、部署文档和测试断言。
+  - 新增 `cmd/admin-reset` 运维命令，用于显式重置管理员账号密码。
+
+- 本地处理：
+  - 已执行 `go run ./cmd/admin-reset -email admin@image-show.local -password Admin123456`，本地 SQLite 管理员账号已重置为启用管理员。
+
+- 自测记录：
+  - `go test ./service ./controller ./config ./model`：通过。
   - `go test ./...`：通过。
   - `pnpm.cmd build`：通过。
 

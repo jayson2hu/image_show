@@ -126,7 +126,7 @@ func (c *Sub2APIClient) generateImageOnce(prompt, quality, size, userIP string) 
 }
 
 func imageModel() string {
-	fallback := "gpt-image-1"
+	fallback := "gpt-image-2"
 	if config.AppConfig != nil && config.AppConfig.ImageModel != "" {
 		fallback = config.AppConfig.ImageModel
 	}

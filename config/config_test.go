@@ -29,7 +29,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.Sub2APIBaseURL != "http://sub2api:8080" {
 		t.Fatalf("unexpected sub2api url: %q", cfg.Sub2APIBaseURL)
 	}
-	if cfg.ImageModel != "gpt-image-1" {
+	if cfg.ImageModel != "gpt-image-2" {
 		t.Fatalf("unexpected image model: %q", cfg.ImageModel)
 	}
 	if cfg.WeChatEnabled {
