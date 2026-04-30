@@ -329,6 +329,23 @@ func TestSSEFormatUsesStatusEvent(t *testing.T) {
 	}
 }
 
+func TestStreamGenerationUsesUTF8EventStream(t *testing.T) {
+	engine := setupAuthTest(t)
+	generation := model.Generation{Prompt: "cat", Quality: "low", Size: "1024x1024", Status: 3, ImageURL: "https://example.com/image.png"}
+	if err := model.DB.Create(&generation).Error; err != nil {
+		t.Fatalf("create generation: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/generations/"+jsonNumber(generation.ID)+"/stream", nil)
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+
+	contentType := rec.Header().Get("Content-Type")
+	if !strings.Contains(contentType, "text/event-stream") || !strings.Contains(strings.ToLower(contentType), "charset=utf-8") {
+		t.Fatalf("unexpected content type: %q", contentType)
+	}
+}
+
 func jsonNumber(v int64) string {
 	b, _ := json.Marshal(v)
 	return string(b)

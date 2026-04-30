@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 
 	"github.com/jayson2hu/image-show/config"
@@ -31,6 +32,29 @@ func TestSub2APIClientGenerateImagePassesHeaders(t *testing.T) {
 	}
 	if result.Base64Data != "abc" || gotIP != "1.2.3.4" {
 		t.Fatalf("unexpected result=%+v ip=%s", result, gotIP)
+	}
+}
+
+func TestSub2APIClientGenerateImageRetriesTransientDecodeFailure(t *testing.T) {
+	var attempts int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&attempts, 1) == 1 {
+			_, _ = w.Write([]byte(`{"data":[`))
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": []map[string]string{{"b64_json": "retry-ok"}},
+		})
+	}))
+	defer server.Close()
+
+	client := NewSub2APIClient(server.URL, "", nil)
+	result, err := client.GenerateImage("prompt", "medium", "1024x1024", "")
+	if err != nil {
+		t.Fatalf("GenerateImage: %v", err)
+	}
+	if result.Base64Data != "retry-ok" || attempts != 2 {
+		t.Fatalf("unexpected result=%+v attempts=%d", result, attempts)
 	}
 }
 

@@ -35,7 +35,7 @@ interface PromptTemplate {
 const userStore = useUserStore()
 const health = ref('检查中')
 const prompt = ref('')
-const selectedStyle = ref('realistic')
+const selectedStyle = ref('')
 const quality = ref<Quality>('medium')
 const size = ref('1024x1024')
 const sizeOptions = ref<string[]>(['1024x1024', '1024x1536', '1536x1024'])
@@ -112,7 +112,6 @@ async function loadPromptTemplates() {
         name: item.label,
         prompt: item.prompt,
       }))
-      selectedStyle.value = stylePresets.value[0].id
     }
     if (samples.length > 0) {
       samplePrompts.value = samples.map((item) => ({
@@ -361,6 +360,14 @@ function resetCaptcha() {
           <div>
             <label class="mb-2 block text-gray-900">风格预设</label>
             <div class="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                class="rounded-lg border px-4 py-2 transition"
+                :class="selectedStyle === '' ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
+                @click="selectedStyle = ''"
+              >
+                无
+              </button>
               <button
                 v-for="style in stylePresets"
                 :key="style.id"

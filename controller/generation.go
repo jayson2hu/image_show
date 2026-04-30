@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -255,7 +256,7 @@ func StreamGeneration(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "text/event-stream")
+	c.Header("Content-Type", "text/event-stream; charset=utf-8")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
@@ -263,12 +264,16 @@ func StreamGeneration(c *gin.Context) {
 	ch := service.Notifier.Subscribe(id)
 	defer service.Notifier.Unsubscribe(id, ch)
 
-	sendSSE(c, service.GenerationEvent{
+	initialEvent := service.GenerationEvent{
 		Status:   generation.Status,
 		Message:  statusMessage(generation.Status),
 		ImageURL: generation.ImageURL,
 		Error:    generation.ErrorMsg,
-	})
+	}
+	sendSSE(c, initialEvent)
+	if isTerminalGenerationStatus(initialEvent.Status) {
+		return
+	}
 
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
@@ -279,7 +284,7 @@ func StreamGeneration(c *gin.Context) {
 			return
 		case event := <-ch:
 			sendSSE(c, event)
-			if event.Status == 3 || event.Status == 4 || event.Status == 5 {
+			if isTerminalGenerationStatus(event.Status) {
 				return
 			}
 		case <-ticker.C:
@@ -289,8 +294,16 @@ func StreamGeneration(c *gin.Context) {
 	}
 }
 
+func isTerminalGenerationStatus(status int) bool {
+	return status == 3 || status == 4 || status == 5
+}
+
 func sendSSE(c *gin.Context, event service.GenerationEvent) {
-	c.SSEvent("status", event)
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return
+	}
+	_, _ = fmt.Fprintf(c.Writer, "event:status\ndata:%s\n\n", payload)
 	c.Writer.Flush()
 }
 

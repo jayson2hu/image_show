@@ -1,5 +1,23 @@
 # 开发进度记录
 
+## 2026-04-30 生成失败与风格可选修复
+
+- 问题：
+  - 用户提交生成任务后，SSE 返回 `generation failed`，底层错误为 `Post "https://ai.laikankan8.top/v1/images/generations": unexpected EOF`，属于上游图片接口连接被提前断开。
+  - 首页选择风格后会自动把风格 Prompt 追加到用户输入，用户已经自己写完整 Prompt 时无法选择“不追加风格”。
+  - SSE 查看器中中文状态出现乱码，响应头未明确 UTF-8。
+
+- 完成：
+  - 首页风格预设新增“无”，并默认选中“无”；用户填入 Prompt 后可以不选择任何风格。
+  - Sub2API 图片生成请求超时放宽到 300 秒，禁用 HTTP/2 和 keep-alive，并对 `unexpected EOF`、超时、连接重置、429/502/503/504 做最多 3 次短重试。
+  - SSE 响应头改为 `text/event-stream; charset=utf-8`，并手写 `event:status` 帧，避免 Gin 覆盖 charset。
+  - 如果订阅 SSE 时任务已经完成/失败/取消，发送初始状态后立即结束连接，不再持续 keepalive。
+
+- 自测记录：
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次仍因 esbuild `spawn EPERM` 失败，授权后重跑通过。
+  - 已重启本地后端，`http://localhost:3000/health` 返回 `{"status":"ok"}`。
+
 ## 2026-04-30 管理员登录修复
 
 - 问题：

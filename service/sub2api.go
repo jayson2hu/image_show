@@ -45,7 +45,12 @@ func NewSub2APIClient(baseURL, apiKey string, headers map[string]string) *Sub2AP
 		APIKey:  apiKey,
 		Headers: headers,
 		HTTPClient: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout: 300 * time.Second,
+			Transport: &http.Transport{
+				DisableKeepAlives:   true,
+				ForceAttemptHTTP2:   false,
+				TLSHandshakeTimeout: 10 * time.Second,
+			},
 		},
 	}
 }
@@ -54,7 +59,22 @@ func (c *Sub2APIClient) GenerateImage(prompt, quality, size, userIP string) (*Im
 	if config.AppConfig != nil && config.AppConfig.MockSub2API {
 		return mockImageResult(), nil
 	}
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		result, err := c.generateImageOnce(prompt, quality, size, userIP)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+		if !isRetryableSub2APIError(err) || attempt == 3 {
+			break
+		}
+		time.Sleep(time.Duration(attempt) * 800 * time.Millisecond)
+	}
+	return nil, lastErr
+}
 
+func (c *Sub2APIClient) generateImageOnce(prompt, quality, size, userIP string) (*ImageGenerationResult, error) {
 	body, err := json.Marshal(imageGenerationRequest{
 		Model:   "gpt-image-1",
 		Prompt:  prompt,
@@ -88,7 +108,7 @@ func (c *Sub2APIClient) GenerateImage(prompt, quality, size, userIP string) (*Im
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		payload, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("sub2api status %d: %s", resp.StatusCode, string(payload))
+		return nil, sub2APIStatusError{statusCode: resp.StatusCode, payload: strings.TrimSpace(string(payload))}
 	}
 
 	var parsed imageGenerationResponse
@@ -102,6 +122,29 @@ func (c *Sub2APIClient) GenerateImage(prompt, quality, size, userIP string) (*Im
 		Base64Data: parsed.Data[0].B64JSON,
 		URL:        parsed.Data[0].URL,
 	}, nil
+}
+
+type sub2APIStatusError struct {
+	statusCode int
+	payload    string
+}
+
+func (e sub2APIStatusError) Error() string {
+	if e.payload == "" {
+		return fmt.Sprintf("sub2api status %d", e.statusCode)
+	}
+	return fmt.Sprintf("sub2api status %d: %s", e.statusCode, e.payload)
+}
+
+func isRetryableSub2APIError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if statusErr, ok := err.(sub2APIStatusError); ok {
+		return statusErr.statusCode == http.StatusTooManyRequests || statusErr.statusCode == http.StatusBadGateway || statusErr.statusCode == http.StatusServiceUnavailable || statusErr.statusCode == http.StatusGatewayTimeout
+	}
+	text := strings.ToLower(err.Error())
+	return strings.Contains(text, "unexpected eof") || strings.Contains(text, "connection reset") || strings.Contains(text, "timeout") || strings.Contains(text, "temporary")
 }
 
 func mockImageResult() *ImageGenerationResult {
