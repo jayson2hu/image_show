@@ -20,9 +20,16 @@ interface StylePreset {
 }
 
 interface SamplePrompt {
+  id: string
   title: string
   prompt: string
-  style: string
+}
+
+interface PromptTemplate {
+  id?: number
+  category: string
+  label: string
+  prompt: string
 }
 
 const userStore = useUserStore()
@@ -51,22 +58,24 @@ const captchaWidgetId = ref<string | null>(null)
 
 const costs: Record<Quality, number> = { low: 0.2, medium: 1, high: 4 }
 const qualityLabels: Record<Quality, string> = { low: '快速', medium: '标准', high: '高清' }
-const stylePresets: StylePreset[] = [
-  { id: 'realistic', name: '写实', prompt: '写实摄影风格，细节丰富，自然光影' },
-  { id: 'anime', name: '动漫', prompt: '动漫插画风格，清晰线稿，高饱和色彩' },
-  { id: 'fantasy', name: '幻想', prompt: '幻想艺术风格，史诗氛围，电影级构图' },
-  { id: 'cyberpunk', name: '赛博朋克', prompt: '赛博朋克风格，霓虹灯光，未来城市质感' },
-  { id: 'watercolor', name: '水彩', prompt: '水彩画风格，柔和笔触，温暖色调' },
-  { id: 'abstract', name: '抽象', prompt: '抽象艺术风格，流动光影，紫蓝渐变' },
+const defaultStylePresets: StylePreset[] = [
+  { id: 'style-realistic', name: '写实', prompt: '写实摄影风格，细节丰富，自然光影，真实材质，高质量商业摄影' },
+  { id: 'style-anime', name: '动漫', prompt: '动漫插画风格，清晰线稿，高饱和色彩，精致角色设计，干净背景' },
+  { id: 'style-fantasy', name: '幻想', prompt: '幻想艺术风格，史诗氛围，电影级构图，丰富层次，强烈空间感' },
+  { id: 'style-cyberpunk', name: '赛博朋克', prompt: '赛博朋克风格，霓虹灯光，未来城市质感，高对比光影，雨夜氛围' },
+  { id: 'style-watercolor', name: '水彩', prompt: '水彩画风格，柔和笔触，温暖色调，纸张纹理，轻盈通透' },
+  { id: 'style-abstract', name: '抽象', prompt: '抽象艺术风格，流动光影，紫蓝渐变，几何节奏，现代视觉表达' },
 ]
-const samplePrompts: SamplePrompt[] = [
-  { title: '幻想风景', prompt: '沙漠中的神秘传送门，超现实主义，4K高清', style: 'fantasy' },
-  { title: '赛博朋克城市', prompt: '未来城市夜景，霓虹灯，赛博朋克风格', style: 'cyberpunk' },
-  { title: '水彩画', prompt: '森林中的小木屋，温暖色调，水彩画风格', style: 'watercolor' },
-  { title: '抽象艺术', prompt: '流动的光影，紫蓝渐变，抽象艺术', style: 'abstract' },
+const defaultSamplePrompts: SamplePrompt[] = [
+  { id: 'sample-fantasy', title: '幻想风景', prompt: '沙漠中的神秘传送门，远处有漂浮的古代遗迹，超现实主义场景，金色夕阳，电影级构图，4K 高清细节' },
+  { id: 'sample-cyberpunk', title: '赛博朋克城市', prompt: '未来城市夜景，湿润街道反射霓虹灯，密集高楼与飞行交通，赛博朋克风格，强烈蓝紫色光影' },
+  { id: 'sample-watercolor', title: '水彩小屋', prompt: '森林中的小木屋，清晨薄雾，温暖阳光穿过树叶，柔和水彩画风格，安静治愈氛围' },
+  { id: 'sample-abstract', title: '抽象艺术', prompt: '流动的光影和透明几何结构，紫蓝渐变，细腻颗粒质感，现代抽象艺术海报' },
 ]
+const stylePresets = ref<StylePreset[]>([...defaultStylePresets])
+const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
 
-const selectedStylePrompt = computed(() => stylePresets.find((item) => item.id === selectedStyle.value)?.prompt || '')
+const selectedStylePrompt = computed(() => stylePresets.value.find((item) => item.id === selectedStyle.value)?.prompt || '')
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
 const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value)
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
@@ -88,22 +97,52 @@ onMounted(async () => {
   } catch {
     health.value = '后端未连接'
   }
-  await Promise.all([loadGenerationOptions(), loadCaptcha()])
+  await Promise.all([loadPromptTemplates(), loadGenerationOptions(), loadCaptcha()])
 })
 
-async function loadGenerationOptions() {
-  const response = await api.get('/generation/options')
-  if (Array.isArray(response.data.sizes) && response.data.sizes.length > 0) {
-    sizeOptions.value = response.data.sizes
-    if (!sizeOptions.value.includes(size.value)) {
-      size.value = sizeOptions.value[0]
+async function loadPromptTemplates() {
+  try {
+    const response = await api.get('/prompt-templates')
+    const items: PromptTemplate[] = Array.isArray(response.data.items) ? response.data.items : []
+    const styles = items.filter((item) => item.category === 'style')
+    const samples = items.filter((item) => item.category === 'sample')
+    if (styles.length > 0) {
+      stylePresets.value = styles.map((item) => ({
+        id: `style-${item.id || item.label}`,
+        name: item.label,
+        prompt: item.prompt,
+      }))
+      selectedStyle.value = stylePresets.value[0].id
     }
+    if (samples.length > 0) {
+      samplePrompts.value = samples.map((item) => ({
+        id: `sample-${item.id || item.label}`,
+        title: item.label,
+        prompt: item.prompt,
+      }))
+    }
+  } catch {
+    stylePresets.value = [...defaultStylePresets]
+    samplePrompts.value = [...defaultSamplePrompts]
+  }
+}
+
+async function loadGenerationOptions() {
+  try {
+    const response = await api.get('/generation/options')
+    if (Array.isArray(response.data.sizes) && response.data.sizes.length > 0) {
+      sizeOptions.value = response.data.sizes
+      if (!sizeOptions.value.includes(size.value)) {
+        size.value = sizeOptions.value[0]
+      }
+    }
+  } catch {
+    sizeOptions.value = ['1024x1024', '1024x1536', '1536x1024']
   }
 }
 
 function useSample(sample: SamplePrompt) {
   prompt.value = sample.prompt
-  selectedStyle.value = sample.style
 }
 
 function buildPrompt() {
@@ -413,7 +452,7 @@ function resetCaptcha() {
             <div v-if="isSamplesExpanded" class="space-y-2">
               <button
                 v-for="sample in samplePrompts"
-                :key="sample.title"
+                :key="sample.id"
                 type="button"
                 class="group w-full rounded-lg border border-gray-200 px-4 py-3 text-left transition hover:border-violet-400 hover:bg-violet-50"
                 @click="useSample(sample)"

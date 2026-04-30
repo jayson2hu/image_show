@@ -94,7 +94,7 @@ const channels = ref<Channel[]>([])
 const settings = ref<Record<string, string>>({})
 const monitor = ref<MonitorSummary | null>(null)
 const creditForm = ref({ amount: 1, remark: '' })
-const templateForm = ref<PromptTemplate>({ id: 0, category: 'default', label: '', prompt: '', sort_order: 0, status: 1 })
+const templateForm = ref<PromptTemplate>({ id: 0, category: 'style', label: '', prompt: '', sort_order: 0, status: 1 })
 const channelForm = ref<Channel>({ id: 0, name: '', base_url: '', api_key: '', headers: '', status: 1, weight: 1, remark: '' })
 const channelTestResult = ref<Record<number, string>>({})
 
@@ -185,7 +185,7 @@ function editTemplate(template: PromptTemplate) {
 }
 
 function resetTemplate() {
-  templateForm.value = { id: 0, category: 'default', label: '', prompt: '', sort_order: 0, status: 1 }
+  templateForm.value = { id: 0, category: 'style', label: '', prompt: '', sort_order: 0, status: 1 }
 }
 
 async function saveTemplate() {
@@ -277,6 +277,16 @@ function fmtTime(value: string) {
 
 function statusText(status: number) {
   return status === 1 ? '启用' : '禁用'
+}
+
+function templateCategoryText(category: string) {
+  const map: Record<string, string> = {
+    default: '默认标签',
+    repair: '修复标签',
+    style: '首页风格预设',
+    sample: '首页推荐样例',
+  }
+  return map[category] || category
 }
 
 function generationStatus(status: number) {
@@ -513,9 +523,13 @@ onMounted(async () => {
 
         <div v-if="activeTab === 'templates'" class="grid gap-4 xl:grid-cols-[1fr_420px]">
           <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-100 p-4 text-sm text-slate-500">
+              启用状态会展示到前台；分类为“首页风格预设”时展示在风格按钮，分类为“首页推荐样例”时展示在推荐样例。
+            </div>
             <div v-for="template in templates" :key="template.id" class="flex gap-3 border-b border-slate-100 p-4 text-sm last:border-b-0">
               <div class="min-w-0 flex-1">
-                <div class="font-medium">{{ template.label }} · {{ template.category }}</div>
+                <div class="font-medium">{{ template.label }} · {{ templateCategoryText(template.category) }}</div>
+                <div class="mt-1 text-xs" :class="template.status === 1 ? 'text-emerald-700' : 'text-slate-400'">{{ statusText(template.status) }}</div>
                 <p class="mt-1 line-clamp-2 text-slate-500">{{ template.prompt }}</p>
               </div>
               <button class="rounded-lg border border-slate-200 px-3 py-1.5" type="button" @click="editTemplate(template)">编辑</button>
@@ -526,9 +540,10 @@ onMounted(async () => {
             <h3 class="font-semibold">{{ templateForm.id ? '编辑模板' : '新增模板' }}</h3>
             <input v-model="templateForm.label" class="mt-4 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="名称" />
             <select v-model="templateForm.category" class="mt-3 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2">
-              <option value="default">默认</option>
-              <option value="repair">修复</option>
-              <option value="style">风格</option>
+              <option value="style">首页风格预设</option>
+              <option value="sample">首页推荐样例</option>
+              <option value="default">默认标签</option>
+              <option value="repair">修复标签</option>
             </select>
             <textarea v-model="templateForm.prompt" class="mt-3 min-h-32 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Prompt" />
             <div class="mt-3 grid grid-cols-2 gap-3">

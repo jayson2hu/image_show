@@ -5,7 +5,7 @@ import api from '@/api'
 
 interface PromptTemplate {
   id?: number
-  category: 'default' | 'repair' | 'style'
+  category: 'default' | 'repair' | 'style' | 'sample'
   label: string
   prompt: string
 }

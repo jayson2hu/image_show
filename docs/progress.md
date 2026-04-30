@@ -1,5 +1,26 @@
 # 开发进度记录
 
+## 2026-04-30 首页风格和推荐样例后台化
+
+- 计划：
+  1. 复用现有 `prompt_templates` 表和后台模板管理，不新增重复配置表。
+  2. 使用 `category=style` 控制首页“风格预设”，使用 `category=sample` 控制首页“推荐样例”。
+  3. 后台模板页增加“首页推荐样例”分类，并说明启用状态会影响前台展示。
+  4. 首页从 `/api/prompt-templates` 动态加载风格和样例，接口异常时保留默认兜底。
+
+- 完成：
+  - `controller/prompt_template.go` 默认模板扩展为更完整的风格预设和推荐样例 Prompt。
+  - `web/src/views/Home.vue` 移除固定写死的风格/样例展示，改为读取后台启用模板。
+  - `web/src/views/admin/AdminDashboard.vue` 模板管理新增“首页推荐样例”分类，列表显示中文分类和启用状态。
+  - `web/src/components/PromptTags.vue` 类型补充 `sample` 分类。
+  - `controller/prompt_template_test.go` 新增默认模板分类测试。
+
+- 自测记录：
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次仍因 esbuild `spawn EPERM` 失败，授权后重跑通过。
+  - `http://localhost:3000/health`：返回 `{"status":"ok"}`。
+  - `http://localhost:3000/api/prompt-templates`：返回 `style` 和 `sample` 两类默认模板。
+
 ## 2026-04-30 登录状态、导航和尺寸配置修复
 
 - 计划：
