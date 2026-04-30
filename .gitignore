@@ -1,6 +1,7 @@
 data/
 image-show
 image-show.exe
+image-show-dev.exe
 *.log
 .env
 web/node_modules/

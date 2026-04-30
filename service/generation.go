@@ -93,7 +93,7 @@ func runGeneration(id int64, prompt, quality, size, ip string) {
 	if isGenerationCancelled(id) {
 		return
 	}
-	updateGenerationStatus(id, 1, "generating image...", "", "")
+	updateGenerationStatus(id, 1, "正在生成图片...", "", "")
 	providerSize := ProviderImageSize(size)
 	result, err := GenerateImageViaChannels(prompt, quality, providerSize, ip)
 	if isGenerationCancelled(id) {
@@ -101,21 +101,21 @@ func runGeneration(id int64, prompt, quality, size, ip string) {
 	}
 	if err != nil {
 		refundGenerationCredits(id)
-		updateGenerationStatus(id, 4, "generation failed", "", err.Error())
+		updateGenerationStatus(id, 4, "生成失败", "", err.Error())
 		return
 	}
 
-	updateGenerationStatus(id, 2, "uploading image...", "", "")
+	updateGenerationStatus(id, 2, "正在保存图片...", "", "")
 	imageURL, r2Key, err := StoreGeneratedImage(id, result, size)
 	if isGenerationCancelled(id) {
 		return
 	}
 	if err != nil {
 		refundGenerationCredits(id)
-		updateGenerationStatus(id, 4, "image upload failed", "", err.Error())
+		updateGenerationStatus(id, 4, "图片保存失败", "", err.Error())
 		return
 	}
-	updateGenerationStatus(id, 3, "generation completed", imageURL, "")
+	updateGenerationStatus(id, 3, "生成完成", imageURL, "")
 	if r2Key != "" {
 		_ = model.DB.Model(&model.Generation{}).Where("id = ? AND status <> ?", id, 5).Update("r2_key", r2Key).Error
 	}
@@ -139,7 +139,7 @@ func CancelGeneration(id, userID int64) (bool, error) {
 	if err := model.DB.Model(&model.Generation{}).Where("id = ?", id).Update("status", 5).Error; err != nil {
 		return false, err
 	}
-	Notifier.Publish(id, GenerationEvent{Status: 5, Message: "generation cancelled"})
+	Notifier.Publish(id, GenerationEvent{Status: 5, Message: "任务已取消"})
 	return refunded, nil
 }
 
