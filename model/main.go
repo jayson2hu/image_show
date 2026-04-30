@@ -7,8 +7,10 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"github.com/jayson2hu/image-show/config"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var DB *gorm.DB
@@ -49,6 +51,9 @@ func InitDB() error {
 	if err := seedDefaultPackages(db); err != nil {
 		return err
 	}
+	if err := seedDefaultAdmin(db, cfg); err != nil {
+		return err
+	}
 
 	DB = db
 	return nil
@@ -79,6 +84,33 @@ func seedDefaultPackages(db *gorm.DB) error {
 		{Name: "专业包", Credits: 200, Price: 99.9, ValidDays: 180, SortOrder: 3, Status: 1},
 	}
 	return db.Create(&defaults).Error
+}
+
+func seedDefaultAdmin(db *gorm.DB, cfg *config.Config) error {
+	if cfg.AdminEmail == "" || cfg.AdminPassword == "" {
+		return nil
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(cfg.AdminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash admin password: %w", err)
+	}
+	admin := User{
+		Email:        cfg.AdminEmail,
+		Username:     "admin",
+		PasswordHash: string(hash),
+		Role:         10,
+		Status:       1,
+	}
+	return db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "email"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"username":      admin.Username,
+			"password_hash": admin.PasswordHash,
+			"role":          admin.Role,
+			"status":        admin.Status,
+			"updated_at":    time.Now(),
+		}),
+	}).Create(&admin).Error
 }
 
 func openDB(driver, dsn string) (*gorm.DB, error) {

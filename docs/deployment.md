@@ -179,6 +179,9 @@ REDIS_DB=1
 
 JWT_SECRET=change-to-long-random-secret
 
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=change-to-strong-admin-password
+
 SUB2API_BASE_URL=http://sub2api:8080
 
 R2_ENDPOINT=https://xxx.r2.cloudflarestorage.com
@@ -214,6 +217,7 @@ MOCK_SUB2API=false
 
 - `SERVER_ADDRESS` 必须是公网访问地址，支付回调和浏览器返回会依赖它。
 - `JWT_SECRET` 生产必须改成强随机值，不能用默认值。
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` 用于首次启动或重置管理员账号；生产环境必须显式配置才会写入管理员。
 - `MOCK_SUB2API=false`，否则会返回测试图片。
 - `R2_PUBLIC_URL` 如果配置 CDN 域名，图片访问会直接走 CDN；为空时后端使用临时签名 URL。
 - `EPAY_PAY_METHODS` 当前默认支持 `alipay,wxpay`。前端当前默认创建 `alipay` 订单。

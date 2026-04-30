@@ -39,6 +39,8 @@ type Config struct {
 	EpayPayMethods   string
 	TurnstileSiteKey string
 	TurnstileSecret  string
+	AdminEmail       string
+	AdminPassword    string
 }
 
 var AppConfig *Config
@@ -77,6 +79,14 @@ func LoadConfig() *Config {
 		TurnstileSiteKey: getEnv("TURNSTILE_SITE_KEY", ""),
 		TurnstileSecret:  getEnv("TURNSTILE_SECRET", ""),
 	}
+	defaultAdminEmail := ""
+	defaultAdminPassword := ""
+	if cfg.AppEnv != common.EnvProduction {
+		defaultAdminEmail = "admin@image-show.local"
+		defaultAdminPassword = "Admin123456"
+	}
+	cfg.AdminEmail = getEnv("ADMIN_EMAIL", defaultAdminEmail)
+	cfg.AdminPassword = getEnv("ADMIN_PASSWORD", defaultAdminPassword)
 	AppConfig = cfg
 	return cfg
 }

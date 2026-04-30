@@ -1,5 +1,24 @@
 # 开发进度记录
 
+## 2026-04-30 管理员登录修复
+
+- 问题：
+  - `admin@image-show.local / Admin123456` 无法登录时，现场检查发现 `http://localhost:3000` 后端未运行。
+  - 代码层面也发现当前启动流程只会自动初始化默认套餐，不会自动初始化管理员；如果 SQLite 数据库被重建，管理员账号会丢失。
+
+- 完成：
+  - `config.Config` 增加 `ADMIN_EMAIL` 和 `ADMIN_PASSWORD` 配置。
+  - 开发环境默认自动确保 `admin@image-show.local / Admin123456` 可用。
+  - 生产环境不使用默认管理员，只有显式配置 `ADMIN_EMAIL` / `ADMIN_PASSWORD` 时才会创建或重置管理员。
+  - `model.InitDB()` 启动时会幂等确保管理员账号为启用状态、`role=10`，并同步配置中的密码。
+  - `.env.example` 和 `docs/deployment.md` 已补充管理员环境变量说明。
+
+- 自测记录：
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次仍因 esbuild `spawn EPERM` 失败，授权后重跑通过。
+  - 已启动后端并验证 `http://localhost:3000/health` 返回 `{"status":"ok"}`。
+  - `POST /api/auth/login` 使用 `admin@image-show.local / Admin123456` 登录成功，返回用户 `role=10`。
+
 ## 2026-04-30 首页风格和推荐样例后台化
 
 - 计划：
