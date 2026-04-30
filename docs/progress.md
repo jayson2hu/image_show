@@ -32,6 +32,19 @@
 - 前端访问检查：`http://localhost:5180` 返回 200。
 - 后端健康检查：`http://localhost:3000/health` 返回 `{"status":"ok"}`。
 
+## 2026-04-30 Figma Make 登录新版
+
+- 重新使用 Figma MCP 读取同一 Make 链接，确认新版主要变化在认证弹窗：新增“邮箱 / 微信”分段切换、微信扫码区域和“欢迎登录”标题。
+- 已将真实登录页同步为新版分段登录布局。
+- 邮箱登录保留现有 `/auth/login` 流程，微信登录保留现有 `/auth/wechat/qrcode` 和 `/auth/wechat/callback` 验证码流程。
+- 保留上次验收要求：首页“高级参数”和“推荐样例”默认折叠。
+
+## 自测记录
+
+- `pnpm.cmd build`：通过。沙箱内仍因 esbuild `spawn EPERM` 失败，授权后重新执行通过。
+- 前端访问检查：`http://localhost:5180` 返回 200。
+- 后端健康检查：`http://localhost:3000/health` 返回 `{"status":"ok"}`。
+
 ## 2026-04-30 UI 问题修复
 
 - 首页“高级参数”和“推荐样例”默认改为折叠，仅点击后展开。
