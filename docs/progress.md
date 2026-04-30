@@ -1,5 +1,27 @@
 # 开发进度记录
 
+## 2026-04-30 小尺寸生成兼容 GPT Image
+
+- 问题：
+  - 用户选择 `512x512` 生成时，上游返回 `sub2api status 502: error code: 502`。
+  - 查阅 OpenAI 官方 Image API 文档后确认，GPT image models 当前生成尺寸只支持 `1024x1024`、`1024x1536`、`1536x1024` 和 `auto`；`512x512` 不能直接传给 GPT Image 上游。
+
+- 决策：
+  - 保留前端和业务层的小尺寸选项。
+  - 后端调用上游时将小尺寸/非官方尺寸映射为 GPT Image 支持的最接近方向尺寸：方图 `1024x1024`、竖图 `1024x1536`、横图 `1536x1024`。
+  - 上游返回图片后，后端再按用户选择的目标尺寸缩放并存储/返回。
+
+- 完成：
+  - 生成协程改为分离“用户请求尺寸”和“上游生成尺寸”。
+  - `StoreGeneratedImage` 支持按目标尺寸缩放 base64 或 URL 图片结果。
+  - 新增 `ProviderImageSize`、`ShouldResizeImage`、`ResizeImageBytes` 和尺寸解析工具。
+  - 新增测试覆盖 `512x512`、竖图、横图上游尺寸映射和缩放后图片尺寸。
+
+- 自测记录：
+  - `go test ./service ./controller`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次仍因 esbuild `spawn EPERM` 失败，授权后重跑通过。
+
 ## 2026-04-30 预览铺满和尺寸权限
 
 - 问题：

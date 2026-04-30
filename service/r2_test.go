@@ -1,6 +1,9 @@
 package service
 
 import (
+	"bytes"
+	"encoding/base64"
+	"image"
 	"strings"
 	"testing"
 	"time"
@@ -72,12 +75,49 @@ func TestStoreGeneratedImageWithoutR2ReturnsDataURL(t *testing.T) {
 	}
 	result := mockImageResult()
 
-	imageURL, key, err := StoreGeneratedImage(generation.ID, result)
+	imageURL, key, err := StoreGeneratedImage(generation.ID, result, generation.Size)
 	if err != nil {
 		t.Fatalf("StoreGeneratedImage: %v", err)
 	}
 	if key != "" || !strings.HasPrefix(imageURL, "data:image/png;base64,") {
 		t.Fatalf("unexpected local store result url=%s key=%s", imageURL, key)
+	}
+}
+
+func TestProviderSizeAndResizeForSmallImage(t *testing.T) {
+	if size := ProviderImageSize("512x512"); size != "1024x1024" {
+		t.Fatalf("expected provider size 1024x1024, got %s", size)
+	}
+	if size := ProviderImageSize("1024x1536"); size != "1024x1536" {
+		t.Fatalf("expected provider portrait size unchanged, got %s", size)
+	}
+	if size := ProviderImageSize("512x768"); size != "1024x1536" {
+		t.Fatalf("expected provider portrait size 1024x1536, got %s", size)
+	}
+	if size := ProviderImageSize("768x512"); size != "1536x1024" {
+		t.Fatalf("expected provider landscape size 1536x1024, got %s", size)
+	}
+	if !ShouldResizeImage("512x512") {
+		t.Fatal("expected 512x512 to require resize")
+	}
+
+	data, err := base64.StdEncoding.DecodeString(mockImageResult().Base64Data)
+	if err != nil {
+		t.Fatalf("decode mock image: %v", err)
+	}
+	resized, contentType, err := ResizeImageBytes(data, "512x512")
+	if err != nil {
+		t.Fatalf("resize image: %v", err)
+	}
+	if contentType != "image/png" {
+		t.Fatalf("unexpected content type: %s", contentType)
+	}
+	img, _, err := image.Decode(bytes.NewReader(resized))
+	if err != nil {
+		t.Fatalf("decode resized image: %v", err)
+	}
+	if img.Bounds().Dx() != 512 || img.Bounds().Dy() != 512 {
+		t.Fatalf("unexpected resized bounds: %v", img.Bounds())
 	}
 }
 

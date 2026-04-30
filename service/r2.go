@@ -5,8 +5,14 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	"image/png"
+	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -108,9 +114,20 @@ func (r *R2Client) Copy(sourceKey, targetKey string) error {
 	return err
 }
 
-func StoreGeneratedImage(generationID int64, result *ImageGenerationResult) (imageURL string, r2Key string, err error) {
+func StoreGeneratedImage(generationID int64, result *ImageGenerationResult, targetSize string) (imageURL string, r2Key string, err error) {
 	if result.URL != "" {
-		return result.URL, "", nil
+		if !ShouldResizeImage(targetSize) {
+			return result.URL, "", nil
+		}
+		data, contentType, err := downloadImage(result.URL)
+		if err != nil {
+			return "", "", err
+		}
+		data, contentType, err = ResizeImageBytes(data, targetSize)
+		if err != nil {
+			return "", "", err
+		}
+		return storeImageBytes(generationID, data, contentType)
 	}
 	if result.Base64Data == "" {
 		return "", "", fmt.Errorf("empty image result")
@@ -124,13 +141,23 @@ func StoreGeneratedImage(generationID int64, result *ImageGenerationResult) (ima
 	if contentType == "application/octet-stream" {
 		contentType = "image/png"
 	}
+	if ShouldResizeImage(targetSize) {
+		data, contentType, err = ResizeImageBytes(data, targetSize)
+		if err != nil {
+			return "", "", err
+		}
+	}
 
+	return storeImageBytes(generationID, data, contentType)
+}
+
+func storeImageBytes(generationID int64, data []byte, contentType string) (imageURL string, r2Key string, err error) {
 	r2Client, err := NewR2ClientFromConfig()
 	if err != nil {
 		return "", "", err
 	}
 	if r2Client == nil {
-		return "data:" + contentType + ";base64," + result.Base64Data, "", nil
+		return "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(data), "", nil
 	}
 
 	var generation model.Generation
@@ -146,6 +173,99 @@ func StoreGeneratedImage(generationID int64, result *ImageGenerationResult) (ima
 		return "", "", err
 	}
 	return url, key, nil
+}
+
+func downloadImage(sourceURL string) ([]byte, string, error) {
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Get(sourceURL)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, "", fmt.Errorf("download generated image status %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 25*1024*1024))
+	if err != nil {
+		return nil, "", err
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = http.DetectContentType(data)
+	}
+	return data, contentType, nil
+}
+
+func ProviderImageSize(requested string) string {
+	width, height, ok := ParseImageSize(requested)
+	if !ok {
+		return "1024x1024"
+	}
+	if width == 1536 && height == 1024 {
+		return "1536x1024"
+	}
+	if width == 1024 && height == 1536 {
+		return "1024x1536"
+	}
+	if height > width {
+		return "1024x1536"
+	}
+	if width > height {
+		return "1536x1024"
+	}
+	return "1024x1024"
+}
+
+func ShouldResizeImage(targetSize string) bool {
+	return ProviderImageSize(targetSize) != targetSize
+}
+
+func ResizeImageBytes(data []byte, targetSize string) ([]byte, string, error) {
+	width, height, ok := ParseImageSize(targetSize)
+	if !ok {
+		return data, http.DetectContentType(data), nil
+	}
+	src, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, "", err
+	}
+	dst := resizeNearest(src, width, height)
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, dst); err != nil {
+		return nil, "", err
+	}
+	return buf.Bytes(), "image/png", nil
+}
+
+func resizeNearest(src image.Image, width, height int) *image.RGBA {
+	dst := image.NewRGBA(image.Rect(0, 0, width, height))
+	bounds := src.Bounds()
+	srcWidth := bounds.Dx()
+	srcHeight := bounds.Dy()
+	for y := 0; y < height; y++ {
+		srcY := bounds.Min.Y + y*srcHeight/height
+		for x := 0; x < width; x++ {
+			srcX := bounds.Min.X + x*srcWidth/width
+			dst.Set(x, y, src.At(srcX, srcY))
+		}
+	}
+	return dst
+}
+
+func ParseImageSize(size string) (int, int, bool) {
+	parts := strings.Split(size, "x")
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	width, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return 0, 0, false
+	}
+	height, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return 0, 0, false
+	}
+	return width, height, width > 0 && height > 0
 }
 
 func RefreshImageURL(generation *model.Generation) (string, error) {

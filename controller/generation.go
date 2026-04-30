@@ -212,19 +212,7 @@ func isAnonymousImageSize(size string) bool {
 }
 
 func parseImageSize(size string) (int, int, bool) {
-	parts := strings.Split(size, "x")
-	if len(parts) != 2 {
-		return 0, 0, false
-	}
-	width, err := strconv.Atoi(strings.TrimSpace(parts[0]))
-	if err != nil {
-		return 0, 0, false
-	}
-	height, err := strconv.Atoi(strings.TrimSpace(parts[1]))
-	if err != nil {
-		return 0, 0, false
-	}
-	return width, height, width > 0 && height > 0
+	return service.ParseImageSize(size)
 }
 
 func CaptchaConfig(c *gin.Context) {

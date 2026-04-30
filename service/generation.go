@@ -94,7 +94,8 @@ func runGeneration(id int64, prompt, quality, size, ip string) {
 		return
 	}
 	updateGenerationStatus(id, 1, "generating image...", "", "")
-	result, err := GenerateImageViaChannels(prompt, quality, size, ip)
+	providerSize := ProviderImageSize(size)
+	result, err := GenerateImageViaChannels(prompt, quality, providerSize, ip)
 	if isGenerationCancelled(id) {
 		return
 	}
@@ -105,7 +106,7 @@ func runGeneration(id int64, prompt, quality, size, ip string) {
 	}
 
 	updateGenerationStatus(id, 2, "uploading image...", "", "")
-	imageURL, r2Key, err := StoreGeneratedImage(id, result)
+	imageURL, r2Key, err := StoreGeneratedImage(id, result, size)
 	if isGenerationCancelled(id) {
 		return
 	}
