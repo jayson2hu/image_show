@@ -30,6 +30,9 @@ type batchDeleteGenerationsRequest struct {
 
 func GenerationOptions(c *gin.Context) {
 	sizes := enabledImageSizes()
+	if _, exists := c.Get("userID"); !exists {
+		sizes = filterAnonymousImageSizes(sizes)
+	}
 	c.JSON(http.StatusOK, gin.H{"sizes": sizes})
 }
 
@@ -127,6 +130,10 @@ func CreateGeneration(c *gin.Context) {
 		}
 	}
 	if userID == nil {
+		if !isAnonymousImageSize(req.Size) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "please login to use larger image size"})
+			return
+		}
 		fingerprint := c.GetHeader("X-Fingerprint")
 		if fingerprint == "" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "fingerprint required for free trial"})
@@ -162,7 +169,7 @@ func CreateGeneration(c *gin.Context) {
 }
 
 func enabledImageSizes() []string {
-	value := model.GetSettingValue("enabled_image_sizes", "1024x1024,1024x1536,1536x1024,768x768,512x512,1024x1792,1792x1024,1536x1536")
+	value := model.GetSettingValue("enabled_image_sizes", "512x512,768x768,1024x1024,1024x1536,1536x1024,1024x1792,1792x1024,1536x1536")
 	parts := strings.Split(value, ",")
 	sizes := make([]string, 0, len(parts))
 	for _, part := range parts {
@@ -184,6 +191,40 @@ func isEnabledImageSize(size string) bool {
 		}
 	}
 	return false
+}
+
+func filterAnonymousImageSizes(sizes []string) []string {
+	filtered := make([]string, 0, len(sizes))
+	for _, size := range sizes {
+		if isAnonymousImageSize(size) {
+			filtered = append(filtered, size)
+		}
+	}
+	if len(filtered) == 0 {
+		return []string{"1024x1024"}
+	}
+	return filtered
+}
+
+func isAnonymousImageSize(size string) bool {
+	width, height, ok := parseImageSize(size)
+	return ok && width <= 1024 && height <= 1024
+}
+
+func parseImageSize(size string) (int, int, bool) {
+	parts := strings.Split(size, "x")
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	width, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return 0, 0, false
+	}
+	height, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return 0, 0, false
+	}
+	return width, height, width > 0 && height > 0
 }
 
 func CaptchaConfig(c *gin.Context) {

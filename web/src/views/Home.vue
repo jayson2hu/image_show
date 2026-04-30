@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import api from '@/api'
 import GenerationProgress from '@/components/GenerationProgress.vue'
@@ -38,7 +38,7 @@ const prompt = ref('')
 const selectedStyle = ref('')
 const quality = ref<Quality>('medium')
 const size = ref('1024x1024')
-const sizeOptions = ref<string[]>(['1024x1024', '1024x1536', '1536x1024'])
+const sizeOptions = ref<string[]>(['512x512', '768x768', '1024x1024'])
 const imageCount = ref(4)
 const creativity = ref(0.7)
 const steps = ref(30)
@@ -100,6 +100,13 @@ onMounted(async () => {
   await Promise.all([loadPromptTemplates(), loadGenerationOptions(), loadCaptcha()])
 })
 
+watch(
+  () => userStore.user?.id,
+  () => {
+    loadGenerationOptions()
+  },
+)
+
 async function loadPromptTemplates() {
   try {
     const response = await api.get('/prompt-templates')
@@ -136,7 +143,7 @@ async function loadGenerationOptions() {
       }
     }
   } catch {
-    sizeOptions.value = ['1024x1024', '1024x1536', '1536x1024']
+    sizeOptions.value = ['512x512', '768x768', '1024x1024']
   }
 }
 
@@ -306,19 +313,31 @@ function resetCaptcha() {
           />
         </div>
 
-        <div v-else-if="imageURL" class="mx-auto max-w-5xl">
-          <div class="mb-6 flex items-center justify-between gap-4">
-            <h2 class="text-xl font-medium text-gray-900">生成结果</h2>
-            <a class="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-white" :href="imageURL" download>
-              <span aria-hidden="true">↓</span>
-              下载全部
-            </a>
-          </div>
-          <div class="grid gap-6 md:grid-cols-2">
-            <div class="group relative aspect-square overflow-hidden rounded-2xl bg-white shadow-lg transition hover:shadow-2xl">
-              <img class="size-full object-cover" :src="imageURL" alt="生成的图片 1" />
-              <div class="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/20 group-hover:opacity-100">
-                <a class="rounded-xl bg-white px-6 py-3 text-gray-900 shadow-lg transition hover:bg-gray-100" :href="imageURL" download>下载</a>
+        <div v-else-if="imageURL" class="-m-5 flex h-[calc(100vh-65px)] min-h-[560px] flex-col bg-slate-950 sm:-m-8">
+          <div class="relative min-h-0 flex-1 overflow-hidden">
+            <img class="size-full object-cover" :src="imageURL" alt="生成的图片" />
+            <div class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-5 sm:p-8">
+              <div class="pointer-events-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="text-white">
+                  <h2 class="text-lg font-medium">生成结果</h2>
+                  <p class="mt-1 text-sm text-white/70">{{ size.replace('x', ' x ') }} · {{ qualityLabels[quality] }}</p>
+                </div>
+                <div class="flex gap-2">
+                  <a
+                    class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/15 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25"
+                    :href="imageURL"
+                    download
+                  >
+                    下载
+                  </a>
+                  <a
+                    class="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-slate-950 shadow-lg shadow-black/20 transition hover:bg-slate-100"
+                    :href="imageURL"
+                    download
+                  >
+                    下载全部
+                  </a>
+                </div>
               </div>
             </div>
           </div>

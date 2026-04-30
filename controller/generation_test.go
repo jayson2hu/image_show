@@ -94,6 +94,57 @@ func TestCreateGenerationRequiresFingerprintForTrial(t *testing.T) {
 	}
 }
 
+func TestCreateGenerationRejectsAnonymousLargeSize(t *testing.T) {
+	engine := setupAuthTest(t)
+	rec := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
+		"prompt":  "large image",
+		"quality": "low",
+		"size":    "1024x1536",
+	}, "fp-large")
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for anonymous large size, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
+	engine := setupAuthTest(t)
+	if err := model.DB.Create(&model.Setting{
+		Key:   "enabled_image_sizes",
+		Value: "512x512,768x768,1024x1024,1024x1536,1536x1024",
+	}).Error; err != nil {
+		t.Fatalf("create size setting: %v", err)
+	}
+
+	anonymous := adminRequest(engine, http.MethodGet, "/api/generation/options", "")
+	if anonymous.Code != http.StatusOK {
+		t.Fatalf("anonymous options status=%d body=%s", anonymous.Code, anonymous.Body.String())
+	}
+	var anonymousResp struct {
+		Sizes []string `json:"sizes"`
+	}
+	if err := json.Unmarshal(anonymous.Body.Bytes(), &anonymousResp); err != nil {
+		t.Fatalf("decode anonymous options: %v", err)
+	}
+	if strings.Contains(strings.Join(anonymousResp.Sizes, ","), "1024x1536") || !strings.Contains(strings.Join(anonymousResp.Sizes, ","), "512x512") {
+		t.Fatalf("unexpected anonymous sizes: %#v", anonymousResp.Sizes)
+	}
+
+	token := createGenerationUser(t, 1)
+	loggedIn := adminRequest(engine, http.MethodGet, "/api/generation/options", token)
+	if loggedIn.Code != http.StatusOK {
+		t.Fatalf("logged in options status=%d body=%s", loggedIn.Code, loggedIn.Body.String())
+	}
+	var loggedInResp struct {
+		Sizes []string `json:"sizes"`
+	}
+	if err := json.Unmarshal(loggedIn.Body.Bytes(), &loggedInResp); err != nil {
+		t.Fatalf("decode logged in options: %v", err)
+	}
+	if !strings.Contains(strings.Join(loggedInResp.Sizes, ","), "1024x1536") {
+		t.Fatalf("expected logged in large size, got %#v", loggedInResp.Sizes)
+	}
+}
+
 func TestCreateGenerationRequiresCaptchaWhenEnabled(t *testing.T) {
 	engine := setupAuthTest(t)
 	enableCaptchaForTest(t)

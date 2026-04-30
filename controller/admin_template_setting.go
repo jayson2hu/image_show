@@ -91,7 +91,7 @@ func AdminSettings(c *gin.Context) {
 		"turnstile_secret":               model.GetSettingValue("turnstile_secret", ""),
 		"monitor_daily_credit_threshold": model.GetSettingValue("monitor_daily_credit_threshold", "0"),
 		"monitor_alert_last_date":        model.GetSettingValue("monitor_alert_last_date", ""),
-		"enabled_image_sizes":            model.GetSettingValue("enabled_image_sizes", "1024x1024,1024x1536,1536x1024,768x768,512x512,1024x1792,1792x1024,1536x1536"),
+		"enabled_image_sizes":            model.GetSettingValue("enabled_image_sizes", "512x512,768x768,1024x1024,1024x1536,1536x1024,1024x1792,1792x1024,1536x1536"),
 		"r2_endpoint":                    model.GetSettingValue("r2_endpoint", ""),
 		"r2_access_key":                  model.GetSettingValue("r2_access_key", ""),
 		"r2_secret_key":                  model.GetSettingValue("r2_secret_key", ""),
