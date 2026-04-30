@@ -59,18 +59,30 @@ async function submit() {
 </script>
 
 <template>
-  <section class="mx-auto max-w-md rounded border border-slate-200 bg-white p-6">
+  <section class="mx-auto max-w-md rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
     <h1 class="text-xl font-semibold">注册</h1>
     <form class="mt-6 space-y-4" @submit.prevent="submit">
       <label class="block text-sm font-medium">
         邮箱
-        <input v-model="email" class="mt-1 w-full rounded border border-slate-300 px-3 py-2" type="email" autocomplete="email" required />
+        <input
+          v-model="email"
+          class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-violet-500 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
+          type="email"
+          autocomplete="email"
+          required
+        />
       </label>
       <label class="block text-sm font-medium">
         验证码
         <div class="mt-1 flex gap-2">
-          <input v-model="code" class="min-w-0 flex-1 rounded border border-slate-300 px-3 py-2" type="text" inputmode="numeric" required />
-          <button class="rounded border border-slate-300 px-3 py-2 text-sm disabled:opacity-60" type="button" :disabled="!canSendCode" @click="sendCode">
+          <input
+            v-model="code"
+            class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-violet-500 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
+            type="text"
+            inputmode="numeric"
+            required
+          />
+          <button class="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-60 dark:border-slate-600" type="button" :disabled="!canSendCode" @click="sendCode">
             {{ cooldown > 0 ? `${cooldown}s` : '发送' }}
           </button>
         </div>
@@ -79,7 +91,7 @@ async function submit() {
         密码
         <input
           v-model="password"
-          class="mt-1 w-full rounded border border-slate-300 px-3 py-2"
+          class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-violet-500 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
           type="password"
           autocomplete="new-password"
           minlength="8"
@@ -90,15 +102,15 @@ async function submit() {
         确认密码
         <input
           v-model="confirmPassword"
-          class="mt-1 w-full rounded border border-slate-300 px-3 py-2"
+          class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-violet-500 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
           type="password"
           autocomplete="new-password"
           minlength="8"
           required
         />
       </label>
-      <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
-      <button class="w-full rounded bg-coral px-4 py-2 text-white disabled:opacity-60" type="submit" :disabled="loading">
+      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
+      <button class="w-full rounded-lg bg-coral px-4 py-2 text-white disabled:opacity-60" type="submit" :disabled="loading">
         {{ loading ? '注册中...' : '注册' }}
       </button>
     </form>

@@ -31,3 +31,14 @@
 - `pnpm.cmd build`：通过。沙箱内仍因 esbuild `spawn EPERM` 失败，授权后重新执行通过。
 - 前端访问检查：`http://localhost:5180` 返回 200。
 - 后端健康检查：`http://localhost:3000/health` 返回 `{"status":"ok"}`。
+
+## 2026-04-30 UI 问题修复
+
+- 首页“高级参数”和“推荐样例”默认改为折叠，仅点击后展开。
+- 登录页和注册页补齐深色模式下的卡片、文字、输入框、按钮和错误提示对比样式，避免深色模式切换后文字不可见。
+
+## 自测记录
+
+- `pnpm.cmd build`：通过。沙箱内仍因 esbuild `spawn EPERM` 失败，授权后重新执行通过。
+- 前端访问检查：`http://localhost:5180` 返回 200。
+- 后端健康检查：`http://localhost:3000/health` 返回 `{"status":"ok"}`。
