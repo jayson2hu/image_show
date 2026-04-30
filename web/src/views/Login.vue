@@ -25,7 +25,7 @@ async function submit() {
   loading.value = true
   try {
     await userStore.login(email.value, password.value)
-    await router.push('/')
+    await router.push((userStore.user?.role || 0) >= 10 ? '/admin' : '/')
   } catch {
     error.value = '邮箱或密码不正确'
   } finally {
@@ -59,7 +59,7 @@ async function submitWechatCode() {
   wechatLoading.value = true
   try {
     await userStore.wechatLogin(wechatCode.value)
-    await router.push('/')
+    await router.push((userStore.user?.role || 0) >= 10 ? '/admin' : '/')
   } catch {
     error.value = '微信验证码无效或已过期'
   } finally {

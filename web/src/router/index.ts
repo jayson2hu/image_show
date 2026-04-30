@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { useUserStore } from '@/stores/user'
 import Home from '@/views/Home.vue'
 
 const router = createRouter({
@@ -12,6 +13,24 @@ const router = createRouter({
     { path: '/history', name: 'history', component: () => import('@/views/History.vue') },
     { path: '/packages', name: 'packages', component: () => import('@/views/Packages.vue') },
   ],
+})
+
+router.beforeEach(async (to) => {
+  const userStore = useUserStore()
+  if (userStore.token && !userStore.user) {
+    await userStore.fetchUser()
+  }
+
+  const isAdmin = (userStore.user?.role || 0) >= 10
+  if (to.name === 'admin' && !isAdmin) {
+    return userStore.token ? { name: 'home' } : { name: 'login' }
+  }
+  if (to.name === 'home' && isAdmin) {
+    return { name: 'admin' }
+  }
+  if (to.name === 'login' && isAdmin) {
+    return { name: 'admin' }
+  }
 })
 
 export default router
