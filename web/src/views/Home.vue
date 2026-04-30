@@ -4,7 +4,6 @@ import { RouterLink } from 'vue-router'
 
 import api from '@/api'
 import GenerationProgress from '@/components/GenerationProgress.vue'
-import PromptTags from '@/components/PromptTags.vue'
 import { useUserStore } from '@/stores/user'
 
 type Quality = 'low' | 'medium' | 'high'
@@ -30,14 +29,15 @@ interface SamplePrompt {
 const userStore = useUserStore()
 const health = ref('检查中')
 const prompt = ref('')
-const negativePrompt = ref('')
 const selectedStyle = ref('realistic')
 const quality = ref<Quality>('medium')
 const size = ref('1024x1024')
-const imageCount = ref(1)
+const imageCount = ref(4)
 const creativity = ref(0.7)
 const steps = ref(30)
 const cfgScale = ref(7)
+const isAdvancedExpanded = ref(true)
+const isSamplesExpanded = ref(true)
 const generationId = ref<number | null>(null)
 const imageURL = ref('')
 const error = ref('')
@@ -67,11 +67,10 @@ const samplePrompts: SamplePrompt[] = [
 ]
 
 const selectedStylePrompt = computed(() => stylePresets.find((item) => item.id === selectedStyle.value)?.prompt || '')
-const cost = computed(() => costs[quality.value])
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
-const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
-const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '免费试用 1 次'))
 const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value)
+const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
+const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '免费试用'))
 
 declare global {
   interface Window {
@@ -92,10 +91,6 @@ onMounted(async () => {
   await loadCaptcha()
 })
 
-function appendPrompt(value: string) {
-  prompt.value = prompt.value ? `${prompt.value}，${value}` : value
-}
-
 function useSample(sample: SamplePrompt) {
   prompt.value = sample.prompt
   selectedStyle.value = sample.style
@@ -106,10 +101,11 @@ function buildPrompt() {
   if (selectedStylePrompt.value) {
     parts.push(selectedStylePrompt.value)
   }
-  if (negativePrompt.value.trim()) {
-    parts.push(`负面提示词：${negativePrompt.value.trim()}`)
-  }
   return parts.filter(Boolean).join('\n')
+}
+
+function rangeWidth(value: number, min: number, max: number) {
+  return `${((value - min) / (max - min)) * 100}%`
 }
 
 async function generate() {
@@ -249,60 +245,83 @@ function resetCaptcha() {
 </script>
 
 <template>
-  <section class="min-h-[calc(100vh-65px)] bg-gray-50 text-slate-950">
-    <div class="flex min-h-[calc(100vh-65px)] flex-col lg:flex-row">
-      <aside class="w-full shrink-0 border-b border-gray-200 bg-white lg:h-[calc(100vh-65px)] lg:w-[420px] lg:overflow-y-auto lg:border-b-0 lg:border-r">
-        <div class="space-y-6 p-5 sm:p-6">
-          <div class="flex items-start justify-between gap-4">
+  <section class="h-auto min-h-[calc(100vh-65px)] overflow-hidden bg-gray-50 text-gray-950 lg:h-[calc(100vh-65px)]">
+    <div class="flex h-full min-h-[calc(100vh-65px)] flex-col lg:flex-row">
+      <main class="min-h-[560px] flex-1 overflow-y-auto bg-gray-50 p-5 sm:p-8 lg:h-[calc(100vh-65px)]">
+        <div v-if="generationId" class="mx-auto max-w-5xl">
+          <GenerationProgress
+            :generation-id="generationId"
+            @completed="completed"
+            @failed="failed"
+            @cancelled="cancelled"
+            @cancel="cancelGeneration"
+          />
+        </div>
+
+        <div v-else-if="imageURL" class="mx-auto max-w-5xl">
+          <div class="mb-6 flex items-center justify-between gap-4">
+            <h2 class="text-xl font-medium text-gray-900">生成结果</h2>
+            <a class="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-white" :href="imageURL" download>
+              <span aria-hidden="true">↓</span>
+              下载全部
+            </a>
+          </div>
+          <div class="grid gap-6 md:grid-cols-2">
+            <div class="group relative aspect-square overflow-hidden rounded-2xl bg-white shadow-lg transition hover:shadow-2xl">
+              <img class="size-full object-cover" :src="imageURL" alt="生成的图片 1" />
+              <div class="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/20 group-hover:opacity-100">
+                <a class="rounded-xl bg-white px-6 py-3 text-gray-900 shadow-lg transition hover:bg-gray-100" :href="imageURL" download>下载</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="flex h-[calc(100vh-200px)] min-h-[460px] items-center justify-center">
+          <div class="text-center">
+            <div class="mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-gray-200">
+              <svg class="size-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2 1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <p class="mb-2 text-xl text-gray-700">准备好了吗？</p>
+            <p class="text-gray-500">在右侧输入提示词，开始创作你的 AI 艺术作品</p>
+          </div>
+        </div>
+      </main>
+
+      <aside class="w-full shrink-0 border-t border-gray-200 bg-white lg:h-[calc(100vh-65px)] lg:w-[420px] lg:overflow-y-auto lg:border-l lg:border-t-0">
+        <div class="space-y-6 p-6">
+          <div class="flex items-center justify-between rounded-xl bg-violet-50 px-4 py-3">
             <div>
-              <h1 class="text-2xl font-semibold">AI 图片生成器</h1>
-              <p class="mt-1 text-sm text-gray-500">{{ health }}</p>
+              <p class="text-sm font-medium text-gray-900">{{ displayName }}</p>
+              <p class="text-xs text-gray-500">{{ health }}</p>
             </div>
-            <div class="rounded-full bg-violet-50 px-3 py-1 text-sm font-medium text-violet-700">{{ creditText }}</div>
-          </div>
-
-          <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm">
-            <div class="flex items-center justify-between gap-3">
-              <span class="font-medium text-gray-700">{{ displayName }}</span>
-              <RouterLink v-if="!userStore.user" to="/login" class="rounded-lg bg-gradient-to-r from-violet-600 to-blue-600 px-3 py-2 text-white shadow-sm">
-                登录 / 注册
-              </RouterLink>
-              <RouterLink v-else to="/history" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-violet-300">
-                历史记录
-              </RouterLink>
+            <div class="text-right">
+              <p class="text-sm font-medium text-violet-900">{{ creditText }}</p>
+              <RouterLink v-if="!userStore.user" to="/login" class="text-xs text-violet-600 hover:text-violet-700">登录 / 注册</RouterLink>
+              <RouterLink v-else to="/history" class="text-xs text-violet-600 hover:text-violet-700">历史记录</RouterLink>
             </div>
           </div>
 
-          <label class="block space-y-2">
-            <span class="text-sm font-medium text-gray-700">提示词</span>
+          <div>
+            <label for="prompt" class="mb-2 block text-gray-900">提示词</label>
             <textarea
+              id="prompt"
               v-model="prompt"
-              class="h-24 w-full resize-none rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-              placeholder="描述你想生成的图片，例如：沙漠中的神秘传送门，超现实主义，4K高清"
+              class="h-32 w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-transparent focus:ring-2 focus:ring-violet-500"
+              placeholder="描述你想要生成的图片，例如：一只在星空下的猫咪，水彩画风格..."
             />
-          </label>
+          </div>
 
-          <label class="block space-y-2">
-            <span class="text-sm font-medium text-gray-700">负面提示词</span>
-            <textarea
-              v-model="negativePrompt"
-              class="h-20 w-full resize-none rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-              placeholder="不希望出现的元素，例如：模糊、低清晰度、文字水印"
-            />
-          </label>
-
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <h2 class="text-sm font-medium text-gray-700">风格预设</h2>
-              <span class="text-xs text-gray-400">选择后会合并到提示词</span>
-            </div>
+          <div>
+            <label class="mb-2 block text-gray-900">风格预设</label>
             <div class="grid grid-cols-3 gap-2">
               <button
                 v-for="style in stylePresets"
                 :key="style.id"
                 type="button"
-                class="min-h-11 rounded-xl border px-3 py-2 text-sm transition"
-                :class="selectedStyle === style.id ? 'border-violet-500 bg-violet-50 text-violet-700 shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-violet-300'"
+                class="rounded-lg border px-4 py-2 transition"
+                :class="selectedStyle === style.id ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
                 @click="selectedStyle = style.id"
               >
                 {{ style.name }}
@@ -313,7 +332,7 @@ function resetCaptcha() {
           <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
             <label class="text-sm font-medium text-gray-700">
               质量
-              <select v-model="quality" class="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 outline-none focus:border-violet-400">
+              <select v-model="quality" class="mt-2 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 outline-none focus:border-violet-400">
                 <option value="low">快速 - 0.2 积分</option>
                 <option value="medium">标准 - 1 积分</option>
                 <option value="high">高清 - 4 积分</option>
@@ -321,7 +340,7 @@ function resetCaptcha() {
             </label>
             <label class="text-sm font-medium text-gray-700">
               尺寸
-              <select v-model="size" class="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 outline-none focus:border-violet-400">
+              <select v-model="size" class="mt-2 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 outline-none focus:border-violet-400">
                 <option value="1024x1024">1024 x 1024</option>
                 <option value="1024x1536">1024 x 1536</option>
                 <option value="1536x1024">1536 x 1024</option>
@@ -329,113 +348,103 @@ function resetCaptcha() {
             </label>
           </div>
 
-          <div class="space-y-4 rounded-xl border border-gray-200 bg-white p-4">
-            <div class="flex items-center justify-between">
-              <h2 class="text-sm font-medium text-gray-700">高级参数</h2>
-              <span class="text-xs text-gray-400">当前模型参考</span>
-            </div>
-            <label class="block text-sm text-gray-600">
-              <span class="flex justify-between"><span>图片数量</span><strong>{{ imageCount }}</strong></span>
-              <input v-model.number="imageCount" class="figma-range mt-2 w-full" type="range" min="1" max="4" step="1" />
-            </label>
-            <label class="block text-sm text-gray-600">
-              <span class="flex justify-between"><span>创造力</span><strong>{{ creativity.toFixed(1) }}</strong></span>
-              <input v-model.number="creativity" class="figma-range mt-2 w-full" type="range" min="0" max="1" step="0.1" />
-            </label>
-            <label class="block text-sm text-gray-600">
-              <span class="flex justify-between"><span>步数</span><strong>{{ steps }}</strong></span>
-              <input v-model.number="steps" class="figma-range mt-2 w-full" type="range" min="10" max="50" step="1" />
-            </label>
-            <label class="block text-sm text-gray-600">
-              <span class="flex justify-between"><span>CFG Scale</span><strong>{{ cfgScale }}</strong></span>
-              <input v-model.number="cfgScale" class="figma-range mt-2 w-full" type="range" min="1" max="20" step="1" />
-            </label>
-          </div>
+          <section class="border-t border-gray-200 pt-4">
+            <button class="mb-3 flex w-full items-center justify-between text-gray-900 transition hover:text-violet-700" type="button" @click="isAdvancedExpanded = !isAdvancedExpanded">
+              <h3 class="text-lg font-medium">高级参数</h3>
+              <span class="text-xl transition-transform" :class="isAdvancedExpanded ? 'rotate-180' : ''">⌄</span>
+            </button>
 
-          <div class="space-y-3">
-            <h2 class="text-sm font-medium text-gray-700">推荐示例</h2>
-            <div class="space-y-2">
+            <div v-if="isAdvancedExpanded" class="space-y-4">
+              <label class="block">
+                <span class="mb-2 flex items-center justify-between text-gray-700"><span>生成数量</span><span class="text-violet-600">{{ imageCount }}</span></span>
+                <span class="relative block">
+                  <span class="block h-2 overflow-hidden rounded-full bg-gray-200">
+                    <span class="block h-full bg-gradient-to-r from-violet-600 to-blue-600 transition-all" :style="{ width: rangeWidth(imageCount, 1, 4) }"></span>
+                  </span>
+                  <input v-model.number="imageCount" class="absolute inset-x-0 top-0 h-2 w-full cursor-pointer opacity-0" type="range" min="1" max="4" step="1" />
+                </span>
+                <span class="mt-1 flex justify-between text-xs text-gray-500"><span>1张</span><span>4张</span></span>
+              </label>
+
+              <label class="block">
+                <span class="mb-2 flex items-center justify-between text-gray-700"><span>创意度</span><span class="text-violet-600">{{ creativity.toFixed(1) }}</span></span>
+                <span class="relative block">
+                  <span class="block h-2 overflow-hidden rounded-full bg-gray-200">
+                    <span class="block h-full bg-gradient-to-r from-violet-600 to-blue-600 transition-all" :style="{ width: rangeWidth(creativity, 0, 1) }"></span>
+                  </span>
+                  <input v-model.number="creativity" class="absolute inset-x-0 top-0 h-2 w-full cursor-pointer opacity-0" type="range" min="0" max="1" step="0.1" />
+                </span>
+                <span class="mt-1 flex justify-between text-xs text-gray-500"><span>保守</span><span>创新</span></span>
+              </label>
+
+              <label class="block">
+                <span class="mb-2 flex items-center justify-between text-gray-700"><span>生成步数</span><span class="text-violet-600">{{ steps }}</span></span>
+                <span class="relative block">
+                  <span class="block h-2 overflow-hidden rounded-full bg-gray-200">
+                    <span class="block h-full bg-gradient-to-r from-violet-600 to-blue-600 transition-all" :style="{ width: rangeWidth(steps, 10, 50) }"></span>
+                  </span>
+                  <input v-model.number="steps" class="absolute inset-x-0 top-0 h-2 w-full cursor-pointer opacity-0" type="range" min="10" max="50" step="5" />
+                </span>
+                <span class="mt-1 flex justify-between text-xs text-gray-500"><span>快速</span><span>精细</span></span>
+              </label>
+
+              <label class="block">
+                <span class="mb-2 flex items-center justify-between text-gray-700"><span>提示词相关度</span><span class="text-violet-600">{{ cfgScale }}</span></span>
+                <span class="relative block">
+                  <span class="block h-2 overflow-hidden rounded-full bg-gray-200">
+                    <span class="block h-full bg-gradient-to-r from-violet-600 to-blue-600 transition-all" :style="{ width: rangeWidth(cfgScale, 1, 20) }"></span>
+                  </span>
+                  <input v-model.number="cfgScale" class="absolute inset-x-0 top-0 h-2 w-full cursor-pointer opacity-0" type="range" min="1" max="20" step="1" />
+                </span>
+                <span class="mt-1 flex justify-between text-xs text-gray-500"><span>宽松</span><span>严格</span></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="border-t border-gray-200 pt-4">
+            <button class="mb-3 flex w-full items-center justify-between text-gray-900 transition hover:text-violet-700" type="button" @click="isSamplesExpanded = !isSamplesExpanded">
+              <h3 class="text-lg font-medium">推荐样例</h3>
+              <span class="text-xl transition-transform" :class="isSamplesExpanded ? 'rotate-180' : ''">⌄</span>
+            </button>
+            <div v-if="isSamplesExpanded" class="space-y-2">
               <button
                 v-for="sample in samplePrompts"
                 :key="sample.title"
                 type="button"
-                class="flex w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left transition hover:border-violet-300 hover:bg-violet-50"
+                class="group w-full rounded-lg border border-gray-200 px-4 py-3 text-left transition hover:border-violet-400 hover:bg-violet-50"
                 @click="useSample(sample)"
               >
-                <span class="min-w-0">
-                  <span class="block text-sm font-medium text-gray-800">{{ sample.title }}</span>
-                  <span class="mt-1 block truncate text-xs text-gray-500">{{ sample.prompt }}</span>
+                <span class="flex items-center justify-between gap-3">
+                  <span class="min-w-0">
+                    <span class="block text-gray-900 group-hover:text-violet-700">{{ sample.title }}</span>
+                    <span class="mt-1 block truncate text-sm text-gray-500">{{ sample.prompt }}</span>
+                  </span>
+                  <span class="text-gray-400 group-hover:text-violet-600">›</span>
                 </span>
-                <span class="text-lg text-gray-300">›</span>
               </button>
             </div>
-          </div>
-
-          <PromptTags @select="appendPrompt" />
+          </section>
 
           <div v-if="captchaEnabled" ref="captchaEl" class="min-h-[65px]"></div>
-          <p v-if="!userStore.user" class="text-sm text-gray-500">未登录用户可免费试用 1 次，生成质量会自动使用快速模式。</p>
           <p v-if="error" class="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">{{ error }}</p>
 
-          <div class="space-y-2">
-            <button
-              class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-4 font-medium text-white shadow-lg shadow-violet-200 transition hover:from-violet-700 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              type="button"
-              :disabled="!canGenerate"
-              @click="generate"
-            >
-              {{ loading ? '生成中...' : `生成图片 · ${qualityLabels[quality]} · ${cost} 积分` }}
-            </button>
-            <button v-if="canRetry" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-violet-300" type="button" @click="retry">
-              重新生成上一次
-            </button>
-          </div>
+          <button
+            class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 py-4 text-white shadow-lg shadow-violet-500/30 transition hover:from-violet-700 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
+            :disabled="!canGenerate"
+            @click="generate"
+          >
+            {{ loading ? '生成中...' : '开始生成' }}
+          </button>
+
+          <button v-if="canRetry" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-violet-300" type="button" @click="retry">
+            重新生成上一次
+          </button>
+
+          <p v-if="!userStore.user" class="text-center text-sm text-gray-500">未登录可免费试用 1 次；登录后可查看历史记录和积分。</p>
+          <p class="text-center text-xs text-gray-400">{{ qualityLabels[quality] }}模式，本次预计消耗 {{ costs[quality] }} 积分。</p>
         </div>
       </aside>
-
-      <main class="min-h-[560px] flex-1 overflow-y-auto p-5 sm:p-8 lg:h-[calc(100vh-65px)]">
-        <div class="mx-auto max-w-5xl">
-          <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 class="text-xl font-semibold text-gray-900">生成结果</h2>
-              <p class="mt-1 text-sm text-gray-500">结果会在任务完成后展示在这里。</p>
-            </div>
-            <a v-if="imageURL" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:border-violet-300" :href="imageURL" download>
-              下载全部
-            </a>
-          </div>
-
-          <GenerationProgress
-            v-if="generationId"
-            :generation-id="generationId"
-            @completed="completed"
-            @failed="failed"
-            @cancelled="cancelled"
-            @cancel="cancelGeneration"
-          />
-
-          <div v-else-if="imageURL" class="grid gap-4 md:grid-cols-2">
-            <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-              <img class="aspect-square w-full bg-gray-100 object-contain" :src="imageURL" alt="生成结果" />
-              <div class="flex items-center justify-between gap-3 p-4">
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-medium text-gray-800">{{ prompt || 'AI 生成图片' }}</p>
-                  <p class="mt-1 text-xs text-gray-500">{{ size }} · {{ qualityLabels[quality] }}</p>
-                </div>
-                <a class="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white" :href="imageURL" download>下载</a>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="flex min-h-[520px] items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white">
-            <div class="px-6 text-center">
-              <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-3xl text-gray-400">✦</div>
-              <h3 class="mt-5 text-lg font-semibold text-gray-800">准备好了吗？</h3>
-              <p class="mt-2 max-w-sm text-sm leading-6 text-gray-500">填写提示词并选择风格后，生成结果会显示在右侧预览区。</p>
-            </div>
-          </div>
-        </div>
-      </main>
     </div>
   </section>
 </template>

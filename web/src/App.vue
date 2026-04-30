@@ -46,10 +46,21 @@ onUnmounted(() => {
 
 <template>
   <div class="min-h-screen bg-mist text-ink dark:bg-slate-950 dark:text-slate-100">
-    <header class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-      <nav class="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
-        <RouterLink to="/" class="text-lg font-semibold text-ink dark:text-white">AI 图片生成器</RouterLink>
-        <div class="flex flex-wrap items-center gap-2 text-sm">
+    <header class="border-b border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <nav class="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <RouterLink to="/" class="flex items-center gap-3">
+          <span class="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 text-white">
+            <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            </svg>
+          </span>
+          <span>
+            <span class="block text-xl font-medium tracking-tight text-gray-900 dark:text-white">ArtifyAI</span>
+            <span class="hidden text-xs text-gray-500 sm:block">AI 艺术创作平台</span>
+          </span>
+        </RouterLink>
+
+        <div class="flex flex-wrap items-center justify-end gap-2 text-sm">
           <RouterLink class="min-h-10 rounded px-3 py-2 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800" to="/packages">
             套餐
           </RouterLink>
@@ -57,8 +68,7 @@ onUnmounted(() => {
             {{ theme === 'dark' ? '浅色' : '深色' }}
           </button>
           <template v-if="userStore.user">
-            <span class="hidden text-slate-600 dark:text-slate-300 sm:inline">{{ userStore.user.email }}</span>
-            <span class="rounded bg-teal px-2 py-1 text-white">{{ userStore.user.credits }} 积分</span>
+            <span class="hidden rounded-xl bg-violet-50 px-3 py-2 text-violet-900 sm:inline">{{ userStore.user.credits }} 积分</span>
             <RouterLink class="min-h-10 rounded border border-slate-300 px-3 py-2 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800" to="/history">
               历史
             </RouterLink>
@@ -74,11 +84,8 @@ onUnmounted(() => {
             </button>
           </template>
           <template v-else>
-            <RouterLink class="min-h-10 rounded px-3 py-2 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800" to="/login">
-              登录
-            </RouterLink>
-            <RouterLink class="min-h-10 rounded bg-coral px-3 py-2 text-white hover:bg-red-500" to="/register">
-              注册
+            <RouterLink class="min-h-10 rounded bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-2.5 text-white shadow-lg shadow-violet-500/20 hover:from-violet-700 hover:to-blue-700" to="/login">
+              登录 / 注册
             </RouterLink>
           </template>
         </div>
