@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jayson2hu/image-show/config"
+	"github.com/jayson2hu/image-show/model"
 )
 
 type Sub2APIClient struct {
@@ -76,7 +77,7 @@ func (c *Sub2APIClient) GenerateImage(prompt, quality, size, userIP string) (*Im
 
 func (c *Sub2APIClient) generateImageOnce(prompt, quality, size, userIP string) (*ImageGenerationResult, error) {
 	body, err := json.Marshal(imageGenerationRequest{
-		Model:   "gpt-image-1",
+		Model:   imageModel(),
 		Prompt:  prompt,
 		Quality: quality,
 		Size:    size,
@@ -122,6 +123,14 @@ func (c *Sub2APIClient) generateImageOnce(prompt, quality, size, userIP string) 
 		Base64Data: parsed.Data[0].B64JSON,
 		URL:        parsed.Data[0].URL,
 	}, nil
+}
+
+func imageModel() string {
+	fallback := "gpt-image-1"
+	if config.AppConfig != nil && config.AppConfig.ImageModel != "" {
+		fallback = config.AppConfig.ImageModel
+	}
+	return model.GetSettingValue("image_model", fallback)
 }
 
 type sub2APIStatusError struct {

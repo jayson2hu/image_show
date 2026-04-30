@@ -22,6 +22,27 @@
   - `go test ./...`：通过。
   - `pnpm.cmd build`：通过。沙箱内首次仍因 esbuild `spawn EPERM` 失败，授权后重跑通过。
 
+## 2026-04-30 sub2api 503 和生成模型配置
+
+- 问题：
+  - `768x768` 生成时，后端已将尺寸映射为 GPT Image 支持的上游尺寸，但 sub2api 返回 `503 Service Unavailable`。
+  - 该错误属于上游渠道不可用/模型不可用/限流维护类错误，不是前端请求尺寸直接不支持的 `502` 问题。
+
+- 决策：
+  - 不写死生成模型名，后台增加 `image_model` 配置项。
+  - 默认仍使用 OpenAI 官方模型 `gpt-image-1`。
+  - 官方文档当前没有 `gpt-image-2`；如 sub2api 自身支持自定义模型名，可在后台设置中切换。
+
+- 完成：
+  - 新增环境变量 `IMAGE_MODEL`，默认 `gpt-image-1`。
+  - 生成请求模型名改为读取后台设置 `image_model`，没有后台设置时回退环境变量。
+  - 后台设置页增加生成模型配置说明。
+
+- 自测记录：
+  - `go test ./service ./controller ./config`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。
+
 ## 2026-04-30 预览铺满和尺寸权限
 
 - 问题：

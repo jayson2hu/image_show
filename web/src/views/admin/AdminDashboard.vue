@@ -302,6 +302,7 @@ function settingLabel(key: string) {
     r2_secret_key: 'Cloudflare R2 Secret Key',
     r2_bucket: 'Cloudflare R2 Bucket',
     r2_public_url: 'Cloudflare R2 Public URL / CDN',
+    image_model: '生成模型',
     enabled_image_sizes: '可用图片尺寸',
     captcha_enabled: 'Turnstile 验证开关',
     turnstile_site_key: 'Turnstile Site Key',
@@ -319,6 +320,7 @@ function settingHelp(key: string) {
     r2_secret_key: 'Cloudflare R2 API Token 的 Secret Access Key',
     r2_bucket: 'R2 bucket 名称，例如 image-show',
     r2_public_url: '可选。绑定自定义域名或 CDN 后填写，例如 https://cdn.example.com；为空时使用 1 小时签名链接。',
+    image_model: '默认 gpt-image-1。OpenAI 官方当前没有 gpt-image-2；如果 sub2api 提供自定义模型名，可在这里切换。',
     enabled_image_sizes: '逗号分隔，例如 512x512,768x768,1024x1024,1024x1536,1536x1024。未登录用户只开放宽高都不超过 1024 的尺寸。',
   }
   return map[key] || ''

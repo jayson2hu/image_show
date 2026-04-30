@@ -14,10 +14,14 @@ import (
 
 func TestSub2APIClientGenerateImagePassesHeaders(t *testing.T) {
 	var gotIP string
+	var gotRequest imageGenerationRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotIP = r.Header.Get("X-Real-IP")
 		if r.Header.Get("Authorization") != "Bearer key" {
 			t.Fatalf("missing authorization header")
+		}
+		if err := json.NewDecoder(r.Body).Decode(&gotRequest); err != nil {
+			t.Fatalf("decode request: %v", err)
 		}
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"data": []map[string]string{{"b64_json": "abc"}},
@@ -32,6 +36,33 @@ func TestSub2APIClientGenerateImagePassesHeaders(t *testing.T) {
 	}
 	if result.Base64Data != "abc" || gotIP != "1.2.3.4" {
 		t.Fatalf("unexpected result=%+v ip=%s", result, gotIP)
+	}
+	if gotRequest.Model != "gpt-image-1" || gotRequest.Size != "1024x1024" {
+		t.Fatalf("unexpected request: %+v", gotRequest)
+	}
+}
+
+func TestSub2APIClientGenerateImageUsesConfiguredModel(t *testing.T) {
+	config.AppConfig = &config.Config{ImageModel: "gpt-image-1.5"}
+	t.Cleanup(func() { config.AppConfig = nil })
+
+	var gotRequest imageGenerationRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&gotRequest); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": []map[string]string{{"b64_json": "configured-model"}},
+		})
+	}))
+	defer server.Close()
+
+	client := NewSub2APIClient(server.URL, "", nil)
+	if _, err := client.GenerateImage("prompt", "medium", "1024x1024", ""); err != nil {
+		t.Fatalf("GenerateImage: %v", err)
+	}
+	if gotRequest.Model != "gpt-image-1.5" {
+		t.Fatalf("expected configured model, got %+v", gotRequest)
 	}
 }
 

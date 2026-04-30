@@ -183,6 +183,7 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=change-to-strong-admin-password
 
 SUB2API_BASE_URL=http://sub2api:8080
+IMAGE_MODEL=gpt-image-1
 
 R2_ENDPOINT=https://xxx.r2.cloudflarestorage.com
 R2_ACCESS_KEY=
@@ -219,6 +220,7 @@ MOCK_SUB2API=false
 - `JWT_SECRET` 生产必须改成强随机值，不能用默认值。
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` 用于首次启动或重置管理员账号；生产环境必须显式配置才会写入管理员。
 - `MOCK_SUB2API=false`，否则会返回测试图片。
+- `IMAGE_MODEL` 默认为 `gpt-image-1`；后台 `/admin` 的“设置”页可用 `image_model` 覆盖。OpenAI 官方当前没有 `gpt-image-2`，如果 sub2api 自身提供自定义模型名，可在后台切换。
 - `R2_PUBLIC_URL` 如果配置 CDN 域名，图片访问会直接走 CDN；为空时后端使用临时签名 URL。
 - R2 也可以在后台 `/admin` 的“设置”页维护，字段为 `r2_endpoint`、`r2_access_key`、`r2_secret_key`、`r2_bucket`、`r2_public_url`；后台保存值优先于环境变量，环境变量作为兜底。
 - `EPAY_PAY_METHODS` 当前默认支持 `alipay,wxpay`。前端当前默认创建 `alipay` 订单。
