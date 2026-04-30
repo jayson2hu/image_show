@@ -6,3 +6,41 @@ body {
   margin: 0;
   min-width: 320px;
 }
+
+.figma-range {
+  height: 18px;
+  appearance: none;
+  background: transparent;
+}
+
+.figma-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.figma-range::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7c3aed, #3b82f6);
+  box-shadow: 0 3px 10px rgb(124 58 237 / 0.35);
+}
+
+.figma-range::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.figma-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7c3aed, #3b82f6);
+  box-shadow: 0 3px 10px rgb(124 58 237 / 0.35);
+}

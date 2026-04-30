@@ -28,14 +28,14 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-3">
+  <div v-if="templates.length" class="space-y-3">
     <div v-for="group in groups" :key="group.key" class="space-y-2">
-      <h3 class="text-sm font-medium text-slate-600">{{ group.label }}</h3>
-      <div class="flex flex-wrap gap-2">
+      <h3 v-if="group.items.length" class="text-sm font-medium text-slate-600">{{ group.label }}</h3>
+      <div v-if="group.items.length" class="flex flex-wrap gap-2">
         <button
           v-for="item in group.items"
           :key="`${item.category}-${item.label}`"
-          class="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm hover:border-teal"
+          class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm hover:border-violet-300"
           type="button"
           @click="emit('select', item.prompt)"
         >

@@ -1,0 +1,20 @@
+# 开发进度记录
+
+## 2026-04-30 Figma Make 首页界面
+
+- 使用 Figma MCP 读取 `https://www.figma.com/make/5IFwPGoEStpt4u4DQHl2FZ/AI-Image-Generation-Website?t=e3ONudqa0VWtSlY1-1`。
+- Figma Make 返回源码资源，核心布局来自 `src/app/App.tsx`：顶部导航、左侧 420px 参数面板、右侧生成预览区、紫蓝渐变主按钮、风格预设、推荐示例和高级参数滑块。
+- 已在 `web/src/views/Home.vue` 实现对应布局，并保留现有后端生成接口、Turnstile 验证码、SSE 进度监听、取消、重试和用户积分刷新逻辑。
+- 已修复首页相关组件中的中文显示问题：`App.vue`、`GenerationProgress.vue`、`PromptTags.vue`、`ImagePreview.vue`。
+- 已补充 Figma 风格滑块样式到 `web/src/assets/main.css`。
+
+## 自测记录
+
+- `pnpm.cmd build`：通过。首次在沙箱内因 esbuild `spawn EPERM` 失败，已在授权后重新执行并通过。
+- 后端健康检查：`http://localhost:3000/health` 返回 `{"status":"ok"}`。
+- 前端开发服务：已启动在 `http://localhost:5180`，未占用用户说明的 `5173`。
+
+## 问题与说明
+
+- Figma MCP 的 `get_screenshot` 不支持 Figma Make 文件，因此本次依据 Make 源码资源分析布局实现。
+- 当前后端生成接口仅支持单图任务，界面中的“图片数量 / 创造力 / 步数 / CFG Scale”为 Figma 对齐展示参数，暂未扩展后端协议。
