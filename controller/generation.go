@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,11 @@ type createGenerationRequest struct {
 type batchDeleteGenerationsRequest struct {
 	IDs      []int64 `json:"ids" binding:"required"`
 	DeleteR2 bool    `json:"delete_r2"`
+}
+
+func GenerationOptions(c *gin.Context) {
+	sizes := enabledImageSizes()
+	c.JSON(http.StatusOK, gin.H{"sizes": sizes})
 }
 
 func ListGenerations(c *gin.Context) {
@@ -108,6 +114,10 @@ func CreateGeneration(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
+	if !isEnabledImageSize(req.Size) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported image size"})
+		return
+	}
 
 	var userID *int64
 	if value, exists := c.Get("userID"); exists {
@@ -148,6 +158,31 @@ func CreateGeneration(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status})
+}
+
+func enabledImageSizes() []string {
+	value := model.GetSettingValue("enabled_image_sizes", "1024x1024,1024x1536,1536x1024,768x768,512x512,1024x1792,1792x1024,1536x1536")
+	parts := strings.Split(value, ",")
+	sizes := make([]string, 0, len(parts))
+	for _, part := range parts {
+		size := strings.TrimSpace(part)
+		if size != "" {
+			sizes = append(sizes, size)
+		}
+	}
+	if len(sizes) == 0 {
+		return []string{"1024x1024"}
+	}
+	return sizes
+}
+
+func isEnabledImageSize(size string) bool {
+	for _, item := range enabledImageSizes() {
+		if item == size {
+			return true
+		}
+	}
+	return false
 }
 
 func CaptchaConfig(c *gin.Context) {

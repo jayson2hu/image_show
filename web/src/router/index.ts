@@ -25,9 +25,6 @@ router.beforeEach(async (to) => {
   if (to.name === 'admin' && !isAdmin) {
     return userStore.token ? { name: 'home' } : { name: 'login' }
   }
-  if (to.name === 'home' && isAdmin) {
-    return { name: 'admin' }
-  }
   if (to.name === 'login' && isAdmin) {
     return { name: 'admin' }
   }

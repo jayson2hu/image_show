@@ -35,6 +35,7 @@ func Register(r *gin.Engine) {
 	api.GET("/generations/:id/stream", controller.StreamGeneration)
 	api.GET("/prompt-templates", controller.PromptTemplates)
 	api.GET("/captcha/config", controller.CaptchaConfig)
+	api.GET("/generation/options", controller.GenerationOptions)
 	api.GET("/packages", controller.Packages)
 	api.POST("/payment/notify", controller.PaymentNotify)
 	api.GET("/payment/notify", controller.PaymentNotify)

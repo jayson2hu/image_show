@@ -1,5 +1,31 @@
 # 开发进度记录
 
+## 2026-04-30 登录状态、导航和尺寸配置修复
+
+- 计划：
+  1. 检查管理员登录后的路由守卫，确认不再强制把管理员从普通页面跳回 `/admin`。
+  2. 替换顶部品牌 `ArtifyAI` 及副标题为 `来看看巴`。
+  3. 检查前端重复登录/注册入口，保留顶部唯一入口，并从顶部导航移除“套餐”。
+  4. 增加可配置图片尺寸：后端新增 `enabled_image_sizes` 设置项，前端从 `/api/generation/options` 动态读取。
+  5. 顶部登录态区分管理员和普通用户，分别显示“管理员已登录”和“普通用户已登录”。
+
+- 完成：
+  - `web/src/router/index.ts` 移除管理员访问 `/` 时自动跳 `/admin` 的逻辑，仅保留非管理员访问 `/admin` 的拦截，以及管理员登录页跳后台。
+  - `web/src/App.vue` 顶部品牌改为 `来看看巴`，移除“套餐”入口，未登录时只显示一个“登录 / 注册”，登录后按角色显示状态。
+  - `web/src/views/Home.vue` 删除页面内部额外登录/注册提示入口，高级参数和推荐样例继续默认折叠，尺寸下拉改为读取后端配置。
+  - `controller/generation.go` 新增公开 options 接口，并在创建任务时校验尺寸必须属于启用列表。
+  - `controller/admin_template_setting.go` 后台设置接口补充 `enabled_image_sizes`，管理员可在后台设置中维护逗号分隔的尺寸列表。
+  - `router/main.go` 新增 `GET /api/generation/options`。
+
+- 自测记录：
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次仍因 esbuild `spawn EPERM` 失败，授权后重跑通过。
+  - `http://localhost:3000/health`：返回 `{"status":"ok"}`。
+  - `http://localhost:5180/admin`：返回 200。
+
+- 问题记录：
+  - 首次验收时当前已运行的后端进程尚未加载新增的 `/api/generation/options` 路由，直接访问该接口出现重定向循环；已重启后端并复测通过，接口返回默认尺寸列表。
+
 ## 2026-04-30 Figma Make 首页界面
 
 - 使用 Figma MCP 读取 `https://www.figma.com/make/5IFwPGoEStpt4u4DQHl2FZ/AI-Image-Generation-Website?t=e3ONudqa0VWtSlY1-1`。

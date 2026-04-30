@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 
 import api from '@/api'
 import GenerationProgress from '@/components/GenerationProgress.vue'
@@ -32,6 +31,7 @@ const prompt = ref('')
 const selectedStyle = ref('realistic')
 const quality = ref<Quality>('medium')
 const size = ref('1024x1024')
+const sizeOptions = ref<string[]>(['1024x1024', '1024x1536', '1536x1024'])
 const imageCount = ref(4)
 const creativity = ref(0.7)
 const steps = ref(30)
@@ -88,8 +88,18 @@ onMounted(async () => {
   } catch {
     health.value = '后端未连接'
   }
-  await loadCaptcha()
+  await Promise.all([loadGenerationOptions(), loadCaptcha()])
 })
+
+async function loadGenerationOptions() {
+  const response = await api.get('/generation/options')
+  if (Array.isArray(response.data.sizes) && response.data.sizes.length > 0) {
+    sizeOptions.value = response.data.sizes
+    if (!sizeOptions.value.includes(size.value)) {
+      size.value = sizeOptions.value[0]
+    }
+  }
+}
 
 function useSample(sample: SamplePrompt) {
   prompt.value = sample.prompt
@@ -284,7 +294,7 @@ function resetCaptcha() {
               </svg>
             </div>
             <p class="mb-2 text-xl text-gray-700">准备好了吗？</p>
-            <p class="text-gray-500">在右侧输入提示词，开始创作你的 AI 艺术作品</p>
+            <p class="text-gray-500">在右侧输入提示词，开始创作你的 AI 图片</p>
           </div>
         </div>
       </main>
@@ -296,11 +306,7 @@ function resetCaptcha() {
               <p class="text-sm font-medium text-gray-900">{{ displayName }}</p>
               <p class="text-xs text-gray-500">{{ health }}</p>
             </div>
-            <div class="text-right">
-              <p class="text-sm font-medium text-violet-900">{{ creditText }}</p>
-              <RouterLink v-if="!userStore.user" to="/login" class="text-xs text-violet-600 hover:text-violet-700">登录 / 注册</RouterLink>
-              <RouterLink v-else to="/history" class="text-xs text-violet-600 hover:text-violet-700">历史记录</RouterLink>
-            </div>
+            <p class="text-sm font-medium text-violet-900">{{ creditText }}</p>
           </div>
 
           <div>
@@ -341,9 +347,7 @@ function resetCaptcha() {
             <label class="text-sm font-medium text-gray-700">
               尺寸
               <select v-model="size" class="mt-2 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 outline-none focus:border-violet-400">
-                <option value="1024x1024">1024 x 1024</option>
-                <option value="1024x1536">1024 x 1536</option>
-                <option value="1536x1024">1536 x 1024</option>
+                <option v-for="item in sizeOptions" :key="item" :value="item">{{ item.replace('x', ' x ') }}</option>
               </select>
             </label>
           </div>
