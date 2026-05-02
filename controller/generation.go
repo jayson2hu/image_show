@@ -201,14 +201,14 @@ func filterAnonymousImageSizes(sizes []string) []string {
 		}
 	}
 	if len(filtered) == 0 {
-		return []string{"1024x1024"}
+		return []string{"512x512", "768x768"}
 	}
 	return filtered
 }
 
 func isAnonymousImageSize(size string) bool {
 	width, height, ok := parseImageSize(size)
-	return ok && width <= 1024 && height <= 1024
+	return ok && width < 1024 && height < 1024
 }
 
 func parseImageSize(size string) (int, int, bool) {

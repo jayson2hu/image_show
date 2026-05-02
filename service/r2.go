@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"image"
 	_ "image/gif"
-	_ "image/jpeg"
-	"image/png"
+	"image/jpeg"
+	_ "image/png"
 	"io"
 	"net/http"
 	"net/url"
@@ -231,10 +231,10 @@ func ResizeImageBytes(data []byte, targetSize string) ([]byte, string, error) {
 	}
 	dst := resizeNearest(src, width, height)
 	var buf bytes.Buffer
-	if err := png.Encode(&buf, dst); err != nil {
+	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 88}); err != nil {
 		return nil, "", err
 	}
-	return buf.Bytes(), "image/png", nil
+	return buf.Bytes(), "image/jpeg", nil
 }
 
 func resizeNearest(src image.Image, width, height int) *image.RGBA {

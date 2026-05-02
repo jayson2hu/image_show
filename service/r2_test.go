@@ -109,7 +109,7 @@ func TestProviderSizeAndResizeForSmallImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resize image: %v", err)
 	}
-	if contentType != "image/png" {
+	if contentType != "image/jpeg" {
 		t.Fatalf("unexpected content type: %s", contentType)
 	}
 	img, _, err := image.Decode(bytes.NewReader(resized))

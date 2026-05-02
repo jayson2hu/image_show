@@ -38,8 +38,8 @@ const health = ref('检查中')
 const prompt = ref('')
 const selectedStyle = ref('')
 const quality = ref<Quality>('medium')
-const size = ref('1024x1024')
-const sizeOptions = ref<string[]>(['512x512', '768x768', '1024x1024'])
+const size = ref('768x768')
+const sizeOptions = ref<string[]>(['512x512', '768x768'])
 const imageCount = ref(4)
 const creativity = ref(0.7)
 const steps = ref(30)
@@ -147,7 +147,10 @@ async function loadGenerationOptions() {
       }
     }
   } catch {
-    sizeOptions.value = ['512x512', '768x768', '1024x1024']
+    sizeOptions.value = userStore.user ? ['512x512', '768x768', '1024x1024'] : ['512x512', '768x768']
+    if (!sizeOptions.value.includes(size.value)) {
+      size.value = sizeOptions.value[0]
+    }
   }
 }
 
@@ -230,7 +233,7 @@ function completed(url: string) {
 }
 
 function downloadCurrentImage() {
-  downloadImage(imageURL.value, `image-show-${Date.now()}.png`)
+  void downloadImage(imageURL.value, `image-show-${Date.now()}`)
 }
 
 async function openFullscreen() {
@@ -367,7 +370,7 @@ function resetCaptcha() {
                 {{ isPromptPanelCollapsed ? '展开参数' : '收起参数' }}
               </button>
             </div>
-            <div class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-5 sm:p-8">
+            <div class="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-5 sm:p-8">
               <div class="pointer-events-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="text-white">
                   <h2 class="text-lg font-medium">生成结果</h2>

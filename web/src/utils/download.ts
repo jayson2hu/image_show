@@ -9,10 +9,10 @@ export async function downloadImage(url: string, filename = 'image-show.png') {
     }
     const blob = await response.blob()
     const objectURL = URL.createObjectURL(blob)
-    triggerDownload(objectURL, filename)
+    triggerDownload(objectURL, filenameWithExtension(filename, blob.type))
     window.setTimeout(() => URL.revokeObjectURL(objectURL), 1000)
   } catch {
-    openDownloadFallback(url)
+    triggerDownload(url, filenameWithExtension(filename, contentTypeFromURL(url)))
   }
 }
 
@@ -27,9 +27,36 @@ function triggerDownload(url: string, filename: string) {
   anchor.remove()
 }
 
-function openDownloadFallback(url: string) {
-  const opened = window.open(url, '_blank', 'noopener,noreferrer')
-  if (!opened) {
-    window.location.href = url
+function filenameWithExtension(filename: string, contentType = '') {
+  if (/\.(png|jpe?g|webp|gif)$/i.test(filename)) {
+    return filename
   }
+  const ext = extensionFromContentType(contentType)
+  return `${filename}.${ext}`
+}
+
+function extensionFromContentType(contentType = '') {
+  if (contentType.includes('image/jpeg')) {
+    return 'jpg'
+  }
+  if (contentType.includes('image/webp')) {
+    return 'webp'
+  }
+  if (contentType.includes('image/gif')) {
+    return 'gif'
+  }
+  return 'png'
+}
+
+function contentTypeFromURL(url: string) {
+  if (url.startsWith('data:image/jpeg') || /\.(jpe?g)(\?|#|$)/i.test(url)) {
+    return 'image/jpeg'
+  }
+  if (url.startsWith('data:image/webp') || /\.webp(\?|#|$)/i.test(url)) {
+    return 'image/webp'
+  }
+  if (url.startsWith('data:image/gif') || /\.gif(\?|#|$)/i.test(url)) {
+    return 'image/gif'
+  }
+  return 'image/png'
 }

@@ -125,7 +125,8 @@ func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
 	if err := json.Unmarshal(anonymous.Body.Bytes(), &anonymousResp); err != nil {
 		t.Fatalf("decode anonymous options: %v", err)
 	}
-	if strings.Contains(strings.Join(anonymousResp.Sizes, ","), "1024x1536") || !strings.Contains(strings.Join(anonymousResp.Sizes, ","), "512x512") {
+	anonymousSizes := strings.Join(anonymousResp.Sizes, ",")
+	if strings.Contains(anonymousSizes, "1024x1024") || strings.Contains(anonymousSizes, "1024x1536") || !strings.Contains(anonymousSizes, "512x512") {
 		t.Fatalf("unexpected anonymous sizes: %#v", anonymousResp.Sizes)
 	}
 
@@ -202,7 +203,7 @@ func TestAnonymousTrialOnceAndForcesLow(t *testing.T) {
 	first := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
 		"prompt":  "trial image",
 		"quality": "high",
-		"size":    "1024x1024",
+		"size":    "768x768",
 	}, "fp-1")
 	if first.Code != http.StatusOK {
 		t.Fatalf("first trial status=%d body=%s", first.Code, first.Body.String())
@@ -226,7 +227,7 @@ func TestAnonymousTrialOnceAndForcesLow(t *testing.T) {
 	second := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
 		"prompt":  "trial image",
 		"quality": "low",
-		"size":    "1024x1024",
+		"size":    "768x768",
 	}, "fp-1")
 	if second.Code != http.StatusForbidden {
 		t.Fatalf("second trial status=%d body=%s", second.Code, second.Body.String())
@@ -235,7 +236,7 @@ func TestAnonymousTrialOnceAndForcesLow(t *testing.T) {
 	third := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
 		"prompt":  "trial image",
 		"quality": "low",
-		"size":    "1024x1024",
+		"size":    "768x768",
 	}, "fp-2")
 	if third.Code != http.StatusOK {
 		t.Fatalf("different fingerprint trial status=%d body=%s", third.Code, third.Body.String())
