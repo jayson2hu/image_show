@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -72,7 +73,22 @@ func (c *Sub2APIClient) GenerateImage(prompt, quality, size, userIP string) (*Im
 		}
 		time.Sleep(time.Duration(attempt) * 800 * time.Millisecond)
 	}
-	return nil, lastErr
+	return nil, userFacingSub2APIError(lastErr)
+}
+
+func userFacingSub2APIError(err error) error {
+	var statusErr sub2APIStatusError
+	if errors.As(err, &statusErr) {
+		switch statusErr.statusCode {
+		case cloudflareTimeoutStatus:
+			return fmt.Errorf("sub2api upstream timeout: image generation exceeded upstream proxy timeout, please retry or switch channel")
+		case http.StatusTooManyRequests:
+			return fmt.Errorf("sub2api rate limited: please retry later or switch channel")
+		case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+			return fmt.Errorf("sub2api upstream unavailable: please retry or switch channel")
+		}
+	}
+	return err
 }
 
 func (c *Sub2APIClient) generateImageOnce(prompt, quality, size, userIP string) (*ImageGenerationResult, error) {
@@ -138,6 +154,8 @@ type sub2APIStatusError struct {
 	payload    string
 }
 
+const cloudflareTimeoutStatus = 524
+
 func (e sub2APIStatusError) Error() string {
 	if e.payload == "" {
 		return fmt.Sprintf("sub2api status %d", e.statusCode)
@@ -149,8 +167,13 @@ func isRetryableSub2APIError(err error) bool {
 	if err == nil {
 		return false
 	}
-	if statusErr, ok := err.(sub2APIStatusError); ok {
-		return statusErr.statusCode == http.StatusTooManyRequests || statusErr.statusCode == http.StatusBadGateway || statusErr.statusCode == http.StatusServiceUnavailable || statusErr.statusCode == http.StatusGatewayTimeout
+	var statusErr sub2APIStatusError
+	if errors.As(err, &statusErr) {
+		return statusErr.statusCode == http.StatusTooManyRequests ||
+			statusErr.statusCode == http.StatusBadGateway ||
+			statusErr.statusCode == http.StatusServiceUnavailable ||
+			statusErr.statusCode == http.StatusGatewayTimeout ||
+			statusErr.statusCode == cloudflareTimeoutStatus
 	}
 	text := strings.ToLower(err.Error())
 	return strings.Contains(text, "unexpected eof") || strings.Contains(text, "connection reset") || strings.Contains(text, "timeout") || strings.Contains(text, "temporary")

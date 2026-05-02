@@ -89,6 +89,47 @@ func TestSub2APIClientGenerateImageRetriesTransientDecodeFailure(t *testing.T) {
 	}
 }
 
+func TestSub2APIClientGenerateImageRetriesCloudflareTimeout(t *testing.T) {
+	var attempts int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&attempts, 1) == 1 {
+			w.WriteHeader(cloudflareTimeoutStatus)
+			_, _ = w.Write([]byte(`error code: 524`))
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": []map[string]string{{"b64_json": "retry-after-524"}},
+		})
+	}))
+	defer server.Close()
+
+	client := NewSub2APIClient(server.URL, "", nil)
+	result, err := client.GenerateImage("prompt", "medium", "1024x1024", "")
+	if err != nil {
+		t.Fatalf("GenerateImage: %v", err)
+	}
+	if result.Base64Data != "retry-after-524" || attempts != 2 {
+		t.Fatalf("unexpected result=%+v attempts=%d", result, attempts)
+	}
+}
+
+func TestSub2APIClientGenerateImageMapsCloudflareTimeoutError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(cloudflareTimeoutStatus)
+		_, _ = w.Write([]byte(`error code: 524`))
+	}))
+	defer server.Close()
+
+	client := NewSub2APIClient(server.URL, "", nil)
+	_, err := client.GenerateImage("prompt", "medium", "1024x1024", "")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != "sub2api upstream timeout: image generation exceeded upstream proxy timeout, please retry or switch channel" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestGenerateImageViaChannelsFallsBack(t *testing.T) {
 	fail := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "fail", http.StatusBadGateway)
