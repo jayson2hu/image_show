@@ -39,17 +39,18 @@ const phases = [
 ]
 
 const currentCopy = computed(() => statusCopy[currentStatus.value] || { title: '处理中', detail: backendMessage.value || '请稍候' })
+const currentBackendMessage = computed(() => backendMessage.value || currentCopy.value.title)
 const progressPercent = computed(() => {
   if (currentStatus.value >= 3) {
     return 100
   }
   if (currentStatus.value <= 0) {
-    return 12
+    return 8
   }
   if (currentStatus.value === 1) {
-    return 56
+    return 38
   }
-  return 84
+  return 68
 })
 
 onMounted(() => {
@@ -77,9 +78,7 @@ function scheduleStatus(payload: any) {
 
 function applyStatus(payload: any) {
   currentStatus.value = payload.status
-  if (payload.message) {
-    backendMessage.value = payload.message
-  }
+  backendMessage.value = payload.message || statusCopy[payload.status]?.title || '处理中'
   if (payload.status === 3) {
     emit('completed', payload.image_url)
     close()
@@ -155,7 +154,7 @@ function pulseCanvas() {
           <span>{{ phase.label }}</span>
         </div>
       </div>
-      <p v-if="backendMessage" class="text-xs text-slate-400 dark:text-slate-500">后端状态：{{ backendMessage }}</p>
+      <p class="text-xs text-slate-400 dark:text-slate-500">后端状态：{{ currentBackendMessage }}</p>
     </div>
   </div>
 </template>
