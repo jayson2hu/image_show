@@ -40,17 +40,24 @@ const phases = [
 
 const currentCopy = computed(() => statusCopy[currentStatus.value] || { title: '处理中', detail: backendMessage.value || '请稍候' })
 const currentBackendMessage = computed(() => backendMessage.value || currentCopy.value.title)
-const progressPercent = computed(() => {
+const displayStage = computed(() => {
   if (currentStatus.value >= 3) {
-    return 100
+    return 3
   }
-  if (currentStatus.value <= 0) {
-    return 8
+  if (currentStatus.value === 2) {
+    return 2
   }
   if (currentStatus.value === 1) {
-    return 38
+    return 1
   }
-  return 68
+  return 0
+})
+const currentPhaseLabel = computed(() => phases.find((phase) => phase.status === displayStage.value)?.label || '创建')
+const progressPercent = computed(() => {
+  if (displayStage.value >= 3) {
+    return 100
+  }
+  return displayStage.value * 33.333
 })
 
 onMounted(() => {
@@ -149,11 +156,23 @@ function pulseCanvas() {
         <div class="h-full rounded-full bg-violet-600 transition-all duration-500 ease-out dark:bg-violet-400" :style="{ width: `${progressPercent}%` }"></div>
       </div>
       <div class="grid grid-cols-4 gap-2 text-xs">
-        <div v-for="phase in phases" :key="phase.status" class="flex items-center gap-2 text-slate-500 dark:text-slate-400" :class="{ 'text-violet-700 dark:text-violet-200': currentStatus >= phase.status }">
-          <span class="size-2 rounded-full bg-slate-300 dark:bg-slate-700" :class="{ 'bg-violet-600 dark:bg-violet-300': currentStatus >= phase.status }"></span>
+        <div
+          v-for="phase in phases"
+          :key="phase.status"
+          class="flex items-center gap-2 text-slate-500 dark:text-slate-400"
+          :class="{ 'text-violet-700 dark:text-violet-200': displayStage >= phase.status }"
+        >
+          <span
+            class="size-2 rounded-full bg-slate-300 ring-0 ring-violet-200 transition dark:bg-slate-700 dark:ring-violet-400/30"
+            :class="{
+              'bg-violet-600 dark:bg-violet-300': displayStage >= phase.status,
+              'ring-4': displayStage === phase.status,
+            }"
+          ></span>
           <span>{{ phase.label }}</span>
         </div>
       </div>
+      <p class="text-xs font-medium text-violet-700 dark:text-violet-200">当前阶段：{{ currentPhaseLabel }}</p>
       <p class="text-xs text-slate-400 dark:text-slate-500">后端状态：{{ currentBackendMessage }}</p>
     </div>
   </div>
