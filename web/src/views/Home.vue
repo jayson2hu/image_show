@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import api from '@/api'
 import GenerationProgress from '@/components/GenerationProgress.vue'
 import { useUserStore } from '@/stores/user'
+import { downloadImage } from '@/utils/download'
 
 type Quality = 'low' | 'medium' | 'high'
 
@@ -223,6 +224,10 @@ function completed(url: string) {
   resetCaptcha()
 }
 
+function downloadCurrentImage() {
+  downloadImage(imageURL.value, `image-show-${Date.now()}.png`)
+}
+
 function failed(message: string) {
   error.value = message
   generationId.value = null
@@ -325,20 +330,20 @@ function resetCaptcha() {
                   <p class="mt-1 text-sm text-white/70">{{ size.replace('x', ' x ') }} · {{ qualityLabels[quality] }}</p>
                 </div>
                 <div class="flex gap-2">
-                  <a
+                  <button
                     class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/15 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25"
-                    :href="imageURL"
-                    download
+                    type="button"
+                    @click="downloadCurrentImage"
                   >
                     下载
-                  </a>
-                  <a
+                  </button>
+                  <button
                     class="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-slate-950 shadow-lg shadow-black/20 transition hover:bg-slate-100"
-                    :href="imageURL"
-                    download
+                    type="button"
+                    @click="downloadCurrentImage"
                   >
                     下载全部
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>

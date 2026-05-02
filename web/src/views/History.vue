@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import api from '@/api'
 import { useUserStore } from '@/stores/user'
+import { downloadImage } from '@/utils/download'
 
 interface Generation {
   id: number
@@ -72,11 +73,8 @@ async function deleteItem(item: Generation) {
   }
 }
 
-function download(url: string) {
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = 'image-show.png'
-  anchor.click()
+function download(url: string, id?: number) {
+  downloadImage(url, `image-show-${id || Date.now()}.png`)
 }
 
 function fmtTime(value: string) {
@@ -122,7 +120,7 @@ onMounted(async () => {
           <p class="line-clamp-2 min-h-10 text-slate-800">{{ item.prompt }}</p>
           <div class="flex gap-2">
             <button class="rounded border border-slate-300 px-2 py-1" type="button" @click="openDetail(item)">查看</button>
-            <button class="rounded border border-slate-300 px-2 py-1" type="button" @click="download(item.image_url)">下载</button>
+            <button class="rounded border border-slate-300 px-2 py-1" type="button" @click="download(item.image_url, item.id)">下载</button>
             <button class="rounded border border-red-200 px-2 py-1 text-red-600" type="button" @click="deleteItem(item)">删除</button>
           </div>
         </div>
@@ -146,7 +144,7 @@ onMounted(async () => {
         </div>
         <img :src="selected.image_url" class="max-h-[70vh] w-full object-contain" alt="生成图片详情" />
         <div class="mt-3 flex gap-2">
-          <button class="rounded bg-teal px-4 py-2 text-white" type="button" @click="download(selected.image_url)">下载</button>
+          <button class="rounded bg-teal px-4 py-2 text-white" type="button" @click="download(selected.image_url, selected.id)">下载</button>
           <button class="rounded border border-red-200 px-4 py-2 text-red-600" type="button" @click="deleteItem(selected)">删除</button>
         </div>
       </div>
