@@ -315,7 +315,9 @@ function resetCaptcha() {
 
         <div v-else-if="imageURL" class="-m-5 flex h-[calc(100vh-65px)] min-h-[560px] flex-col bg-slate-950 sm:-m-8">
           <div class="relative min-h-0 flex-1 overflow-hidden">
-            <img class="size-full object-cover" :src="imageURL" alt="生成的图片" />
+            <img class="absolute inset-0 size-full scale-110 object-cover opacity-35 blur-2xl" :src="imageURL" alt="" aria-hidden="true" />
+            <div class="absolute inset-0 bg-slate-950/35"></div>
+            <img class="relative z-10 size-full object-contain" :src="imageURL" alt="生成的图片" />
             <div class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-5 sm:p-8">
               <div class="pointer-events-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="text-white">
