@@ -58,6 +58,7 @@ const captchaEl = ref<HTMLElement | null>(null)
 const captchaWidgetId = ref<string | null>(null)
 const isPromptPanelCollapsed = ref(false)
 const isFullscreenOpen = ref(false)
+const fullscreenEl = ref<HTMLElement | null>(null)
 
 const costs: Record<Quality, number> = { low: 0.2, medium: 1, high: 4 }
 const qualityLabels: Record<Quality, string> = { low: '快速', medium: '标准', high: '高清' }
@@ -232,14 +233,27 @@ function downloadCurrentImage() {
   downloadImage(imageURL.value, `image-show-${Date.now()}.png`)
 }
 
-function openFullscreen() {
+async function openFullscreen() {
   if (imageURL.value) {
     isFullscreenOpen.value = true
+    await nextTick()
+    try {
+      await fullscreenEl.value?.requestFullscreen?.()
+    } catch {
+      // Keep the in-app fullscreen preview visible if the browser rejects native fullscreen.
+    }
   }
 }
 
-function closeFullscreen() {
+async function closeFullscreen() {
   isFullscreenOpen.value = false
+  if (document.fullscreenElement) {
+    try {
+      await document.exitFullscreen()
+    } catch {
+      // The overlay is already closed; native fullscreen will be cleaned up by the browser.
+    }
+  }
 }
 
 function failed(message: string) {
@@ -337,6 +351,22 @@ function resetCaptcha() {
             <img class="absolute inset-0 size-full scale-110 object-cover opacity-35 blur-2xl" :src="imageURL" alt="" aria-hidden="true" />
             <div class="absolute inset-0 bg-slate-950/35"></div>
             <img class="relative z-10 size-full object-contain" :src="imageURL" alt="生成的图片" />
+            <div class="absolute right-5 top-5 z-20 flex gap-2 sm:right-8 sm:top-8">
+              <button
+                class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-black/35 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-black/50"
+                type="button"
+                @click="openFullscreen"
+              >
+                全屏查看
+              </button>
+              <button
+                class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-black/35 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-black/50 lg:hidden"
+                type="button"
+                @click="isPromptPanelCollapsed = !isPromptPanelCollapsed"
+              >
+                {{ isPromptPanelCollapsed ? '展开参数' : '收起参数' }}
+              </button>
+            </div>
             <div class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-5 sm:p-8">
               <div class="pointer-events-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="text-white">
@@ -344,13 +374,6 @@ function resetCaptcha() {
                   <p class="mt-1 text-sm text-white/70">{{ size.replace('x', ' x ') }} · {{ qualityLabels[quality] }}</p>
                 </div>
                 <div class="flex gap-2">
-                  <button
-                    class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/15 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25"
-                    type="button"
-                    @click="openFullscreen"
-                  >
-                    全屏查看
-                  </button>
                   <button
                     class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/15 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25"
                     type="button"
@@ -384,17 +407,21 @@ function resetCaptcha() {
         </div>
       </main>
 
-      <button
-        v-if="isPromptPanelCollapsed"
-        class="fixed bottom-5 right-5 z-30 rounded-full bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-xl shadow-slate-900/20 ring-1 ring-slate-200 transition hover:bg-violet-50 hover:text-violet-700"
-        type="button"
-        @click="isPromptPanelCollapsed = false"
+      <aside
+        class="relative w-full shrink-0 border-t border-gray-200 bg-white transition-[width] duration-300 lg:h-[calc(100vh-65px)] lg:border-l lg:border-t-0"
+        :class="isPromptPanelCollapsed ? 'lg:w-0' : 'lg:w-[420px]'"
       >
-        展开参数
-      </button>
+        <button
+          class="absolute -left-4 top-1/2 z-30 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg shadow-slate-900/15 transition hover:bg-violet-50 hover:text-violet-700 lg:flex"
+          type="button"
+          :aria-label="isPromptPanelCollapsed ? '展开参数面板' : '收起参数面板'"
+          @click="isPromptPanelCollapsed = !isPromptPanelCollapsed"
+        >
+          <span class="text-lg leading-none">{{ isPromptPanelCollapsed ? '‹' : '›' }}</span>
+        </button>
 
-      <aside v-if="!isPromptPanelCollapsed" class="w-full shrink-0 border-t border-gray-200 bg-white lg:h-[calc(100vh-65px)] lg:w-[420px] lg:overflow-y-auto lg:border-l lg:border-t-0">
-        <div class="space-y-6 p-6">
+        <div v-show="!isPromptPanelCollapsed" class="h-full overflow-y-auto">
+          <div class="space-y-6 p-6">
           <div class="flex items-center justify-between rounded-xl bg-violet-50 px-4 py-3">
             <div>
               <p class="text-sm font-medium text-gray-900">{{ displayName }}</p>
@@ -554,11 +581,12 @@ function resetCaptcha() {
 
           <p v-if="!userStore.user" class="text-center text-sm text-gray-500">未登录可免费试用 1 次；登录后可查看历史记录和积分。</p>
           <p class="text-center text-xs text-gray-400">{{ qualityLabels[quality] }}模式，本次预计消耗 {{ costs[quality] }} 积分。</p>
+          </div>
         </div>
       </aside>
     </div>
 
-    <div v-if="isFullscreenOpen && imageURL" class="fixed inset-0 z-50 flex flex-col bg-black" @click.self="closeFullscreen">
+    <div v-show="isFullscreenOpen && imageURL" ref="fullscreenEl" class="fixed inset-0 z-50 flex flex-col bg-black" @click.self="closeFullscreen">
       <div class="flex min-h-16 items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-white sm:px-6">
         <div class="min-w-0">
           <p class="truncate text-sm font-medium">生成结果</p>
