@@ -56,6 +56,8 @@ const captchaSiteKey = ref('')
 const captchaToken = ref('')
 const captchaEl = ref<HTMLElement | null>(null)
 const captchaWidgetId = ref<string | null>(null)
+const isPromptPanelCollapsed = ref(false)
+const isFullscreenOpen = ref(false)
 
 const costs: Record<Quality, number> = { low: 0.2, medium: 1, high: 4 }
 const qualityLabels: Record<Quality, string> = { low: '快速', medium: '标准', high: '高清' }
@@ -186,6 +188,7 @@ async function createGeneration(payload: GenerationPayload) {
     return
   }
   imageURL.value = ''
+  isFullscreenOpen.value = false
   generationId.value = null
   loading.value = true
   lastRequest.value = { ...payload }
@@ -218,6 +221,7 @@ async function cancelGeneration() {
 
 function completed(url: string) {
   imageURL.value = url
+  isPromptPanelCollapsed.value = true
   generationId.value = null
   loading.value = false
   userStore.fetchUser()
@@ -226,6 +230,16 @@ function completed(url: string) {
 
 function downloadCurrentImage() {
   downloadImage(imageURL.value, `image-show-${Date.now()}.png`)
+}
+
+function openFullscreen() {
+  if (imageURL.value) {
+    isFullscreenOpen.value = true
+  }
+}
+
+function closeFullscreen() {
+  isFullscreenOpen.value = false
 }
 
 function failed(message: string) {
@@ -333,6 +347,13 @@ function resetCaptcha() {
                   <button
                     class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/15 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25"
                     type="button"
+                    @click="openFullscreen"
+                  >
+                    全屏查看
+                  </button>
+                  <button
+                    class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/15 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25"
+                    type="button"
                     @click="downloadCurrentImage"
                   >
                     下载
@@ -363,14 +384,28 @@ function resetCaptcha() {
         </div>
       </main>
 
-      <aside class="w-full shrink-0 border-t border-gray-200 bg-white lg:h-[calc(100vh-65px)] lg:w-[420px] lg:overflow-y-auto lg:border-l lg:border-t-0">
+      <button
+        v-if="isPromptPanelCollapsed"
+        class="fixed bottom-5 right-5 z-30 rounded-full bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-xl shadow-slate-900/20 ring-1 ring-slate-200 transition hover:bg-violet-50 hover:text-violet-700"
+        type="button"
+        @click="isPromptPanelCollapsed = false"
+      >
+        展开参数
+      </button>
+
+      <aside v-if="!isPromptPanelCollapsed" class="w-full shrink-0 border-t border-gray-200 bg-white lg:h-[calc(100vh-65px)] lg:w-[420px] lg:overflow-y-auto lg:border-l lg:border-t-0">
         <div class="space-y-6 p-6">
           <div class="flex items-center justify-between rounded-xl bg-violet-50 px-4 py-3">
             <div>
               <p class="text-sm font-medium text-gray-900">{{ displayName }}</p>
               <p class="text-xs text-gray-500">{{ health }}</p>
             </div>
-            <p class="text-sm font-medium text-violet-900">{{ creditText }}</p>
+            <div class="flex items-center gap-3">
+              <p class="text-sm font-medium text-violet-900">{{ creditText }}</p>
+              <button class="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100" type="button" @click="isPromptPanelCollapsed = true">
+                收起
+              </button>
+            </div>
           </div>
 
           <div>
@@ -521,6 +556,26 @@ function resetCaptcha() {
           <p class="text-center text-xs text-gray-400">{{ qualityLabels[quality] }}模式，本次预计消耗 {{ costs[quality] }} 积分。</p>
         </div>
       </aside>
+    </div>
+
+    <div v-if="isFullscreenOpen && imageURL" class="fixed inset-0 z-50 flex flex-col bg-black" @click.self="closeFullscreen">
+      <div class="flex min-h-16 items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-white sm:px-6">
+        <div class="min-w-0">
+          <p class="truncate text-sm font-medium">生成结果</p>
+          <p class="text-xs text-white/60">{{ size.replace('x', ' x ') }} · {{ qualityLabels[quality] }}</p>
+        </div>
+        <div class="flex shrink-0 gap-2">
+          <button class="rounded-full border border-white/20 px-4 py-2 text-sm transition hover:bg-white/10" type="button" @click="downloadCurrentImage">
+            下载
+          </button>
+          <button class="rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-slate-100" type="button" @click="closeFullscreen">
+            关闭
+          </button>
+        </div>
+      </div>
+      <div class="min-h-0 flex-1 p-3 sm:p-6">
+        <img class="size-full object-contain" :src="imageURL" alt="生成的图片全屏预览" />
+      </div>
     </div>
   </section>
 </template>
