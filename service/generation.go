@@ -21,6 +21,8 @@ type GenerationNotifier struct {
 
 var Notifier = &GenerationNotifier{channels: make(map[int64]map[chan GenerationEvent]struct{})}
 
+const generationStartDelay = 600 * time.Millisecond
+
 func (n *GenerationNotifier) Subscribe(id int64) chan GenerationEvent {
 	ch := make(chan GenerationEvent, 8)
 	n.mu.Lock()
@@ -85,7 +87,10 @@ func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymous
 			return nil, err
 		}
 	}
-	go runGeneration(generation.ID, prompt, quality, size, ip)
+	go func() {
+		time.Sleep(generationStartDelay)
+		runGeneration(generation.ID, prompt, quality, size, ip)
+	}()
 	return generation, nil
 }
 

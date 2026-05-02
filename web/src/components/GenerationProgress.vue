@@ -21,6 +21,11 @@ const canvasStyle = ref<Record<string, string>>({
   '--pointer-y': '50%',
 })
 let source: EventSource | null = null
+let statusTimer = 0
+const statusQueue = ref<any[]>([])
+let displayedAt = Date.now()
+
+const minStatusDisplayMs = 700
 
 const statusCopy: Record<number, { title: string; detail: string }> = {
   0: { title: '任务已创建', detail: '正在进入生成队列' },
@@ -56,22 +61,7 @@ onMounted(() => {
   source = new EventSource(`/api/generations/${props.generationId}/stream`)
   source.addEventListener('status', (event) => {
     const payload = JSON.parse((event as MessageEvent).data)
-    currentStatus.value = payload.status
-    if (payload.message) {
-      backendMessage.value = payload.message
-    }
-    if (payload.status === 3) {
-      emit('completed', payload.image_url)
-      close()
-    }
-    if (payload.status === 4) {
-      emit('failed', payload.error || '生成失败，请重试')
-      close()
-    }
-    if (payload.status === 5) {
-      emit('cancelled')
-      close()
-    }
+    scheduleStatus(payload)
   })
   source.onerror = () => {
     emit('failed', '连接中断，请稍后重试')
@@ -82,8 +72,75 @@ onMounted(() => {
 onUnmounted(close)
 
 function close() {
+  if (statusTimer) {
+    window.clearTimeout(statusTimer)
+    statusTimer = 0
+  }
+  statusQueue.value = []
   source?.close()
   source = null
+}
+
+function scheduleStatus(payload: any) {
+  const queued = statusQueue.value[statusQueue.value.length - 1]
+  if (queued?.status === payload.status && queued?.message === payload.message) {
+    return
+  }
+  if (currentStatus.value === payload.status && !statusTimer) {
+    applyStatus(payload)
+    return
+  }
+  statusQueue.value.push(payload)
+  if (statusTimer) {
+    return
+  }
+  processNextStatus()
+}
+
+function processNextStatus() {
+  if (statusQueue.value.length === 0) {
+    return
+  }
+  const next = statusQueue.value[0]
+  const elapsed = Date.now() - displayedAt
+  const wait = currentStatus.value === next.status || next.status >= 3 ? 0 : Math.max(0, minStatusDisplayMs - elapsed)
+  if (wait === 0) {
+    applyNextStatus()
+    return
+  }
+  statusTimer = window.setTimeout(applyNextStatus, wait)
+}
+
+function applyNextStatus() {
+  statusTimer = 0
+  const payload = statusQueue.value.shift()
+  if (!payload) {
+    return
+  }
+  applyStatus(payload)
+  if (statusQueue.value.length > 0) {
+    processNextStatus()
+  }
+}
+
+function applyStatus(payload: any) {
+  currentStatus.value = payload.status
+  displayedAt = Date.now()
+  if (payload.message) {
+    backendMessage.value = payload.message
+  }
+  if (payload.status === 3) {
+    emit('completed', payload.image_url)
+    close()
+  }
+  if (payload.status === 4) {
+    emit('failed', payload.error || '生成失败，请重试')
+    close()
+  }
+  if (payload.status === 5) {
+    emit('cancelled')
+    close()
+  }
 }
 
 function updatePointer(event: PointerEvent) {
