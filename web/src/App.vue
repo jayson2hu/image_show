@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { useUserStore } from './stores/user'
@@ -7,23 +7,9 @@ import { useUserStore } from './stores/user'
 const userStore = useUserStore()
 const router = useRouter()
 const route = useRoute()
-const theme = ref(localStorage.getItem('theme') || defaultTheme())
 const isHome = computed(() => route.name === 'home' || route.path === '/')
 const isAdmin = computed(() => (userStore.user?.role || 0) >= 10)
 const roleLabel = computed(() => (isAdmin.value ? '管理员' : userStore.user ? '普通用户' : '未登录'))
-
-function defaultTheme() {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
-function applyTheme(value: string) {
-  document.documentElement.classList.toggle('dark', value === 'dark')
-  localStorage.setItem('theme', value)
-}
-
-function toggleTheme() {
-  theme.value = theme.value === 'dark' ? 'light' : 'dark'
-}
 
 function handleUnauthorized() {
   userStore.logout()
@@ -34,9 +20,9 @@ async function logout() {
   await router.push('/login')
 }
 
-watch(theme, applyTheme, { immediate: true })
-
 onMounted(() => {
+  document.documentElement.classList.remove('dark')
+  localStorage.removeItem('theme')
   userStore.fetchUser()
   window.addEventListener('auth:unauthorized', handleUnauthorized)
 })
@@ -70,9 +56,6 @@ onUnmounted(() => {
           >
             历史
           </RouterLink>
-          <button class="min-h-10 rounded-full border border-slate-300 px-3 py-1.5 text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800" type="button" @click="toggleTheme">
-            {{ theme === 'dark' ? '浅色' : '深色' }}
-          </button>
           <div v-if="userStore.user" class="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 dark:border-slate-700 dark:bg-slate-800">
             <span class="px-2 text-sm text-slate-700 dark:text-slate-200">
               {{ roleLabel }}<template v-if="!isAdmin"> · {{ userStore.user.credits }} 积分</template>
