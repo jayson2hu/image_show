@@ -126,9 +126,9 @@ function pulseCanvas() {
 </script>
 
 <template>
-  <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+  <div class="flex h-full min-h-[560px] flex-col bg-slate-950 text-white">
     <div
-      class="generation-canvas relative flex h-80 cursor-crosshair items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-950"
+      class="generation-canvas relative flex min-h-0 flex-1 cursor-crosshair items-center justify-center overflow-hidden"
       :class="{ 'is-pointer-active': pointerActive, 'is-pulsing': pulseActive }"
       :style="canvasStyle"
       role="img"
@@ -137,43 +137,47 @@ function pulseCanvas() {
       @pointerleave="clearPointer"
       @pointerdown="pulseCanvas"
     >
-      <div class="relative z-10 flex size-24 items-center justify-center rounded-full border border-white/50 bg-white/45 shadow-xl shadow-slate-900/10 backdrop-blur-md dark:border-white/10 dark:bg-white/10">
-        <div class="size-12 animate-spin rounded-full border-4 border-violet-200 border-t-violet-600 dark:border-violet-400/20 dark:border-t-violet-300"></div>
+      <div class="relative z-10 flex size-36 items-center justify-center rounded-full border border-white/25 bg-white/15 shadow-2xl shadow-violet-950/30 backdrop-blur-md sm:size-44">
+        <div class="size-20 animate-spin rounded-full border-[6px] border-white/20 border-t-violet-300 sm:size-24"></div>
       </div>
       <div class="pointer-glow" aria-hidden="true"></div>
     </div>
-    <div class="mt-4 space-y-4">
-      <div class="flex items-start justify-between gap-3">
+    <div class="border-t border-white/10 bg-slate-950/95 p-5 shadow-2xl shadow-black/30 sm:p-7">
+      <div class="mx-auto max-w-6xl space-y-5">
+      <div class="flex items-start justify-between gap-4">
         <div>
-          <p class="text-sm font-medium text-slate-800 dark:text-slate-100">{{ currentCopy.title }}</p>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ currentCopy.detail }}</p>
+          <p class="text-2xl font-medium tracking-tight sm:text-3xl">{{ currentCopy.title }}</p>
+          <p class="mt-2 text-sm text-white/65">{{ currentCopy.detail }}</p>
         </div>
-        <button class="min-h-10 shrink-0 rounded-xl border border-slate-300 px-3 py-2 text-sm transition hover:border-violet-300 hover:text-violet-700 dark:border-slate-600 dark:hover:border-violet-400 dark:hover:text-violet-200" type="button" @click="emit('cancel')">
+        <button class="min-h-11 shrink-0 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm font-medium transition hover:bg-white/15" type="button" @click="emit('cancel')">
           取消
         </button>
       </div>
-      <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-        <div class="h-full rounded-full bg-violet-600 transition-all duration-500 ease-out dark:bg-violet-400" :style="{ width: `${progressPercent}%` }"></div>
+      <div class="h-3 overflow-hidden rounded-full bg-white/10">
+        <div class="h-full rounded-full bg-violet-400 transition-all duration-500 ease-out" :style="{ width: `${progressPercent}%` }"></div>
       </div>
-      <div class="grid grid-cols-4 gap-2 text-xs">
+      <div class="grid grid-cols-4 gap-3 text-sm">
         <div
           v-for="phase in phases"
           :key="phase.status"
-          class="flex items-center gap-2 text-slate-500 dark:text-slate-400"
-          :class="{ 'text-violet-700 dark:text-violet-200': displayStage >= phase.status }"
+          class="flex items-center gap-2 text-white/45"
+          :class="{ 'text-violet-100': displayStage >= phase.status }"
         >
           <span
-            class="size-2 rounded-full bg-slate-300 ring-0 ring-violet-200 transition dark:bg-slate-700 dark:ring-violet-400/30"
+            class="size-2.5 rounded-full bg-white/20 ring-0 ring-violet-300/30 transition"
             :class="{
-              'bg-violet-600 dark:bg-violet-300': displayStage >= phase.status,
+              'bg-violet-300': displayStage >= phase.status,
               'ring-4': displayStage === phase.status,
             }"
           ></span>
           <span>{{ phase.label }}</span>
         </div>
       </div>
-      <p class="text-xs font-medium text-violet-700 dark:text-violet-200">当前阶段：{{ currentPhaseLabel }}</p>
-      <p class="text-xs text-slate-400 dark:text-slate-500">后端状态：{{ currentBackendMessage }}</p>
+      <div class="grid gap-2 text-sm text-white/65 sm:grid-cols-2">
+        <p class="font-medium text-violet-100">当前阶段：{{ currentPhaseLabel }}</p>
+        <p class="sm:text-right">后端状态：{{ currentBackendMessage }}</p>
+      </div>
+      </div>
     </div>
   </div>
 </template>
@@ -231,8 +235,8 @@ function pulseCanvas() {
   left: var(--pointer-x);
   top: var(--pointer-y);
   z-index: 1;
-  width: 180px;
-  height: 180px;
+  width: 280px;
+  height: 280px;
   border-radius: 9999px;
   background: radial-gradient(circle, rgba(124, 58, 237, 0.24), rgba(14, 165, 233, 0.1) 42%, transparent 70%);
   opacity: 0;

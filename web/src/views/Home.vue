@@ -440,7 +440,7 @@ function resetCaptcha() {
   <section class="h-auto min-h-[calc(100vh-65px)] overflow-hidden bg-gray-50 text-gray-950 lg:h-[calc(100vh-65px)]">
     <div class="flex h-full min-h-[calc(100vh-65px)] flex-col lg:flex-row">
       <main class="min-h-[560px] flex-1 overflow-y-auto bg-gray-50 p-5 sm:p-8 lg:h-[calc(100vh-65px)]">
-        <div v-if="generationId" class="mx-auto max-w-5xl">
+        <div v-if="generationId" class="-m-5 flex h-[calc(100vh-65px)] min-h-[560px] flex-col sm:-m-8">
           <GenerationProgress
             :generation-id="generationId"
             @completed="completed"
