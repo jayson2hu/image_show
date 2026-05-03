@@ -2,6 +2,8 @@ package service
 
 import (
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jayson2hu/image-show/model"
@@ -21,6 +23,30 @@ var QualityCost = map[string]float64{
 
 func CostForQuality(quality string) float64 {
 	return QualityCost[quality]
+}
+
+func CostForSize(size string) float64 {
+	width, height, ok := parseImageSize(size)
+	if !ok || width <= 0 || height <= 0 {
+		return 1
+	}
+	return 1
+}
+
+func parseImageSize(size string) (int, int, bool) {
+	parts := strings.Split(strings.ToLower(strings.TrimSpace(size)), "x")
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	width, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return 0, 0, false
+	}
+	height, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return 0, 0, false
+	}
+	return width, height, true
 }
 
 func GetBalance(userID int64) (float64, error) {

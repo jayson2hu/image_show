@@ -9,7 +9,7 @@ const router = createRouter({
     { path: '/', name: 'home', component: Home },
     { path: '/login', name: 'login', component: () => import('@/views/Login.vue') },
     { path: '/register', name: 'register', component: () => import('@/views/Register.vue') },
-    { path: '/console/image-show-admin', name: 'admin', component: () => import('@/views/admin/AdminDashboard.vue') },
+    { path: '/console/admin', name: 'admin', component: () => import('@/views/admin/AdminDashboard.vue') },
     { path: '/history', name: 'history', component: () => import('@/views/History.vue') },
     { path: '/packages', name: 'packages', component: () => import('@/views/Packages.vue') },
   ],
@@ -22,7 +22,7 @@ router.beforeEach(async (to) => {
   }
 
   const isAdmin = (userStore.user?.role || 0) >= 10
-  if (to.path === '/admin') {
+  if (to.path === '/admin' || to.path === '/console/image-show-admin') {
     return { name: 'home' }
   }
   if (to.name === 'admin' && !isAdmin) {

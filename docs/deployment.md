@@ -25,7 +25,7 @@ image-show:3000
 说明：
 
 - `image-show` 同时提供 API 和前端页面，不需要单独部署 Vite dev server。
-- 前端通过 `go:embed` 打进 Go 二进制，访问 `/`、`/login`、`/admin` 等路径由后端返回静态资源。
+- 前端通过 `go:embed` 打进 Go 二进制，访问 `/`、`/login`、`/console/admin` 等路径由后端返回静态资源。
 - `/api/*` 走 Gin API。
 - 本地可以用 SQLite，生产建议用 PostgreSQL。
 - Redis 可选，但生产建议启用，用于限流等能力。
@@ -221,9 +221,9 @@ MOCK_SUB2API=false
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` 用于首次启动或重置管理员账号；生产环境必须显式配置才会写入管理员。
 - 如需手动重置管理员，可执行：`go run ./cmd/admin-reset -email admin@example.com -password your-strong-password`。
 - `MOCK_SUB2API=false`，否则会返回测试图片。
-- `IMAGE_MODEL` 默认为 `gpt-image-2`；后台 `/admin` 的“设置”页可用 `image_model` 覆盖。如果 sub2api 自身要求其他模型名，可在后台切换。
+- `IMAGE_MODEL` 默认为 `gpt-image-2`；后台 `/console/admin` 的“设置”页可用 `image_model` 覆盖。如果 sub2api 自身要求其他模型名，可在后台切换。
 - `R2_PUBLIC_URL` 如果配置 CDN 域名，图片访问会直接走 CDN；为空时后端使用临时签名 URL。
-- R2 也可以在后台 `/admin` 的“设置”页维护，字段为 `r2_endpoint`、`r2_access_key`、`r2_secret_key`、`r2_bucket`、`r2_public_url`；后台保存值优先于环境变量，环境变量作为兜底。
+- R2 也可以在后台 `/console/admin` 的“设置”页维护，字段为 `r2_endpoint`、`r2_access_key`、`r2_secret_key`、`r2_bucket`、`r2_public_url`；后台保存值优先于环境变量，环境变量作为兜底。
 - `EPAY_PAY_METHODS` 当前默认支持 `alipay,wxpay`。前端当前默认创建 `alipay` 订单。
 
 ## 5. 数据库与迁移
@@ -318,7 +318,7 @@ curl http://localhost:3000/api/health
 
 - 打开 `https://yourdomain.com`
 - 注册 / 登录正常
-- 后台 `/admin` 可访问
+- 后台 `/console/admin` 可访问
 - 套餐页 `/packages` 可创建订单
 - 支付回调 `/api/payment/notify` 可被支付网关访问
 - 生成图片 SSE 进度正常

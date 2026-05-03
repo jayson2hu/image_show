@@ -18,16 +18,19 @@ import (
 
 type createGenerationRequest struct {
 	Prompt       string `json:"prompt" binding:"required,max=4000"`
-	Quality      string `json:"quality" binding:"required,oneof=low medium high"`
+	Quality      string `json:"quality" binding:"omitempty,oneof=low medium high"`
 	Size         string `json:"size" binding:"required"`
 	AnonymousID  string `json:"anonymous_id"`
 	CaptchaToken string `json:"captcha_token"`
 }
 
+const standardImageQuality = "medium"
+
 type imageSizeOption struct {
-	Value string `json:"value"`
-	Label string `json:"label"`
-	Ratio string `json:"ratio"`
+	Value      string  `json:"value"`
+	Label      string  `json:"label"`
+	Ratio      string  `json:"ratio"`
+	CreditCost float64 `json:"credit_cost"`
 }
 
 type batchDeleteGenerationsRequest struct {
@@ -122,6 +125,7 @@ func CreateGeneration(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
+	req.Quality = standardImageQuality
 	if !isEnabledImageSize(req.Size) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported image size"})
 		return
@@ -144,7 +148,6 @@ func CreateGeneration(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "free trial used, please register"})
 			return
 		}
-		req.Quality = "low"
 		req.AnonymousID = anonymousID
 		generation, err := service.CreateGeneration(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), nil, req.AnonymousID)
 		if err != nil {
@@ -175,7 +178,7 @@ func CreateImageEdit(c *gin.Context) {
 	}
 	req := createGenerationRequest{
 		Prompt:       strings.TrimSpace(c.PostForm("prompt")),
-		Quality:      c.PostForm("quality"),
+		Quality:      standardImageQuality,
 		Size:         c.PostForm("size"),
 		AnonymousID:  c.PostForm("anonymous_id"),
 		CaptchaToken: c.PostForm("captcha_token"),
@@ -272,7 +275,7 @@ func buildImageSizeOptions(sizes []string) []imageSizeOption {
 		if ratio == "" {
 			label = strings.Replace(size, "x", " x ", 1)
 		}
-		options = append(options, imageSizeOption{Value: size, Label: label, Ratio: ratio})
+		options = append(options, imageSizeOption{Value: size, Label: label, Ratio: ratio, CreditCost: service.CostForSize(size)})
 	}
 	return options
 }

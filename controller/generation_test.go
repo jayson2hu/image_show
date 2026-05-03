@@ -67,8 +67,8 @@ func TestGenerationStreamCompletesInMockMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get balance: %v", err)
 	}
-	if balance < 2.79 || balance > 2.81 {
-		t.Fatalf("expected low quality cost 0.2, balance=%v", balance)
+	if balance != 2 {
+		t.Fatalf("expected size cost 1, balance=%v", balance)
 	}
 }
 
@@ -112,9 +112,10 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 	var anonymousResp struct {
 		Sizes       []string `json:"sizes"`
 		SizeOptions []struct {
-			Value string `json:"value"`
-			Label string `json:"label"`
-			Ratio string `json:"ratio"`
+			Value      string  `json:"value"`
+			Label      string  `json:"label"`
+			Ratio      string  `json:"ratio"`
+			CreditCost float64 `json:"credit_cost"`
 		} `json:"size_options"`
 	}
 	if err := json.Unmarshal(anonymous.Body.Bytes(), &anonymousResp); err != nil {
@@ -126,6 +127,9 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 	}
 	if len(anonymousResp.SizeOptions) == 0 || anonymousResp.SizeOptions[0].Label == "" || anonymousResp.SizeOptions[0].Ratio == "" {
 		t.Fatalf("expected ratio size options, got %#v", anonymousResp.SizeOptions)
+	}
+	if anonymousResp.SizeOptions[0].CreditCost != 1 {
+		t.Fatalf("expected size credit cost, got %#v", anonymousResp.SizeOptions[0])
 	}
 
 	token := createGenerationUser(t, 1)
@@ -270,7 +274,7 @@ func TestCreateImageEditRequiresLogin(t *testing.T) {
 	}
 }
 
-func TestAnonymousTrialOnceAndForcesLow(t *testing.T) {
+func TestAnonymousTrialOnceUsesStandardQuality(t *testing.T) {
 	engine := setupAuthTest(t)
 	config.AppConfig.MockSub2API = true
 
@@ -293,7 +297,7 @@ func TestAnonymousTrialOnceAndForcesLow(t *testing.T) {
 	if err := model.DB.First(&generation, firstResp.ID).Error; err != nil {
 		t.Fatalf("load trial generation: %v", err)
 	}
-	if generation.UserID != nil || generation.Quality != "low" || generation.AnonymousID != firstResp.AnonymousID {
+	if generation.UserID != nil || generation.Quality != "medium" || generation.AnonymousID != firstResp.AnonymousID {
 		t.Fatalf("unexpected trial generation: %+v", generation)
 	}
 	waitGenerationStatus(t, firstResp.ID, 3)

@@ -21,6 +21,7 @@ interface SizeOption {
   value: string
   label: string
   ratio: string
+  credit_cost?: number
 }
 
 interface StylePreset {
@@ -49,7 +50,7 @@ const generationMode = ref<GenerationMode>('generate')
 const sourceImageFile = ref<File | null>(null)
 const sourceImagePreview = ref('')
 const selectedStyle = ref('')
-const quality = ref<Quality>('medium')
+const quality: Quality = 'medium'
 const size = ref('1024x1024')
 const sizeOptions = ref<SizeOption[]>([
   { value: '1024x1024', label: '1:1', ratio: '1:1' },
@@ -77,7 +78,6 @@ const isFullscreenOpen = ref(false)
 const fullscreenEl = ref<HTMLElement | null>(null)
 
 const costs: Record<Quality, number> = { low: 0.2, medium: 1, high: 4 }
-const qualityLabels: Record<Quality, string> = { low: '快速', medium: '标准', high: '高清' }
 const defaultStylePresets: StylePreset[] = [
   { id: 'style-realistic', name: '写实', prompt: '写实摄影风格，细节丰富，自然光影，真实材质，高质量商业摄影' },
   { id: 'style-anime', name: '动漫', prompt: '动漫插画风格，清晰线稿，高饱和色彩，精致角色设计，干净背景' },
@@ -98,7 +98,8 @@ const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
 const selectedStylePrompt = computed(() => stylePresets.value.find((item) => item.id === selectedStyle.value)?.prompt || '')
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
 const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value && (generationMode.value === 'generate' || (!!userStore.user && !!sourceImageFile.value)))
-const estimatedCreditCost = computed(() => costs[quality.value])
+const selectedSizeOption = computed(() => sizeOptions.value.find((item) => item.value === size.value))
+const estimatedCreditCost = computed(() => selectedSizeOption.value?.credit_cost ?? costs[quality])
 const generationModeText = computed(() => (generationMode.value === 'edit' ? '图片编辑' : '文本生成'))
 const generateHint = computed(() => {
   if (loading.value) {
@@ -113,11 +114,10 @@ const generateHint = computed(() => {
   if (generationMode.value === 'edit' && !sourceImageFile.value) {
     return '上传要编辑的图片后即可开始'
   }
-  return `${generationModeText.value} · ${qualityLabels[quality.value]}模式 · 预计消耗 ${estimatedCreditCost.value} 积分`
+  return `${generationModeText.value} · ${selectedSizeOption.value?.label || size.value.replace('x', ' x ')} · 预计消耗 ${estimatedCreditCost.value} 积分`
 })
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
 const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '免费试用'))
-const selectedSizeOption = computed(() => sizeOptions.value.find((item) => item.value === size.value))
 
 declare global {
   interface Window {
@@ -230,7 +230,7 @@ function rangeWidth(value: number, min: number, max: number) {
 async function generate() {
   await createGeneration({
     prompt: buildPrompt(),
-    quality: quality.value,
+    quality,
     size: size.value,
     mode: generationMode.value,
     sourceImage: sourceImageFile.value,
@@ -492,7 +492,7 @@ function resetCaptcha() {
               <div class="pointer-events-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="text-white">
                   <h2 class="text-lg font-medium">生成结果</h2>
-                  <p class="mt-1 text-sm text-white/70">{{ selectedSizeOption?.label || size.replace('x', ' x ') }} · {{ qualityLabels[quality] }}</p>
+                  <p class="mt-1 text-sm text-white/70">{{ selectedSizeOption?.label || size.replace('x', ' x ') }} · {{ estimatedCreditCost }} 积分</p>
                 </div>
                 <div class="flex gap-2">
                   <button
@@ -637,19 +637,11 @@ function resetCaptcha() {
             </div>
           </div>
 
-          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <label class="text-sm font-medium text-gray-700">
-              质量
-              <select v-model="quality" class="home-input mt-2 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 outline-none focus:border-violet-400">
-                <option value="low">快速 - 0.2 积分</option>
-                <option value="medium">标准 - 1 积分</option>
-                <option value="high">高清 - 4 积分</option>
-              </select>
-            </label>
+          <div class="grid gap-3">
             <div class="text-sm font-medium text-gray-700">
               <div class="mb-2 flex items-center justify-between">
                 <span>尺寸比例</span>
-                <span class="text-xs font-normal text-gray-500">{{ selectedSizeOption?.value.replace('x', ' x ') }}</span>
+                <span class="text-xs font-normal text-gray-500">{{ selectedSizeOption?.value.replace('x', ' x ') }} · {{ estimatedCreditCost }} 积分</span>
               </div>
               <div class="grid grid-cols-3 gap-2">
                 <button
@@ -662,6 +654,7 @@ function resetCaptcha() {
                 >
                   <span class="block font-medium">{{ item.label }}</span>
                   <span class="mt-0.5 block text-[11px] opacity-75">{{ item.value.replace('x', ' x ') }}</span>
+                  <span class="mt-1 block text-[11px] font-semibold opacity-90">{{ item.credit_cost ?? costs[quality] }} 积分</span>
                 </button>
               </div>
             </div>
@@ -760,7 +753,7 @@ function resetCaptcha() {
                 <span class="rounded-full bg-white px-3 py-1 text-sm font-semibold text-violet-700 shadow-sm dark:bg-slate-900 dark:text-violet-200">{{ estimatedCreditCost }} 积分</span>
               </div>
               <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span>{{ generationModeText }} · {{ qualityLabels[quality] }}模式 · {{ selectedSizeOption?.value.replace('x', ' x ') }}</span>
+                <span>{{ generationModeText }} · {{ selectedSizeOption?.value.replace('x', ' x ') }}</span>
                 <span>{{ userStore.user ? `余额 ${userStore.user.credits} 积分` : '未登录免费试用 1 次' }}</span>
               </div>
               <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ generateHint }}</p>
@@ -782,7 +775,7 @@ function resetCaptcha() {
       <div class="flex min-h-16 items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-white sm:px-6">
         <div class="min-w-0">
           <p class="truncate text-sm font-medium">生成结果</p>
-          <p class="text-xs text-white/60">{{ selectedSizeOption?.label || size.replace('x', ' x ') }} · {{ qualityLabels[quality] }}</p>
+          <p class="text-xs text-white/60">{{ selectedSizeOption?.label || size.replace('x', ' x ') }} · {{ estimatedCreditCost }} 积分</p>
         </div>
         <div class="flex shrink-0 gap-2">
           <button class="rounded-full border border-white/20 px-4 py-2 text-sm transition hover:bg-white/10" type="button" @click="downloadCurrentImage">
