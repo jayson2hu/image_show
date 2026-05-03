@@ -53,9 +53,9 @@ const selectedStyle = ref('')
 const quality: Quality = 'medium'
 const size = ref('1024x1024')
 const sizeOptions = ref<SizeOption[]>([
-  { value: '1024x1024', label: '1:1', ratio: '1:1' },
-  { value: '1536x1024', label: '3:2', ratio: '3:2' },
-  { value: '1024x1536', label: '2:3', ratio: '2:3' },
+  makeSizeOption('1024x1024'),
+  makeSizeOption('1536x1024'),
+  makeSizeOption('1024x1536'),
 ])
 const isSamplesExpanded = ref(false)
 const generationId = ref<number | null>(null)
@@ -93,7 +93,7 @@ const selectedStylePrompt = computed(() => stylePresets.value.find((item) => ite
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
 const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value && (generationMode.value === 'generate' || (!!userStore.user && !!sourceImageFile.value)))
 const selectedSizeOption = computed(() => sizeOptions.value.find((item) => item.value === size.value))
-const estimatedCreditCost = computed(() => selectedSizeOption.value?.credit_cost ?? 1)
+const estimatedCreditCost = computed(() => selectedSizeOption.value?.credit_cost ?? creditCostForSize(size.value))
 const generationModeText = computed(() => (generationMode.value === 'edit' ? '图片编辑' : '文本生成'))
 const generateHint = computed(() => {
   if (loading.value) {
@@ -173,23 +173,44 @@ async function loadGenerationOptions() {
   try {
     const response = await api.get('/generation/options')
     if (Array.isArray(response.data.size_options) && response.data.size_options.length > 0) {
-      sizeOptions.value = response.data.size_options
+      sizeOptions.value = response.data.size_options.map((item: SizeOption) => ({
+        ...item,
+        credit_cost: item.credit_cost ?? creditCostForSize(item.value),
+      }))
       if (!sizeOptions.value.some((item) => item.value === size.value)) {
         size.value = sizeOptions.value[0].value
       }
     } else if (Array.isArray(response.data.sizes) && response.data.sizes.length > 0) {
-      sizeOptions.value = response.data.sizes.map((item: string) => ({ value: item, label: sizeRatioLabel(item), ratio: sizeRatioLabel(item) }))
+      sizeOptions.value = response.data.sizes.map(makeSizeOption)
       if (!sizeOptions.value.some((item) => item.value === size.value)) {
         size.value = sizeOptions.value[0].value
       }
     }
   } catch {
     const fallback = userStore.user ? ['1024x1024', '1536x1024', '1024x1536'] : ['1024x1024']
-    sizeOptions.value = fallback.map((item) => ({ value: item, label: sizeRatioLabel(item), ratio: sizeRatioLabel(item) }))
+    sizeOptions.value = fallback.map(makeSizeOption)
     if (!sizeOptions.value.some((item) => item.value === size.value)) {
       size.value = sizeOptions.value[0].value
     }
   }
+}
+
+function makeSizeOption(value: string): SizeOption {
+  const ratio = sizeRatioLabel(value)
+  return {
+    value,
+    label: ratio,
+    ratio,
+    credit_cost: creditCostForSize(value),
+  }
+}
+
+function creditCostForSize(value: string) {
+  const [width, height] = value.toLowerCase().split('x').map((part) => Number.parseInt(part.trim(), 10))
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return 1
+  }
+  return Math.max(1, Math.ceil((width * height) / (1024 * 1024)))
 }
 
 function sizeRatioLabel(value: string) {
@@ -644,7 +665,7 @@ function resetCaptcha() {
                 >
                   <span class="block font-medium">{{ item.label }}</span>
                   <span class="mt-0.5 block text-[11px] opacity-75">{{ item.value.replace('x', ' x ') }}</span>
-                  <span class="mt-1 block text-[11px] font-semibold opacity-90">{{ item.credit_cost ?? 1 }} 积分</span>
+                  <span class="mt-1 block text-[11px] font-semibold opacity-90">{{ item.credit_cost ?? creditCostForSize(item.value) }} 积分</span>
                 </button>
               </div>
             </div>
