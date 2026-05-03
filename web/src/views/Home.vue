@@ -21,7 +21,6 @@ interface SizeOption {
   value: string
   label: string
   ratio: string
-  credit_cost?: number
 }
 
 interface StylePreset {
@@ -50,18 +49,13 @@ const generationMode = ref<GenerationMode>('generate')
 const sourceImageFile = ref<File | null>(null)
 const sourceImagePreview = ref('')
 const selectedStyle = ref('')
-const quality: Quality = 'medium'
+const quality = ref<Quality>('medium')
 const size = ref('1024x1024')
 const sizeOptions = ref<SizeOption[]>([
   { value: '1024x1024', label: '1:1', ratio: '1:1' },
   { value: '1536x1024', label: '3:2', ratio: '3:2' },
   { value: '1024x1536', label: '2:3', ratio: '2:3' },
 ])
-const imageCount = ref(4)
-const creativity = ref(0.7)
-const steps = ref(30)
-const cfgScale = ref(7)
-const isAdvancedExpanded = ref(false)
 const isSamplesExpanded = ref(false)
 const generationId = ref<number | null>(null)
 const imageURL = ref('')
@@ -78,6 +72,8 @@ const isFullscreenOpen = ref(false)
 const fullscreenEl = ref<HTMLElement | null>(null)
 
 const costs: Record<Quality, number> = { low: 0.2, medium: 1, high: 4 }
+const qualityLabels: Record<Quality, string> = { low: '快速', medium: '标准', high: '高清' }
+const qualityOptions: Quality[] = ['low', 'medium', 'high']
 const defaultStylePresets: StylePreset[] = [
   { id: 'style-realistic', name: '写实', prompt: '写实摄影风格，细节丰富，自然光影，真实材质，高质量商业摄影' },
   { id: 'style-anime', name: '动漫', prompt: '动漫插画风格，清晰线稿，高饱和色彩，精致角色设计，干净背景' },
@@ -99,7 +95,7 @@ const selectedStylePrompt = computed(() => stylePresets.value.find((item) => ite
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
 const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value && (generationMode.value === 'generate' || (!!userStore.user && !!sourceImageFile.value)))
 const selectedSizeOption = computed(() => sizeOptions.value.find((item) => item.value === size.value))
-const estimatedCreditCost = computed(() => selectedSizeOption.value?.credit_cost ?? costs[quality])
+const estimatedCreditCost = computed(() => costs[quality.value])
 const generationModeText = computed(() => (generationMode.value === 'edit' ? '图片编辑' : '文本生成'))
 const generateHint = computed(() => {
   if (loading.value) {
@@ -114,7 +110,7 @@ const generateHint = computed(() => {
   if (generationMode.value === 'edit' && !sourceImageFile.value) {
     return '上传要编辑的图片后即可开始'
   }
-  return `${generationModeText.value} · ${selectedSizeOption.value?.label || size.value.replace('x', ' x ')} · 预计消耗 ${estimatedCreditCost.value} 积分`
+  return `${generationModeText.value} · ${qualityLabels[quality.value]}质量 · 预计消耗 ${estimatedCreditCost.value} 积分`
 })
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
 const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '免费试用'))
@@ -223,14 +219,10 @@ function buildPrompt() {
   return parts.filter(Boolean).join('\n')
 }
 
-function rangeWidth(value: number, min: number, max: number) {
-  return `${((value - min) / (max - min)) * 100}%`
-}
-
 async function generate() {
   await createGeneration({
     prompt: buildPrompt(),
-    quality,
+    quality: quality.value,
     size: size.value,
     mode: generationMode.value,
     sourceImage: sourceImageFile.value,
@@ -522,8 +514,8 @@ function resetCaptcha() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2 1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <p class="mb-2 text-xl text-gray-700 dark:text-slate-200">准备好了吗？</p>
-            <p class="text-gray-500 dark:text-slate-400">在右侧输入提示词，开始创作你的 AI 图片</p>
+            <p class="mb-2 text-xl text-gray-700 dark:text-slate-200">把想法变成一张好图</p>
+            <p class="mx-auto max-w-md text-gray-500 dark:text-slate-400">写下你脑海里的画面，选好比例和质量，几秒钟后就能看到第一张作品。</p>
           </div>
         </div>
       </main>
@@ -640,8 +632,28 @@ function resetCaptcha() {
           <div class="grid gap-3">
             <div class="text-sm font-medium text-gray-700">
               <div class="mb-2 flex items-center justify-between">
+                <span>生成质量</span>
+                <span class="text-xs font-normal text-gray-500">当前 {{ qualityLabels[quality] }} · {{ estimatedCreditCost }} 积分</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  v-for="item in qualityOptions"
+                  :key="item"
+                  class="home-button min-h-11 rounded-xl border px-3 py-2 text-sm transition"
+                  :class="quality === item ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-500/20' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
+                  type="button"
+                  @click="quality = item"
+                >
+                  <span class="block font-medium">{{ qualityLabels[item] }}</span>
+                  <span class="mt-0.5 block text-[11px] opacity-80">{{ costs[item] }} 积分</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="text-sm font-medium text-gray-700">
+              <div class="mb-2 flex items-center justify-between">
                 <span>尺寸比例</span>
-                <span class="text-xs font-normal text-gray-500">{{ selectedSizeOption?.value.replace('x', ' x ') }} · {{ estimatedCreditCost }} 积分</span>
+                <span class="text-xs font-normal text-gray-500">{{ selectedSizeOption?.value.replace('x', ' x ') }}</span>
               </div>
               <div class="grid grid-cols-3 gap-2">
                 <button
@@ -654,64 +666,10 @@ function resetCaptcha() {
                 >
                   <span class="block font-medium">{{ item.label }}</span>
                   <span class="mt-0.5 block text-[11px] opacity-75">{{ item.value.replace('x', ' x ') }}</span>
-                  <span class="mt-1 block text-[11px] font-semibold opacity-90">{{ item.credit_cost ?? costs[quality] }} 积分</span>
                 </button>
               </div>
             </div>
           </div>
-
-          <section class="border-t border-gray-200 pt-4">
-            <button class="mb-3 flex w-full items-center justify-between text-gray-900 transition hover:text-violet-700" type="button" @click="isAdvancedExpanded = !isAdvancedExpanded">
-              <h3 class="text-lg font-medium">高级参数</h3>
-              <span class="text-xl transition-transform" :class="isAdvancedExpanded ? 'rotate-180' : ''">⌄</span>
-            </button>
-
-            <div v-if="isAdvancedExpanded" class="space-y-4">
-              <label class="block">
-                <span class="mb-2 flex items-center justify-between text-gray-700"><span>生成数量</span><span class="text-violet-600">{{ imageCount }}</span></span>
-                <span class="relative block">
-                  <span class="block h-2 overflow-hidden rounded-full bg-gray-200">
-                    <span class="block h-full bg-gradient-to-r from-violet-600 to-blue-600 transition-all" :style="{ width: rangeWidth(imageCount, 1, 4) }"></span>
-                  </span>
-                  <input v-model.number="imageCount" class="absolute inset-x-0 top-0 h-2 w-full cursor-pointer opacity-0" type="range" min="1" max="4" step="1" />
-                </span>
-                <span class="mt-1 flex justify-between text-xs text-gray-500"><span>1张</span><span>4张</span></span>
-              </label>
-
-              <label class="block">
-                <span class="mb-2 flex items-center justify-between text-gray-700"><span>创意度</span><span class="text-violet-600">{{ creativity.toFixed(1) }}</span></span>
-                <span class="relative block">
-                  <span class="block h-2 overflow-hidden rounded-full bg-gray-200">
-                    <span class="block h-full bg-gradient-to-r from-violet-600 to-blue-600 transition-all" :style="{ width: rangeWidth(creativity, 0, 1) }"></span>
-                  </span>
-                  <input v-model.number="creativity" class="absolute inset-x-0 top-0 h-2 w-full cursor-pointer opacity-0" type="range" min="0" max="1" step="0.1" />
-                </span>
-                <span class="mt-1 flex justify-between text-xs text-gray-500"><span>保守</span><span>创新</span></span>
-              </label>
-
-              <label class="block">
-                <span class="mb-2 flex items-center justify-between text-gray-700"><span>生成步数</span><span class="text-violet-600">{{ steps }}</span></span>
-                <span class="relative block">
-                  <span class="block h-2 overflow-hidden rounded-full bg-gray-200">
-                    <span class="block h-full bg-gradient-to-r from-violet-600 to-blue-600 transition-all" :style="{ width: rangeWidth(steps, 10, 50) }"></span>
-                  </span>
-                  <input v-model.number="steps" class="absolute inset-x-0 top-0 h-2 w-full cursor-pointer opacity-0" type="range" min="10" max="50" step="5" />
-                </span>
-                <span class="mt-1 flex justify-between text-xs text-gray-500"><span>快速</span><span>精细</span></span>
-              </label>
-
-              <label class="block">
-                <span class="mb-2 flex items-center justify-between text-gray-700"><span>提示词相关度</span><span class="text-violet-600">{{ cfgScale }}</span></span>
-                <span class="relative block">
-                  <span class="block h-2 overflow-hidden rounded-full bg-gray-200">
-                    <span class="block h-full bg-gradient-to-r from-violet-600 to-blue-600 transition-all" :style="{ width: rangeWidth(cfgScale, 1, 20) }"></span>
-                  </span>
-                  <input v-model.number="cfgScale" class="absolute inset-x-0 top-0 h-2 w-full cursor-pointer opacity-0" type="range" min="1" max="20" step="1" />
-                </span>
-                <span class="mt-1 flex justify-between text-xs text-gray-500"><span>宽松</span><span>严格</span></span>
-              </label>
-            </div>
-          </section>
 
           <section class="border-t border-gray-200 pt-4">
             <button class="mb-3 flex w-full items-center justify-between text-gray-900 transition hover:text-violet-700" type="button" @click="isSamplesExpanded = !isSamplesExpanded">

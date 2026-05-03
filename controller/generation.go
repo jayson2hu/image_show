@@ -27,10 +27,9 @@ type createGenerationRequest struct {
 const standardImageQuality = "medium"
 
 type imageSizeOption struct {
-	Value      string  `json:"value"`
-	Label      string  `json:"label"`
-	Ratio      string  `json:"ratio"`
-	CreditCost float64 `json:"credit_cost"`
+	Value string `json:"value"`
+	Label string `json:"label"`
+	Ratio string `json:"ratio"`
 }
 
 type batchDeleteGenerationsRequest struct {
@@ -125,7 +124,7 @@ func CreateGeneration(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
-	req.Quality = standardImageQuality
+	req.Quality = normalizeQuality(req.Quality)
 	if !isEnabledImageSize(req.Size) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported image size"})
 		return
@@ -178,7 +177,7 @@ func CreateImageEdit(c *gin.Context) {
 	}
 	req := createGenerationRequest{
 		Prompt:       strings.TrimSpace(c.PostForm("prompt")),
-		Quality:      standardImageQuality,
+		Quality:      normalizeQuality(c.PostForm("quality")),
 		Size:         c.PostForm("size"),
 		AnonymousID:  c.PostForm("anonymous_id"),
 		CaptchaToken: c.PostForm("captcha_token"),
@@ -262,6 +261,13 @@ func isValidQuality(quality string) bool {
 	return quality == "low" || quality == "medium" || quality == "high"
 }
 
+func normalizeQuality(quality string) string {
+	if isValidQuality(quality) {
+		return quality
+	}
+	return standardImageQuality
+}
+
 func isSupportedEditImageType(contentType string) bool {
 	contentType = strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
 	return contentType == "image/png" || contentType == "image/jpeg" || contentType == "image/webp"
@@ -275,7 +281,7 @@ func buildImageSizeOptions(sizes []string) []imageSizeOption {
 		if ratio == "" {
 			label = strings.Replace(size, "x", " x ", 1)
 		}
-		options = append(options, imageSizeOption{Value: size, Label: label, Ratio: ratio, CreditCost: service.CostForSize(size)})
+		options = append(options, imageSizeOption{Value: size, Label: label, Ratio: ratio})
 	}
 	return options
 }
