@@ -51,6 +51,65 @@ html.dark .home-button:hover {
   color: #f8fafc;
 }
 
+html.dark .home-panel .bg-white,
+html.dark .home-panel.bg-white,
+html.dark .home-panel .bg-white\/95,
+html.dark .home-panel.bg-white\/95,
+html.dark .home-panel .bg-gray-50,
+html.dark .home-panel .bg-gray-100 {
+  background-color: #0f172a;
+}
+
+html.dark .home-shell .bg-violet-50 {
+  background-color: rgb(124 58 237 / 0.12);
+}
+
+html.dark .home-shell .bg-violet-100 {
+  background-color: rgb(124 58 237 / 0.2);
+}
+
+html.dark .home-shell .bg-gray-200 {
+  background-color: #1e293b;
+}
+
+html.dark .home-shell .border-gray-200,
+html.dark .home-shell .border-gray-300,
+html.dark .home-shell .border-slate-200,
+html.dark .home-shell .border-violet-200 {
+  border-color: #334155;
+}
+
+html.dark .home-shell .text-gray-900,
+html.dark .home-shell .text-gray-700,
+html.dark .home-shell .text-slate-700 {
+  color: #e2e8f0;
+}
+
+html.dark .home-shell .text-gray-600,
+html.dark .home-shell .text-gray-500,
+html.dark .home-shell .text-gray-400 {
+  color: #94a3b8;
+}
+
+html.dark .home-shell .text-violet-900,
+html.dark .home-shell .text-violet-700 {
+  color: #c4b5fd;
+}
+
+html.dark .home-shell .hover\:bg-violet-50:hover {
+  background-color: rgb(124 58 237 / 0.16);
+}
+
+html.dark .home-shell .hover\:text-gray-900:hover,
+html.dark .home-shell .hover\:text-violet-700:hover {
+  color: #ddd6fe;
+}
+
+html.dark .home-shell select option {
+  background: #020617;
+  color: #e2e8f0;
+}
+
 .figma-range {
   height: 18px;
   appearance: none;

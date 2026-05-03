@@ -98,6 +98,8 @@ const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
 const selectedStylePrompt = computed(() => stylePresets.value.find((item) => item.id === selectedStyle.value)?.prompt || '')
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
 const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value && (generationMode.value === 'generate' || (!!userStore.user && !!sourceImageFile.value)))
+const estimatedCreditCost = computed(() => costs[quality.value])
+const generationModeText = computed(() => (generationMode.value === 'edit' ? '图片编辑' : '文本生成'))
 const generateHint = computed(() => {
   if (loading.value) {
     return '正在处理当前任务'
@@ -111,7 +113,7 @@ const generateHint = computed(() => {
   if (generationMode.value === 'edit' && !sourceImageFile.value) {
     return '上传要编辑的图片后即可开始'
   }
-  return `${generationMode.value === 'edit' ? '图片编辑' : '文本生成'} · ${qualityLabels[quality.value]}模式 · 预计消耗 ${costs[quality.value]} 积分`
+  return `${generationModeText.value} · ${qualityLabels[quality.value]}模式 · 预计消耗 ${estimatedCreditCost.value} 积分`
 })
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
 const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '免费试用'))
@@ -452,9 +454,9 @@ function resetCaptcha() {
 </script>
 
 <template>
-  <section class="home-shell h-auto min-h-[calc(100vh-65px)] overflow-hidden bg-gray-50 text-gray-950 lg:h-[calc(100vh-65px)]">
+  <section class="home-shell h-auto min-h-[calc(100vh-65px)] overflow-hidden bg-gray-50 text-gray-950 transition-colors dark:bg-slate-950 dark:text-slate-100 lg:h-[calc(100vh-65px)]">
     <div class="flex h-full min-h-[calc(100vh-65px)] flex-col lg:flex-row">
-      <main class="home-main min-h-[560px] flex-1 overflow-y-auto bg-gray-50 p-5 sm:p-8 lg:h-[calc(100vh-65px)]">
+      <main class="home-main min-h-[560px] flex-1 overflow-y-auto bg-gray-50 p-5 transition-colors dark:bg-slate-950 sm:p-8 lg:h-[calc(100vh-65px)]">
         <div v-if="generationId" class="-m-5 flex h-[calc(100vh-65px)] min-h-[560px] flex-col sm:-m-8">
           <GenerationProgress
             :generation-id="generationId"
@@ -515,23 +517,23 @@ function resetCaptcha() {
 
         <div v-else class="flex h-[calc(100vh-200px)] min-h-[460px] items-center justify-center">
           <div class="text-center">
-            <div class="mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-gray-200">
-              <svg class="size-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <div class="mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-gray-200 transition-colors dark:bg-slate-800">
+              <svg class="size-10 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2 1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <p class="mb-2 text-xl text-gray-700">准备好了吗？</p>
-            <p class="text-gray-500">在右侧输入提示词，开始创作你的 AI 图片</p>
+            <p class="mb-2 text-xl text-gray-700 dark:text-slate-200">准备好了吗？</p>
+            <p class="text-gray-500 dark:text-slate-400">在右侧输入提示词，开始创作你的 AI 图片</p>
           </div>
         </div>
       </main>
 
       <aside
-        class="home-panel relative w-full shrink-0 border-t border-gray-200 bg-white transition-[width] duration-300 lg:h-[calc(100vh-65px)] lg:border-l lg:border-t-0"
+        class="home-panel relative w-full shrink-0 border-t border-gray-200 bg-white transition-[width] duration-300 dark:border-slate-800 dark:bg-slate-950 lg:h-[calc(100vh-65px)] lg:border-l lg:border-t-0"
         :class="isPromptPanelCollapsed ? 'lg:w-0' : 'lg:w-[420px]'"
       >
         <button
-          class="absolute -left-4 top-1/2 z-30 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg shadow-slate-900/15 transition hover:bg-violet-50 hover:text-violet-700 lg:flex"
+          class="absolute -left-4 top-1/2 z-30 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg shadow-slate-900/15 transition hover:bg-violet-50 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-violet-500/15 dark:hover:text-violet-200 lg:flex"
           type="button"
           :aria-label="isPromptPanelCollapsed ? '展开参数面板' : '收起参数面板'"
           @click="isPromptPanelCollapsed = !isPromptPanelCollapsed"
@@ -751,8 +753,18 @@ function resetCaptcha() {
 
           <p v-if="!userStore.user" class="text-center text-sm text-gray-500">未登录可免费试用 1 次；登录后可查看历史记录和积分。</p>
           </div>
-          <div class="home-panel sticky bottom-0 border-t border-gray-200 bg-white/95 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur">
-            <p class="mb-3 text-center text-xs text-gray-500">{{ generateHint }}</p>
+          <div class="home-panel sticky bottom-0 border-t border-gray-200 bg-white/95 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:shadow-black/30">
+            <div class="mb-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm shadow-sm shadow-violet-900/5 dark:border-violet-400/20 dark:bg-violet-500/10 dark:shadow-none">
+              <div class="flex items-center justify-between gap-3">
+                <span class="font-medium text-slate-700 dark:text-slate-200">本次预计消耗</span>
+                <span class="rounded-full bg-white px-3 py-1 text-sm font-semibold text-violet-700 shadow-sm dark:bg-slate-900 dark:text-violet-200">{{ estimatedCreditCost }} 积分</span>
+              </div>
+              <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <span>{{ generationModeText }} · {{ qualityLabels[quality] }}模式 · {{ selectedSizeOption?.value.replace('x', ' x ') }}</span>
+                <span>{{ userStore.user ? `余额 ${userStore.user.credits} 积分` : '未登录免费试用 1 次' }}</span>
+              </div>
+              <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ generateHint }}</p>
+            </div>
             <button
               class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 py-4 text-white shadow-lg shadow-violet-500/30 transition hover:from-violet-700 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
