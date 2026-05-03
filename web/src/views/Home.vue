@@ -505,7 +505,15 @@ function resetCaptcha() {
                   <h2 class="text-lg font-medium">生成结果</h2>
                   <p class="mt-1 text-sm text-white/70">{{ selectedSizeOption?.label || size.replace('x', ' x ') }} · {{ estimatedCreditCost }} 积分</p>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-if="canRetry"
+                    class="inline-flex min-h-11 items-center justify-center rounded-full bg-violet-600 px-5 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500"
+                    type="button"
+                    @click="retry"
+                  >
+                    再生成一次
+                  </button>
                   <button
                     class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/15 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25"
                     type="button"
@@ -698,7 +706,7 @@ function resetCaptcha() {
           <div v-if="captchaEnabled" ref="captchaEl" class="min-h-[65px]"></div>
           <p v-if="error" class="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">{{ error }}</p>
 
-          <button v-if="canRetry" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-violet-300" type="button" @click="retry">
+          <button v-if="canRetry && !imageURL" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-violet-300" type="button" @click="retry">
             重新生成上一次
           </button>
 
