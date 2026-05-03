@@ -269,7 +269,7 @@ func CreateImageEdit(c *gin.Context) {
 }
 
 func enabledImageSizes() []string {
-	value := model.GetSettingValue("enabled_image_sizes", "1280x720,720x1280,1024x1024,1152x768,768x1152,1536x1024,1024x1536,2048x2048,2048x1152,1152x2048,3840x2160,2160x3840")
+	value := model.GetSettingValue("enabled_image_sizes", "1024x1024,1536x1024,1024x1536")
 	parts := strings.Split(value, ",")
 	sizes := make([]string, 0, len(parts))
 	for _, part := range parts {
@@ -372,14 +372,14 @@ func filterAnonymousImageSizes(sizes []string) []string {
 		}
 	}
 	if len(filtered) == 0 {
-		return []string{"1280x720", "720x1280", "1024x1024", "1152x768", "768x1152"}
+		return []string{"1024x1024"}
 	}
 	return filtered
 }
 
 func isAnonymousImageSize(size string) bool {
 	width, height, ok := parseImageSize(size)
-	return ok && width <= 1280 && height <= 1280 && isGPTImage2CompatibleSize(width, height)
+	return ok && width <= 1024 && height <= 1024 && isGPTImage2CompatibleSize(width, height)
 }
 
 func parseImageSize(size string) (int, int, bool) {

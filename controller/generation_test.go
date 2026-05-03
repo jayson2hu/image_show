@@ -112,7 +112,7 @@ func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
 	engine := setupAuthTest(t)
 	if err := model.DB.Create(&model.Setting{
 		Key:   "enabled_image_sizes",
-		Value: "1280x720,720x1280,1024x1024,1024x1536,1536x1024",
+		Value: "1024x1024,1024x1536,1536x1024",
 	}).Error; err != nil {
 		t.Fatalf("create size setting: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
 		t.Fatalf("decode anonymous options: %v", err)
 	}
 	anonymousSizes := strings.Join(anonymousResp.Sizes, ",")
-	if strings.Contains(anonymousSizes, "1024x1536") || !strings.Contains(anonymousSizes, "1024x1024") || !strings.Contains(anonymousSizes, "1280x720") {
+	if strings.Contains(anonymousSizes, "1024x1536") || strings.Contains(anonymousSizes, "1536x1024") || !strings.Contains(anonymousSizes, "1024x1024") {
 		t.Fatalf("unexpected anonymous sizes: %#v", anonymousResp.Sizes)
 	}
 	if len(anonymousResp.SizeOptions) == 0 || anonymousResp.SizeOptions[0].Label == "" || anonymousResp.SizeOptions[0].Ratio == "" {
