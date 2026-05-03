@@ -37,9 +37,6 @@ type batchDeleteGenerationsRequest struct {
 
 func GenerationOptions(c *gin.Context) {
 	sizes := enabledImageSizes()
-	if _, exists := c.Get("userID"); !exists {
-		sizes = filterAnonymousImageSizes(sizes)
-	}
 	c.JSON(http.StatusOK, gin.H{"sizes": sizes, "size_options": buildImageSizeOptions(sizes)})
 }
 
@@ -137,10 +134,6 @@ func CreateGeneration(c *gin.Context) {
 		}
 	}
 	if userID == nil {
-		if !isAnonymousImageSize(req.Size) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "please login to use larger image size"})
-			return
-		}
 		fingerprint := c.GetHeader("X-Fingerprint")
 		if fingerprint == "" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "fingerprint required for free trial"})
@@ -230,29 +223,7 @@ func CreateImageEdit(c *gin.Context) {
 		}
 	}
 	if userID == nil {
-		if !isAnonymousImageSize(req.Size) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "please login to use larger image size"})
-			return
-		}
-		fingerprint := c.GetHeader("X-Fingerprint")
-		if fingerprint == "" {
-			c.JSON(http.StatusForbidden, gin.H{"error": "fingerprint required for free trial"})
-			return
-		}
-		anonymousID, ok := service.CheckTrialEligible(common.GetRealIP(c), fingerprint)
-		if !ok {
-			c.JSON(http.StatusForbidden, gin.H{"error": "free trial used, please register"})
-			return
-		}
-		req.Quality = "low"
-		req.AnonymousID = anonymousID
-		generation, err := service.CreateImageEdit(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), nil, req.AnonymousID, imageData, header.Filename, contentType)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create image edit"})
-			return
-		}
-		service.MarkTrialUsed(anonymousID)
-		c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status, "anonymous_id": anonymousID})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "please login to edit images"})
 		return
 	}
 
@@ -362,24 +333,6 @@ func isGPTImage2CompatibleSize(width, height int) bool {
 	}
 	pixels := width * height
 	return pixels >= 655360 && pixels <= 8294400
-}
-
-func filterAnonymousImageSizes(sizes []string) []string {
-	filtered := make([]string, 0, len(sizes))
-	for _, size := range sizes {
-		if isAnonymousImageSize(size) {
-			filtered = append(filtered, size)
-		}
-	}
-	if len(filtered) == 0 {
-		return []string{"1024x1024"}
-	}
-	return filtered
-}
-
-func isAnonymousImageSize(size string) bool {
-	width, height, ok := parseImageSize(size)
-	return ok && width <= 1024 && height <= 1024 && isGPTImage2CompatibleSize(width, height)
 }
 
 func parseImageSize(size string) (int, int, bool) {

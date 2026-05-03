@@ -96,19 +96,7 @@ func TestCreateGenerationRequiresFingerprintForTrial(t *testing.T) {
 	}
 }
 
-func TestCreateGenerationRejectsAnonymousLargeSize(t *testing.T) {
-	engine := setupAuthTest(t)
-	rec := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
-		"prompt":  "large image",
-		"quality": "low",
-		"size":    "1024x1536",
-	}, "fp-large")
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected 403 for anonymous large size, got %d body=%s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
+func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) {
 	engine := setupAuthTest(t)
 	if err := model.DB.Create(&model.Setting{
 		Key:   "enabled_image_sizes",
@@ -133,7 +121,7 @@ func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
 		t.Fatalf("decode anonymous options: %v", err)
 	}
 	anonymousSizes := strings.Join(anonymousResp.Sizes, ",")
-	if strings.Contains(anonymousSizes, "1024x1536") || strings.Contains(anonymousSizes, "1536x1024") || !strings.Contains(anonymousSizes, "1024x1024") {
+	if !strings.Contains(anonymousSizes, "1024x1024") || !strings.Contains(anonymousSizes, "1024x1536") || !strings.Contains(anonymousSizes, "1536x1024") {
 		t.Fatalf("unexpected anonymous sizes: %#v", anonymousResp.Sizes)
 	}
 	if len(anonymousResp.SizeOptions) == 0 || anonymousResp.SizeOptions[0].Label == "" || anonymousResp.SizeOptions[0].Ratio == "" {
@@ -151,8 +139,8 @@ func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
 	if err := json.Unmarshal(loggedIn.Body.Bytes(), &loggedInResp); err != nil {
 		t.Fatalf("decode logged in options: %v", err)
 	}
-	if !strings.Contains(strings.Join(loggedInResp.Sizes, ","), "1024x1536") {
-		t.Fatalf("expected logged in large size, got %#v", loggedInResp.Sizes)
+	if strings.Join(loggedInResp.Sizes, ",") != anonymousSizes {
+		t.Fatalf("expected same sizes for anonymous and logged in, anonymous=%#v loggedIn=%#v", anonymousResp.Sizes, loggedInResp.Sizes)
 	}
 }
 
@@ -256,6 +244,29 @@ func TestCreateImageEditRejectsUnsupportedFileType(t *testing.T) {
 	}, "image", "source.txt", "text/plain", []byte("not image"))
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCreateImageEditRequiresLogin(t *testing.T) {
+	engine := setupAuthTest(t)
+
+	rec := postMultipartEditWithToken(engine, "", map[string]string{
+		"prompt":  "make it brighter",
+		"quality": "low",
+		"size":    "1024x1024",
+	}, "image", "source.png", "image/png", []byte{
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+		0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+		0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+		0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+		0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
+		0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+		0x42, 0x60, 0x82,
+	})
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -516,7 +527,9 @@ func postMultipartEditWithToken(engine http.Handler, token string, fields map[st
 
 	req := httptest.NewRequest(http.MethodPost, "/api/generations/edit", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Authorization", "Bearer "+token)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 	req.Header.Set("X-Real-IP", "1.2.3.4")
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, req)

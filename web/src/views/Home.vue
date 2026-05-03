@@ -97,7 +97,7 @@ const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
 
 const selectedStylePrompt = computed(() => stylePresets.value.find((item) => item.id === selectedStyle.value)?.prompt || '')
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
-const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value && (generationMode.value === 'generate' || !!sourceImageFile.value))
+const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value && (generationMode.value === 'generate' || (!!userStore.user && !!sourceImageFile.value)))
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
 const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '免费试用'))
 const selectedSizeOption = computed(() => sizeOptions.value.find((item) => item.value === size.value))
@@ -252,6 +252,9 @@ async function createGeneration(payload: GenerationPayload) {
 }
 
 function createImageEditRequest(payload: GenerationPayload) {
+  if (!userStore.user) {
+    throw new Error('请先登录后再使用上传图像编辑')
+  }
   if (!payload.sourceImage) {
     throw new Error('image file required')
   }
@@ -266,6 +269,12 @@ function createImageEditRequest(payload: GenerationPayload) {
 
 function handleSourceImageChange(event: Event) {
   const input = event.target as HTMLInputElement
+  if (!userStore.user) {
+    error.value = '请先登录后再使用上传图像编辑'
+    input.value = ''
+    clearSourceImage()
+    return
+  }
   const file = input.files?.[0]
   if (!file) {
     clearSourceImage()
@@ -318,7 +327,6 @@ async function cancelGeneration() {
 
 function completed(url: string) {
   imageURL.value = url
-  isPromptPanelCollapsed.value = true
   generationId.value = null
   loading.value = false
   userStore.fetchUser()
@@ -546,7 +554,7 @@ function resetCaptcha() {
                 class="rounded-lg px-3 py-2 text-sm font-medium transition"
                 :class="generationMode === 'edit' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
                 type="button"
-                @click="generationMode = 'edit'"
+                @click="generationMode = 'edit'; if (!userStore.user) error = '请先登录后再使用上传图像编辑'"
               >
                 上传图像
               </button>
@@ -554,8 +562,14 @@ function resetCaptcha() {
           </div>
 
           <div v-if="generationMode === 'edit'" class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
-            <label class="flex cursor-pointer flex-col items-center justify-center rounded-lg bg-white px-4 py-6 text-center transition hover:bg-violet-50">
-              <input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp" @change="handleSourceImageChange" />
+            <p v-if="!userStore.user" class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              上传图像编辑仅对登录用户开放，请先登录或注册后使用。
+            </p>
+            <label
+              class="flex flex-col items-center justify-center rounded-lg bg-white px-4 py-6 text-center transition"
+              :class="userStore.user ? 'cursor-pointer hover:bg-violet-50' : 'cursor-not-allowed opacity-70'"
+            >
+              <input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp" :disabled="!userStore.user" @change="handleSourceImageChange" />
               <template v-if="sourceImagePreview">
                 <img class="mb-3 max-h-44 rounded-lg object-contain" :src="sourceImagePreview" alt="待编辑图片预览" />
                 <span class="text-sm font-medium text-gray-900">{{ sourceImageFile?.name }}</span>
