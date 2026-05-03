@@ -549,15 +549,24 @@ function resetCaptcha() {
 
       <aside
         class="home-panel relative w-full shrink-0 border-t border-gray-200 bg-white transition-[width] duration-300 dark:border-slate-800 dark:bg-slate-950 lg:h-[calc(100vh-65px)] lg:border-l lg:border-t-0"
-        :class="isPromptPanelCollapsed ? 'lg:w-0' : 'lg:w-[420px]'"
+        :class="isPromptPanelCollapsed ? 'lg:w-0 lg:border-l-0' : 'lg:w-[420px]'"
       >
         <button
-          class="absolute -left-4 top-1/2 z-30 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg shadow-slate-900/15 transition hover:bg-violet-50 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-violet-500/15 dark:hover:text-violet-200 lg:flex"
+          class="group absolute top-1/2 z-30 hidden min-h-24 -translate-y-1/2 flex-col items-center justify-center gap-1 border border-slate-200 bg-white/90 px-2 text-slate-600 shadow-xl shadow-slate-900/15 backdrop-blur transition-all duration-200 hover:bg-white hover:text-violet-700 hover:opacity-100 hover:shadow-violet-900/20 dark:border-slate-700 dark:bg-slate-900/82 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-violet-200 lg:flex"
+          :class="isPromptPanelCollapsed ? '-left-10 w-10 rounded-l-2xl rounded-r-none opacity-45 hover:-left-12 hover:w-12' : '-left-5 w-10 rounded-full opacity-85'"
           type="button"
           :aria-label="isPromptPanelCollapsed ? '展开参数面板' : '收起参数面板'"
           @click="isPromptPanelCollapsed = !isPromptPanelCollapsed"
         >
-          <span class="text-lg leading-none">{{ isPromptPanelCollapsed ? '‹' : '›' }}</span>
+          <span class="flex flex-col gap-0.5" aria-hidden="true">
+            <span class="h-1 w-1 rounded-full bg-current opacity-45"></span>
+            <span class="h-1 w-1 rounded-full bg-current opacity-70"></span>
+            <span class="h-1 w-1 rounded-full bg-current opacity-45"></span>
+          </span>
+          <span class="text-base leading-none">{{ isPromptPanelCollapsed ? '‹' : '›' }}</span>
+          <span class="hidden [writing-mode:vertical-rl] text-[11px] font-medium tracking-widest group-hover:block">
+            参数
+          </span>
         </button>
 
         <div v-show="!isPromptPanelCollapsed" class="h-full overflow-y-auto">
