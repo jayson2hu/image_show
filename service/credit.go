@@ -26,7 +26,7 @@ func CostForSize(size string) float64 {
 	if cost < 1 {
 		cost = 1
 	}
-	return math.Round(cost*100) / 100
+	return math.Ceil(cost)
 }
 
 func parseCreditImageSize(size string) (int, int, bool) {

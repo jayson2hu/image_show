@@ -701,7 +701,7 @@ function resetCaptcha() {
               :disabled="!canGenerate"
               @click="generate"
             >
-              {{ loading ? '处理中...' : generationMode === 'edit' ? '开始编辑' : '开始生成' }}
+              {{ loading ? '处理中...' : '开始生成' }}
             </button>
           </div>
         </div>

@@ -130,7 +130,7 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 	}
 	var foundWideCost bool
 	for _, item := range anonymousResp.SizeOptions {
-		if item.Value == "1536x1024" && item.CreditCost == 1.5 {
+		if item.Value == "1536x1024" && item.CreditCost == 2 {
 			foundWideCost = true
 		}
 	}
