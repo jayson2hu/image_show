@@ -112,7 +112,7 @@ func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
 	engine := setupAuthTest(t)
 	if err := model.DB.Create(&model.Setting{
 		Key:   "enabled_image_sizes",
-		Value: "512x512,768x768,1024x1024,1024x1536,1536x1024",
+		Value: "1280x720,720x1280,1024x1024,1024x1536,1536x1024",
 	}).Error; err != nil {
 		t.Fatalf("create size setting: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
 		t.Fatalf("decode anonymous options: %v", err)
 	}
 	anonymousSizes := strings.Join(anonymousResp.Sizes, ",")
-	if strings.Contains(anonymousSizes, "1024x1024") || strings.Contains(anonymousSizes, "1024x1536") || !strings.Contains(anonymousSizes, "512x512") {
+	if strings.Contains(anonymousSizes, "1024x1536") || !strings.Contains(anonymousSizes, "1024x1024") || !strings.Contains(anonymousSizes, "1280x720") {
 		t.Fatalf("unexpected anonymous sizes: %#v", anonymousResp.Sizes)
 	}
 	if len(anonymousResp.SizeOptions) == 0 || anonymousResp.SizeOptions[0].Label == "" || anonymousResp.SizeOptions[0].Ratio == "" {
@@ -266,7 +266,7 @@ func TestAnonymousTrialOnceAndForcesLow(t *testing.T) {
 	first := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
 		"prompt":  "trial image",
 		"quality": "high",
-		"size":    "768x768",
+		"size":    "1024x1024",
 	}, "fp-1")
 	if first.Code != http.StatusOK {
 		t.Fatalf("first trial status=%d body=%s", first.Code, first.Body.String())
@@ -290,7 +290,7 @@ func TestAnonymousTrialOnceAndForcesLow(t *testing.T) {
 	second := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
 		"prompt":  "trial image",
 		"quality": "low",
-		"size":    "768x768",
+		"size":    "1024x1024",
 	}, "fp-1")
 	if second.Code != http.StatusForbidden {
 		t.Fatalf("second trial status=%d body=%s", second.Code, second.Body.String())
@@ -299,7 +299,7 @@ func TestAnonymousTrialOnceAndForcesLow(t *testing.T) {
 	third := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
 		"prompt":  "trial image",
 		"quality": "low",
-		"size":    "768x768",
+		"size":    "1024x1024",
 	}, "fp-2")
 	if third.Code != http.StatusOK {
 		t.Fatalf("different fingerprint trial status=%d body=%s", third.Code, third.Body.String())

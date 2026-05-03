@@ -269,7 +269,7 @@ func CreateImageEdit(c *gin.Context) {
 }
 
 func enabledImageSizes() []string {
-	value := model.GetSettingValue("enabled_image_sizes", "768x432,432x768,768x768,768x512,512x768,1024x576,576x1024,1024x1024,1536x1024,1024x1536")
+	value := model.GetSettingValue("enabled_image_sizes", "1280x720,720x1280,1024x1024,1152x768,768x1152,1536x1024,1024x1536,2048x2048,2048x1152,1152x2048,3840x2160,2160x3840")
 	parts := strings.Split(value, ",")
 	sizes := make([]string, 0, len(parts))
 	for _, part := range parts {
@@ -334,10 +334,34 @@ func greatestCommonDivisor(a, b int) int {
 func isEnabledImageSize(size string) bool {
 	for _, item := range enabledImageSizes() {
 		if item == size {
-			return true
+			width, height, ok := parseImageSize(size)
+			return ok && isGPTImage2CompatibleSize(width, height)
 		}
 	}
 	return false
+}
+
+func isGPTImage2CompatibleSize(width, height int) bool {
+	if width <= 0 || height <= 0 {
+		return false
+	}
+	if width%16 != 0 || height%16 != 0 {
+		return false
+	}
+	if width > 3840 || height > 3840 {
+		return false
+	}
+	longSide := width
+	shortSide := height
+	if height > width {
+		longSide = height
+		shortSide = width
+	}
+	if longSide > shortSide*3 {
+		return false
+	}
+	pixels := width * height
+	return pixels >= 655360 && pixels <= 8294400
 }
 
 func filterAnonymousImageSizes(sizes []string) []string {
@@ -348,14 +372,14 @@ func filterAnonymousImageSizes(sizes []string) []string {
 		}
 	}
 	if len(filtered) == 0 {
-		return []string{"512x512", "768x768"}
+		return []string{"1280x720", "720x1280", "1024x1024", "1152x768", "768x1152"}
 	}
 	return filtered
 }
 
 func isAnonymousImageSize(size string) bool {
 	width, height, ok := parseImageSize(size)
-	return ok && width < 1024 && height < 1024
+	return ok && width <= 1280 && height <= 1280 && isGPTImage2CompatibleSize(width, height)
 }
 
 func parseImageSize(size string) (int, int, bool) {

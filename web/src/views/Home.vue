@@ -50,11 +50,11 @@ const sourceImageFile = ref<File | null>(null)
 const sourceImagePreview = ref('')
 const selectedStyle = ref('')
 const quality = ref<Quality>('medium')
-const size = ref('768x768')
+const size = ref('1024x1024')
 const sizeOptions = ref<SizeOption[]>([
-  { value: '768x432', label: '16:9', ratio: '16:9' },
-  { value: '432x768', label: '9:16', ratio: '9:16' },
-  { value: '768x768', label: '1:1', ratio: '1:1' },
+  { value: '1280x720', label: '16:9', ratio: '16:9' },
+  { value: '720x1280', label: '9:16', ratio: '9:16' },
+  { value: '1024x1024', label: '1:1', ratio: '1:1' },
 ])
 const imageCount = ref(4)
 const creativity = ref(0.7)
@@ -173,7 +173,9 @@ async function loadGenerationOptions() {
       }
     }
   } catch {
-    const fallback = userStore.user ? ['768x432', '432x768', '768x768', '1536x1024', '1024x1536'] : ['768x432', '432x768', '768x768']
+    const fallback = userStore.user
+      ? ['1280x720', '720x1280', '1024x1024', '1152x768', '768x1152', '1536x1024', '1024x1536', '2048x2048']
+      : ['1280x720', '720x1280', '1024x1024', '1152x768', '768x1152']
     sizeOptions.value = fallback.map((item) => ({ value: item, label: sizeRatioLabel(item), ratio: sizeRatioLabel(item) }))
     if (!sizeOptions.value.some((item) => item.value === size.value)) {
       size.value = sizeOptions.value[0].value

@@ -92,7 +92,7 @@ func AdminSettings(c *gin.Context) {
 		"monitor_daily_credit_threshold": model.GetSettingValue("monitor_daily_credit_threshold", "0"),
 		"monitor_alert_last_date":        model.GetSettingValue("monitor_alert_last_date", ""),
 		"image_model":                    model.GetSettingValue("image_model", "gpt-image-2"),
-		"enabled_image_sizes":            model.GetSettingValue("enabled_image_sizes", "512x512,768x768,1024x1024,1024x1536,1536x1024,1024x1792,1792x1024,1536x1536"),
+		"enabled_image_sizes":            model.GetSettingValue("enabled_image_sizes", "1280x720,720x1280,1024x1024,1152x768,768x1152,1536x1024,1024x1536,2048x2048,2048x1152,1152x2048,3840x2160,2160x3840"),
 		"r2_endpoint":                    model.GetSettingValue("r2_endpoint", ""),
 		"r2_access_key":                  model.GetSettingValue("r2_access_key", ""),
 		"r2_secret_key":                  model.GetSettingValue("r2_secret_key", ""),
