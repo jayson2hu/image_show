@@ -7,6 +7,50 @@ body {
   min-width: 320px;
 }
 
+html.dark body {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+html.dark .home-shell,
+html.dark .home-main {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+html.dark .home-panel {
+  background: #0f172a;
+  border-color: #1e293b;
+  color: #e2e8f0;
+}
+
+html.dark .home-card {
+  background: #111827;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+html.dark .home-muted {
+  color: #94a3b8;
+}
+
+html.dark .home-input {
+  background: #020617;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+html.dark .home-button {
+  background: #111827;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+html.dark .home-button:hover {
+  border-color: #8b5cf6;
+  color: #f8fafc;
+}
+
 .figma-range {
   height: 18px;
   appearance: none;

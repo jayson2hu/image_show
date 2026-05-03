@@ -10,7 +10,7 @@ const route = useRoute()
 const theme = ref(localStorage.getItem('theme') || defaultTheme())
 const isHome = computed(() => route.name === 'home' || route.path === '/')
 const isAdmin = computed(() => (userStore.user?.role || 0) >= 10)
-const roleLabel = computed(() => (isAdmin.value ? '管理员已登录' : userStore.user ? '普通用户已登录' : '未登录'))
+const roleLabel = computed(() => (isAdmin.value ? '管理员' : userStore.user ? '普通用户' : '未登录'))
 
 function defaultTheme() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -64,35 +64,26 @@ onUnmounted(() => {
 
         <div class="flex flex-wrap items-center justify-end gap-2 text-sm">
           <RouterLink
-            v-if="isAdmin"
-            class="min-h-10 rounded border border-slate-300 px-3 py-2 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
-            to="/admin"
-          >
-            管理后台
-          </RouterLink>
-          <RouterLink
             v-if="userStore.user && !isAdmin"
-            class="min-h-10 rounded border border-slate-300 px-3 py-2 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
+            class="min-h-10 rounded-full border border-slate-300 px-3 py-2 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
             to="/history"
           >
             历史
           </RouterLink>
-          <span
-            v-if="userStore.user"
-            class="rounded-xl px-3 py-2 text-sm"
-            :class="isAdmin ? 'bg-amber-50 text-amber-700' : 'bg-violet-50 text-violet-900'"
-          >
-            {{ roleLabel }}<template v-if="!isAdmin"> · {{ userStore.user.credits }} 积分</template>
-          </span>
-          <button class="min-h-10 rounded border border-slate-300 px-3 py-1.5 dark:border-slate-600" type="button" @click="toggleTheme">
+          <button class="min-h-10 rounded-full border border-slate-300 px-3 py-1.5 text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800" type="button" @click="toggleTheme">
             {{ theme === 'dark' ? '浅色' : '深色' }}
           </button>
-          <button v-if="userStore.user" class="min-h-10 rounded border border-slate-300 px-3 py-1.5 dark:border-slate-600" type="button" @click="logout">
-            退出
-          </button>
+          <div v-if="userStore.user" class="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 dark:border-slate-700 dark:bg-slate-800">
+            <span class="px-2 text-sm text-slate-700 dark:text-slate-200">
+              {{ roleLabel }}<template v-if="!isAdmin"> · {{ userStore.user.credits }} 积分</template>
+            </span>
+            <button class="min-h-8 rounded-full bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:text-red-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-red-300" type="button" @click="logout">
+              退出
+            </button>
+          </div>
           <RouterLink
             v-else
-            class="min-h-10 rounded bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-2.5 text-white shadow-lg shadow-violet-500/20 hover:from-violet-700 hover:to-blue-700"
+            class="min-h-10 rounded-full bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-2.5 text-white shadow-lg shadow-violet-500/20 hover:from-violet-700 hover:to-blue-700"
             to="/login"
           >
             登录 / 注册

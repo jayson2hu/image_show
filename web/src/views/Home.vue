@@ -98,6 +98,21 @@ const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
 const selectedStylePrompt = computed(() => stylePresets.value.find((item) => item.id === selectedStyle.value)?.prompt || '')
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
 const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value && (generationMode.value === 'generate' || (!!userStore.user && !!sourceImageFile.value)))
+const generateHint = computed(() => {
+  if (loading.value) {
+    return '正在处理当前任务'
+  }
+  if (!prompt.value.trim()) {
+    return generationMode.value === 'edit' ? '填写编辑描述后即可开始' : '输入提示词后即可开始'
+  }
+  if (generationMode.value === 'edit' && !userStore.user) {
+    return '请先登录后再使用上传图像编辑'
+  }
+  if (generationMode.value === 'edit' && !sourceImageFile.value) {
+    return '上传要编辑的图片后即可开始'
+  }
+  return `${generationMode.value === 'edit' ? '图片编辑' : '文本生成'} · ${qualityLabels[quality.value]}模式 · 预计消耗 ${costs[quality.value]} 积分`
+})
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
 const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '免费试用'))
 const selectedSizeOption = computed(() => sizeOptions.value.find((item) => item.value === size.value))
@@ -437,9 +452,9 @@ function resetCaptcha() {
 </script>
 
 <template>
-  <section class="h-auto min-h-[calc(100vh-65px)] overflow-hidden bg-gray-50 text-gray-950 lg:h-[calc(100vh-65px)]">
+  <section class="home-shell h-auto min-h-[calc(100vh-65px)] overflow-hidden bg-gray-50 text-gray-950 lg:h-[calc(100vh-65px)]">
     <div class="flex h-full min-h-[calc(100vh-65px)] flex-col lg:flex-row">
-      <main class="min-h-[560px] flex-1 overflow-y-auto bg-gray-50 p-5 sm:p-8 lg:h-[calc(100vh-65px)]">
+      <main class="home-main min-h-[560px] flex-1 overflow-y-auto bg-gray-50 p-5 sm:p-8 lg:h-[calc(100vh-65px)]">
         <div v-if="generationId" class="-m-5 flex h-[calc(100vh-65px)] min-h-[560px] flex-col sm:-m-8">
           <GenerationProgress
             :generation-id="generationId"
@@ -512,7 +527,7 @@ function resetCaptcha() {
       </main>
 
       <aside
-        class="relative w-full shrink-0 border-t border-gray-200 bg-white transition-[width] duration-300 lg:h-[calc(100vh-65px)] lg:border-l lg:border-t-0"
+        class="home-panel relative w-full shrink-0 border-t border-gray-200 bg-white transition-[width] duration-300 lg:h-[calc(100vh-65px)] lg:border-l lg:border-t-0"
         :class="isPromptPanelCollapsed ? 'lg:w-0' : 'lg:w-[420px]'"
       >
         <button
@@ -525,11 +540,11 @@ function resetCaptcha() {
         </button>
 
         <div v-show="!isPromptPanelCollapsed" class="h-full overflow-y-auto">
-          <div class="space-y-6 p-6">
-          <div class="flex items-center justify-between rounded-xl bg-violet-50 px-4 py-3">
+          <div class="space-y-6 p-6 pb-36">
+          <div class="home-card flex items-center justify-between rounded-xl bg-violet-50 px-4 py-3">
             <div>
               <p class="text-sm font-medium text-gray-900">{{ displayName }}</p>
-              <p class="text-xs text-gray-500">{{ health }}</p>
+              <p class="home-muted text-xs text-gray-500">{{ health }}</p>
             </div>
             <div class="flex items-center gap-3">
               <p class="text-sm font-medium text-violet-900">{{ creditText }}</p>
@@ -591,7 +606,7 @@ function resetCaptcha() {
             <textarea
               id="prompt"
               v-model="prompt"
-              class="h-32 w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-transparent focus:ring-2 focus:ring-violet-500"
+              class="home-input h-32 w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-transparent focus:ring-2 focus:ring-violet-500"
               :placeholder="generationMode === 'edit' ? '描述你想要怎样修改这张图片，例如：把背景换成星空，保留人物姿势...' : '描述你想要生成的图片，例如：一只在星空下的猫咪，水彩画风格...'"
             />
           </div>
@@ -601,7 +616,7 @@ function resetCaptcha() {
             <div class="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                class="rounded-lg border px-4 py-2 transition"
+                class="home-button rounded-lg border px-4 py-2 transition"
                 :class="selectedStyle === '' ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
                 @click="selectedStyle = ''"
               >
@@ -611,7 +626,7 @@ function resetCaptcha() {
                 v-for="style in stylePresets"
                 :key="style.id"
                 type="button"
-                class="rounded-lg border px-4 py-2 transition"
+                class="home-button rounded-lg border px-4 py-2 transition"
                 :class="selectedStyle === style.id ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
                 @click="selectedStyle = style.id"
               >
@@ -623,7 +638,7 @@ function resetCaptcha() {
           <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
             <label class="text-sm font-medium text-gray-700">
               质量
-              <select v-model="quality" class="mt-2 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 outline-none focus:border-violet-400">
+              <select v-model="quality" class="home-input mt-2 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 outline-none focus:border-violet-400">
                 <option value="low">快速 - 0.2 积分</option>
                 <option value="medium">标准 - 1 积分</option>
                 <option value="high">高清 - 4 积分</option>
@@ -638,7 +653,7 @@ function resetCaptcha() {
                 <button
                   v-for="item in sizeOptions"
                   :key="item.value"
-                  class="min-h-11 rounded-xl border px-3 py-2 text-sm transition"
+                  class="home-button min-h-11 rounded-xl border px-3 py-2 text-sm transition"
                   :class="size === item.value ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-500/20' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
                   type="button"
                   @click="size = item.value"
@@ -730,21 +745,22 @@ function resetCaptcha() {
           <div v-if="captchaEnabled" ref="captchaEl" class="min-h-[65px]"></div>
           <p v-if="error" class="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">{{ error }}</p>
 
-          <button
-            class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 py-4 text-white shadow-lg shadow-violet-500/30 transition hover:from-violet-700 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            type="button"
-            :disabled="!canGenerate"
-            @click="generate"
-          >
-            {{ loading ? '处理中...' : generationMode === 'edit' ? '开始编辑' : '开始生成' }}
-          </button>
-
           <button v-if="canRetry" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-violet-300" type="button" @click="retry">
             重新生成上一次
           </button>
 
           <p v-if="!userStore.user" class="text-center text-sm text-gray-500">未登录可免费试用 1 次；登录后可查看历史记录和积分。</p>
-          <p class="text-center text-xs text-gray-400">{{ generationMode === 'edit' ? '图片编辑' : '文本生成' }} · {{ qualityLabels[quality] }}模式，本次预计消耗 {{ costs[quality] }} 积分。</p>
+          </div>
+          <div class="home-panel sticky bottom-0 border-t border-gray-200 bg-white/95 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur">
+            <p class="mb-3 text-center text-xs text-gray-500">{{ generateHint }}</p>
+            <button
+              class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 py-4 text-white shadow-lg shadow-violet-500/30 transition hover:from-violet-700 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+              :disabled="!canGenerate"
+              @click="generate"
+            >
+              {{ loading ? '处理中...' : generationMode === 'edit' ? '开始编辑' : '开始生成' }}
+            </button>
           </div>
         </div>
       </aside>
