@@ -175,6 +175,29 @@ func storeImageBytes(generationID int64, data []byte, contentType string) (image
 	return url, key, nil
 }
 
+func StoreSourceImage(generationID int64, data []byte, contentType string) (imageURL string, r2Key string, err error) {
+	r2Client, err := NewR2ClientFromConfig()
+	if err != nil {
+		return "", "", err
+	}
+	if r2Client == nil {
+		return "", "", nil
+	}
+	var generation model.Generation
+	if err := model.DB.First(&generation, generationID).Error; err != nil {
+		return "", "", err
+	}
+	key := BuildSourceR2Key(&generation, contentType)
+	if err := r2Client.Upload(key, data, contentType); err != nil {
+		return "", "", err
+	}
+	url, err := r2Client.GeneratePresignedURL(key, time.Hour)
+	if err != nil {
+		return "", "", err
+	}
+	return url, key, nil
+}
+
 func downloadImage(sourceURL string) ([]byte, string, error) {
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Get(sourceURL)
@@ -344,6 +367,37 @@ func BuildR2Key(generation *model.Generation) string {
 		tier = "paid"
 	}
 	return fmt.Sprintf("generations/%s/%s/%s-%d.png", tier, month, owner, generation.ID)
+}
+
+func BuildSourceR2Key(generation *model.Generation, contentType string) string {
+	owner := "anon"
+	if generation.UserID != nil {
+		owner = fmt.Sprintf("user-%d", *generation.UserID)
+	} else if generation.AnonymousID != "" {
+		owner = "anon-" + sanitizeKeyPart(generation.AnonymousID)
+	}
+	month := generation.CreatedAt.Format("2006-01")
+	if month == "0001-01" {
+		month = time.Now().Format("2006-01")
+	}
+	tier := "free"
+	if generation.UserID != nil && userHasPaidCredit(*generation.UserID) {
+		tier = "paid"
+	}
+	return fmt.Sprintf("sources/%s/%s/%s-%d.%s", tier, month, owner, generation.ID, imageExtension(contentType))
+}
+
+func imageExtension(contentType string) string {
+	switch strings.ToLower(strings.TrimSpace(contentType)) {
+	case "image/jpeg", "image/jpg":
+		return "jpg"
+	case "image/webp":
+		return "webp"
+	case "image/gif":
+		return "gif"
+	default:
+		return "png"
+	}
 }
 
 func sanitizeKeyPart(value string) string {

@@ -56,6 +56,31 @@ func GenerateImageViaChannels(prompt, quality, size, userIP string) (*ImageGener
 	return nil, lastErr
 }
 
+func EditImageViaChannels(prompt, quality, size, userIP string, imageData []byte, filename, contentType string) (*ImageGenerationResult, error) {
+	if config.AppConfig != nil && config.AppConfig.MockSub2API {
+		return NewSub2APIClient("http://mock", "", nil).EditImage(prompt, quality, size, userIP, imageData, filename, contentType)
+	}
+
+	channels, err := SelectChannels()
+	if err != nil {
+		return nil, err
+	}
+	var lastErr error
+	for _, channel := range channels {
+		headers := map[string]string{}
+		if channel.Headers != "" {
+			_ = json.Unmarshal([]byte(channel.Headers), &headers)
+		}
+		client := NewSub2APIClient(channel.BaseURL, channel.APIKey, headers)
+		result, err := client.EditImage(prompt, quality, size, userIP, imageData, filename, contentType)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+	}
+	return nil, lastErr
+}
+
 func weightedShuffle(channels []model.Channel) []model.Channel {
 	source := rand.New(rand.NewSource(time.Now().UnixNano()))
 	pool := append([]model.Channel(nil), channels...)

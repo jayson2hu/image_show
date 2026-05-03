@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,6 +24,12 @@ type createGenerationRequest struct {
 	CaptchaToken string `json:"captcha_token"`
 }
 
+type imageSizeOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+	Ratio string `json:"ratio"`
+}
+
 type batchDeleteGenerationsRequest struct {
 	IDs      []int64 `json:"ids" binding:"required"`
 	DeleteR2 bool    `json:"delete_r2"`
@@ -33,7 +40,7 @@ func GenerationOptions(c *gin.Context) {
 	if _, exists := c.Get("userID"); !exists {
 		sizes = filterAnonymousImageSizes(sizes)
 	}
-	c.JSON(http.StatusOK, gin.H{"sizes": sizes})
+	c.JSON(http.StatusOK, gin.H{"sizes": sizes, "size_options": buildImageSizeOptions(sizes)})
 }
 
 func ListGenerations(c *gin.Context) {
@@ -168,8 +175,101 @@ func CreateGeneration(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status})
 }
 
+func CreateImageEdit(c *gin.Context) {
+	if err := c.Request.ParseMultipartForm(55 << 20); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid multipart request"})
+		return
+	}
+	req := createGenerationRequest{
+		Prompt:       strings.TrimSpace(c.PostForm("prompt")),
+		Quality:      c.PostForm("quality"),
+		Size:         c.PostForm("size"),
+		AnonymousID:  c.PostForm("anonymous_id"),
+		CaptchaToken: c.PostForm("captcha_token"),
+	}
+	if req.Prompt == "" || len(req.Prompt) > 4000 || !isValidQuality(req.Quality) || req.Size == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	if err := service.VerifyCaptcha(req.CaptchaToken, common.GetRealIP(c)); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+	if !isEnabledImageSize(req.Size) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported image size"})
+		return
+	}
+	file, header, err := c.Request.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "image file required"})
+		return
+	}
+	defer file.Close()
+	if header.Size <= 0 || header.Size > 50<<20 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "image file must be smaller than 50MB"})
+		return
+	}
+	imageData, err := io.ReadAll(io.LimitReader(file, 50<<20+1))
+	if err != nil || len(imageData) == 0 || len(imageData) > 50<<20 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid image file"})
+		return
+	}
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" || contentType == "application/octet-stream" {
+		contentType = http.DetectContentType(imageData)
+	}
+	if !isSupportedEditImageType(contentType) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported image file type"})
+		return
+	}
+
+	var userID *int64
+	if value, exists := c.Get("userID"); exists {
+		if id, ok := value.(int64); ok {
+			userID = &id
+		}
+	}
+	if userID == nil {
+		if !isAnonymousImageSize(req.Size) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "please login to use larger image size"})
+			return
+		}
+		fingerprint := c.GetHeader("X-Fingerprint")
+		if fingerprint == "" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "fingerprint required for free trial"})
+			return
+		}
+		anonymousID, ok := service.CheckTrialEligible(common.GetRealIP(c), fingerprint)
+		if !ok {
+			c.JSON(http.StatusForbidden, gin.H{"error": "free trial used, please register"})
+			return
+		}
+		req.Quality = "low"
+		req.AnonymousID = anonymousID
+		generation, err := service.CreateImageEdit(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), nil, req.AnonymousID, imageData, header.Filename, contentType)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create image edit"})
+			return
+		}
+		service.MarkTrialUsed(anonymousID)
+		c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status, "anonymous_id": anonymousID})
+		return
+	}
+
+	generation, err := service.CreateImageEdit(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), userID, req.AnonymousID, imageData, header.Filename, contentType)
+	if err != nil {
+		if errors.Is(err, service.ErrInsufficientCredits) || errors.Is(err, service.ErrCreditsExpired) {
+			c.JSON(http.StatusPaymentRequired, gin.H{"error": "insufficient credits"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create image edit"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status})
+}
+
 func enabledImageSizes() []string {
-	value := model.GetSettingValue("enabled_image_sizes", "512x512,768x768,1024x1024,1024x1536,1536x1024,1024x1792,1792x1024,1536x1536")
+	value := model.GetSettingValue("enabled_image_sizes", "768x432,432x768,768x768,768x512,512x768,1024x576,576x1024,1024x1024,1536x1024,1024x1536")
 	parts := strings.Split(value, ",")
 	sizes := make([]string, 0, len(parts))
 	for _, part := range parts {
@@ -182,6 +282,53 @@ func enabledImageSizes() []string {
 		return []string{"1024x1024"}
 	}
 	return sizes
+}
+
+func isValidQuality(quality string) bool {
+	return quality == "low" || quality == "medium" || quality == "high"
+}
+
+func isSupportedEditImageType(contentType string) bool {
+	contentType = strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
+	return contentType == "image/png" || contentType == "image/jpeg" || contentType == "image/webp"
+}
+
+func buildImageSizeOptions(sizes []string) []imageSizeOption {
+	options := make([]imageSizeOption, 0, len(sizes))
+	for _, size := range sizes {
+		ratio := imageRatioLabel(size)
+		label := ratio
+		if ratio == "" {
+			label = strings.Replace(size, "x", " x ", 1)
+		}
+		options = append(options, imageSizeOption{Value: size, Label: label, Ratio: ratio})
+	}
+	return options
+}
+
+func imageRatioLabel(size string) string {
+	width, height, ok := parseImageSize(size)
+	if !ok {
+		return ""
+	}
+	gcd := greatestCommonDivisor(width, height)
+	if gcd == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d:%d", width/gcd, height/gcd)
+}
+
+func greatestCommonDivisor(a, b int) int {
+	if a < 0 {
+		a = -a
+	}
+	if b < 0 {
+		b = -b
+	}
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
 }
 
 func isEnabledImageSize(size string) bool {

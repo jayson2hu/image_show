@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"strings"
 	"time"
 
@@ -64,6 +66,25 @@ func (c *Sub2APIClient) GenerateImage(prompt, quality, size, userIP string) (*Im
 	var lastErr error
 	for attempt := 1; attempt <= 3; attempt++ {
 		result, err := c.generateImageOnce(prompt, quality, size, userIP)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+		if !isRetryableSub2APIError(err) || attempt == 3 {
+			break
+		}
+		time.Sleep(time.Duration(attempt) * 800 * time.Millisecond)
+	}
+	return nil, userFacingSub2APIError(lastErr)
+}
+
+func (c *Sub2APIClient) EditImage(prompt, quality, size, userIP string, imageData []byte, filename, contentType string) (*ImageGenerationResult, error) {
+	if config.AppConfig != nil && config.AppConfig.MockSub2API {
+		return mockImageResult(), nil
+	}
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		result, err := c.editImageOnce(prompt, quality, size, userIP, imageData, filename, contentType)
 		if err == nil {
 			return result, nil
 		}
@@ -141,12 +162,88 @@ func (c *Sub2APIClient) generateImageOnce(prompt, quality, size, userIP string) 
 	}, nil
 }
 
+func (c *Sub2APIClient) editImageOnce(prompt, quality, size, userIP string, imageData []byte, filename, contentType string) (*ImageGenerationResult, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("model", imageModel()); err != nil {
+		return nil, err
+	}
+	if err := writer.WriteField("prompt", prompt); err != nil {
+		return nil, err
+	}
+	if err := writer.WriteField("quality", quality); err != nil {
+		return nil, err
+	}
+	if err := writer.WriteField("size", size); err != nil {
+		return nil, err
+	}
+	partHeader := make(textproto.MIMEHeader)
+	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image"; filename="%s"`, escapeMultipartFilename(filename)))
+	partHeader.Set("Content-Type", contentType)
+	part, err := writer.CreatePart(partHeader)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := part.Write(imageData); err != nil {
+		return nil, err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/v1/images/edits", &body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if c.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	}
+	if userIP != "" {
+		req.Header.Set("X-Real-IP", userIP)
+		req.Header.Set("X-Forwarded-For", userIP)
+	}
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		payload, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, sub2APIStatusError{statusCode: resp.StatusCode, payload: strings.TrimSpace(string(payload))}
+	}
+
+	var parsed imageGenerationResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return nil, err
+	}
+	if len(parsed.Data) == 0 {
+		return nil, fmt.Errorf("sub2api returned empty image data")
+	}
+	return &ImageGenerationResult{
+		Base64Data: parsed.Data[0].B64JSON,
+		URL:        parsed.Data[0].URL,
+	}, nil
+}
+
 func imageModel() string {
 	fallback := "gpt-image-2"
 	if config.AppConfig != nil && config.AppConfig.ImageModel != "" {
 		fallback = config.AppConfig.ImageModel
 	}
 	return model.GetSettingValue("image_model", fallback)
+}
+
+func escapeMultipartFilename(filename string) string {
+	filename = strings.TrimSpace(filename)
+	if filename == "" {
+		return "source.png"
+	}
+	return strings.NewReplacer("\\", "\\\\", `"`, "\\\"").Replace(filename)
 }
 
 type sub2APIStatusError struct {

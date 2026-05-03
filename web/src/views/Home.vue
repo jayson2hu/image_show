@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import api from '@/api'
 import GenerationProgress from '@/components/GenerationProgress.vue'
@@ -7,11 +7,20 @@ import { useUserStore } from '@/stores/user'
 import { downloadImage } from '@/utils/download'
 
 type Quality = 'low' | 'medium' | 'high'
+type GenerationMode = 'generate' | 'edit'
 
 interface GenerationPayload {
   prompt: string
   quality: Quality
   size: string
+  mode: GenerationMode
+  sourceImage?: File | null
+}
+
+interface SizeOption {
+  value: string
+  label: string
+  ratio: string
 }
 
 interface StylePreset {
@@ -36,10 +45,17 @@ interface PromptTemplate {
 const userStore = useUserStore()
 const health = ref('检查中')
 const prompt = ref('')
+const generationMode = ref<GenerationMode>('generate')
+const sourceImageFile = ref<File | null>(null)
+const sourceImagePreview = ref('')
 const selectedStyle = ref('')
 const quality = ref<Quality>('medium')
 const size = ref('768x768')
-const sizeOptions = ref<string[]>(['512x512', '768x768'])
+const sizeOptions = ref<SizeOption[]>([
+  { value: '768x432', label: '16:9', ratio: '16:9' },
+  { value: '432x768', label: '9:16', ratio: '9:16' },
+  { value: '768x768', label: '1:1', ratio: '1:1' },
+])
 const imageCount = ref(4)
 const creativity = ref(0.7)
 const steps = ref(30)
@@ -81,9 +97,10 @@ const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
 
 const selectedStylePrompt = computed(() => stylePresets.value.find((item) => item.id === selectedStyle.value)?.prompt || '')
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
-const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value)
+const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value && (generationMode.value === 'generate' || !!sourceImageFile.value))
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
 const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '免费试用'))
+const selectedSizeOption = computed(() => sizeOptions.value.find((item) => item.value === size.value))
 
 declare global {
   interface Window {
@@ -102,6 +119,10 @@ onMounted(async () => {
     health.value = '后端未连接'
   }
   await Promise.all([loadPromptTemplates(), loadGenerationOptions(), loadCaptcha()])
+})
+
+onUnmounted(() => {
+  clearSourceImage()
 })
 
 watch(
@@ -140,18 +161,37 @@ async function loadPromptTemplates() {
 async function loadGenerationOptions() {
   try {
     const response = await api.get('/generation/options')
-    if (Array.isArray(response.data.sizes) && response.data.sizes.length > 0) {
-      sizeOptions.value = response.data.sizes
-      if (!sizeOptions.value.includes(size.value)) {
-        size.value = sizeOptions.value[0]
+    if (Array.isArray(response.data.size_options) && response.data.size_options.length > 0) {
+      sizeOptions.value = response.data.size_options
+      if (!sizeOptions.value.some((item) => item.value === size.value)) {
+        size.value = sizeOptions.value[0].value
+      }
+    } else if (Array.isArray(response.data.sizes) && response.data.sizes.length > 0) {
+      sizeOptions.value = response.data.sizes.map((item: string) => ({ value: item, label: sizeRatioLabel(item), ratio: sizeRatioLabel(item) }))
+      if (!sizeOptions.value.some((item) => item.value === size.value)) {
+        size.value = sizeOptions.value[0].value
       }
     }
   } catch {
-    sizeOptions.value = userStore.user ? ['512x512', '768x768', '1024x1024'] : ['512x512', '768x768']
-    if (!sizeOptions.value.includes(size.value)) {
-      size.value = sizeOptions.value[0]
+    const fallback = userStore.user ? ['768x432', '432x768', '768x768', '1536x1024', '1024x1536'] : ['768x432', '432x768', '768x768']
+    sizeOptions.value = fallback.map((item) => ({ value: item, label: sizeRatioLabel(item), ratio: sizeRatioLabel(item) }))
+    if (!sizeOptions.value.some((item) => item.value === size.value)) {
+      size.value = sizeOptions.value[0].value
     }
   }
+}
+
+function sizeRatioLabel(value: string) {
+  const [width, height] = value.split('x').map((item) => Number(item))
+  if (!width || !height) {
+    return value.replace('x', ' x ')
+  }
+  const divisor = gcd(width, height)
+  return `${width / divisor}:${height / divisor}`
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b)
 }
 
 function useSample(sample: SamplePrompt) {
@@ -175,6 +215,8 @@ async function generate() {
     prompt: buildPrompt(),
     quality: quality.value,
     size: size.value,
+    mode: generationMode.value,
+    sourceImage: sourceImageFile.value,
   })
 }
 
@@ -197,13 +239,64 @@ async function createGeneration(payload: GenerationPayload) {
   loading.value = true
   lastRequest.value = { ...payload }
   try {
-    const response = await api.post('/generations', { ...payload, captcha_token: captchaToken.value })
+    const response =
+      payload.mode === 'edit'
+        ? await createImageEditRequest(payload)
+        : await api.post('/generations', { prompt: payload.prompt, quality: payload.quality, size: payload.size, captcha_token: captchaToken.value })
     generationId.value = response.data.id
   } catch (err: any) {
     error.value = err.response?.data?.error || '创建生成任务失败'
     loading.value = false
     resetCaptcha()
   }
+}
+
+function createImageEditRequest(payload: GenerationPayload) {
+  if (!payload.sourceImage) {
+    throw new Error('image file required')
+  }
+  const form = new FormData()
+  form.append('prompt', payload.prompt)
+  form.append('quality', payload.quality)
+  form.append('size', payload.size)
+  form.append('captcha_token', captchaToken.value)
+  form.append('image', payload.sourceImage)
+  return api.post('/generations/edit', form)
+}
+
+function handleSourceImageChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) {
+    clearSourceImage()
+    return
+  }
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    error.value = '仅支持 PNG、JPG、WebP 图片'
+    input.value = ''
+    clearSourceImage()
+    return
+  }
+  if (file.size > 50 * 1024 * 1024) {
+    error.value = '图片不能超过 50MB'
+    input.value = ''
+    clearSourceImage()
+    return
+  }
+  error.value = ''
+  sourceImageFile.value = file
+  if (sourceImagePreview.value) {
+    URL.revokeObjectURL(sourceImagePreview.value)
+  }
+  sourceImagePreview.value = URL.createObjectURL(file)
+}
+
+function clearSourceImage() {
+  sourceImageFile.value = null
+  if (sourceImagePreview.value) {
+    URL.revokeObjectURL(sourceImagePreview.value)
+  }
+  sourceImagePreview.value = ''
 }
 
 async function cancelGeneration() {
@@ -374,7 +467,7 @@ function resetCaptcha() {
               <div class="pointer-events-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="text-white">
                   <h2 class="text-lg font-medium">生成结果</h2>
-                  <p class="mt-1 text-sm text-white/70">{{ size.replace('x', ' x ') }} · {{ qualityLabels[quality] }}</p>
+                  <p class="mt-1 text-sm text-white/70">{{ selectedSizeOption?.label || size.replace('x', ' x ') }} · {{ qualityLabels[quality] }}</p>
                 </div>
                 <div class="flex gap-2">
                   <button
@@ -439,12 +532,53 @@ function resetCaptcha() {
           </div>
 
           <div>
-            <label for="prompt" class="mb-2 block text-gray-900">提示词</label>
+            <label class="mb-2 block text-gray-900">创作方式</label>
+            <div class="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
+              <button
+                class="rounded-lg px-3 py-2 text-sm font-medium transition"
+                :class="generationMode === 'generate' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                type="button"
+                @click="generationMode = 'generate'"
+              >
+                输入文本
+              </button>
+              <button
+                class="rounded-lg px-3 py-2 text-sm font-medium transition"
+                :class="generationMode === 'edit' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                type="button"
+                @click="generationMode = 'edit'"
+              >
+                上传图像
+              </button>
+            </div>
+          </div>
+
+          <div v-if="generationMode === 'edit'" class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
+            <label class="flex cursor-pointer flex-col items-center justify-center rounded-lg bg-white px-4 py-6 text-center transition hover:bg-violet-50">
+              <input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp" @change="handleSourceImageChange" />
+              <template v-if="sourceImagePreview">
+                <img class="mb-3 max-h-44 rounded-lg object-contain" :src="sourceImagePreview" alt="待编辑图片预览" />
+                <span class="text-sm font-medium text-gray-900">{{ sourceImageFile?.name }}</span>
+                <span class="mt-1 text-xs text-gray-500">点击可替换图片</span>
+              </template>
+              <template v-else>
+                <span class="mb-2 flex size-12 items-center justify-center rounded-full bg-violet-100 text-xl text-violet-700">＋</span>
+                <span class="text-sm font-medium text-gray-900">上传要编辑的图片</span>
+                <span class="mt-1 text-xs text-gray-500">支持 PNG、JPG、WebP，最大 50MB</span>
+              </template>
+            </label>
+            <button v-if="sourceImagePreview" class="mt-3 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition hover:border-red-200 hover:text-red-600" type="button" @click="clearSourceImage">
+              移除图片
+            </button>
+          </div>
+
+          <div>
+            <label for="prompt" class="mb-2 block text-gray-900">{{ generationMode === 'edit' ? '编辑描述' : '提示词' }}</label>
             <textarea
               id="prompt"
               v-model="prompt"
               class="h-32 w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-transparent focus:ring-2 focus:ring-violet-500"
-              placeholder="描述你想要生成的图片，例如：一只在星空下的猫咪，水彩画风格..."
+              :placeholder="generationMode === 'edit' ? '描述你想要怎样修改这张图片，例如：把背景换成星空，保留人物姿势...' : '描述你想要生成的图片，例如：一只在星空下的猫咪，水彩画风格...'"
             />
           </div>
 
@@ -481,12 +615,25 @@ function resetCaptcha() {
                 <option value="high">高清 - 4 积分</option>
               </select>
             </label>
-            <label class="text-sm font-medium text-gray-700">
-              尺寸
-              <select v-model="size" class="mt-2 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 outline-none focus:border-violet-400">
-                <option v-for="item in sizeOptions" :key="item" :value="item">{{ item.replace('x', ' x ') }}</option>
-              </select>
-            </label>
+            <div class="text-sm font-medium text-gray-700">
+              <div class="mb-2 flex items-center justify-between">
+                <span>尺寸比例</span>
+                <span class="text-xs font-normal text-gray-500">{{ selectedSizeOption?.value.replace('x', ' x ') }}</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  v-for="item in sizeOptions"
+                  :key="item.value"
+                  class="min-h-11 rounded-xl border px-3 py-2 text-sm transition"
+                  :class="size === item.value ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-500/20' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
+                  type="button"
+                  @click="size = item.value"
+                >
+                  <span class="block font-medium">{{ item.label }}</span>
+                  <span class="mt-0.5 block text-[11px] opacity-75">{{ item.value.replace('x', ' x ') }}</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <section class="border-t border-gray-200 pt-4">
@@ -575,7 +722,7 @@ function resetCaptcha() {
             :disabled="!canGenerate"
             @click="generate"
           >
-            {{ loading ? '生成中...' : '开始生成' }}
+            {{ loading ? '处理中...' : generationMode === 'edit' ? '开始编辑' : '开始生成' }}
           </button>
 
           <button v-if="canRetry" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-violet-300" type="button" @click="retry">
@@ -583,7 +730,7 @@ function resetCaptcha() {
           </button>
 
           <p v-if="!userStore.user" class="text-center text-sm text-gray-500">未登录可免费试用 1 次；登录后可查看历史记录和积分。</p>
-          <p class="text-center text-xs text-gray-400">{{ qualityLabels[quality] }}模式，本次预计消耗 {{ costs[quality] }} 积分。</p>
+          <p class="text-center text-xs text-gray-400">{{ generationMode === 'edit' ? '图片编辑' : '文本生成' }} · {{ qualityLabels[quality] }}模式，本次预计消耗 {{ costs[quality] }} 积分。</p>
           </div>
         </div>
       </aside>
@@ -593,7 +740,7 @@ function resetCaptcha() {
       <div class="flex min-h-16 items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-white sm:px-6">
         <div class="min-w-0">
           <p class="truncate text-sm font-medium">生成结果</p>
-          <p class="text-xs text-white/60">{{ size.replace('x', ' x ') }} · {{ qualityLabels[quality] }}</p>
+          <p class="text-xs text-white/60">{{ selectedSizeOption?.label || size.replace('x', ' x ') }} · {{ qualityLabels[quality] }}</p>
         </div>
         <div class="flex shrink-0 gap-2">
           <button class="rounded-full border border-white/20 px-4 py-2 text-sm transition hover:bg-white/10" type="button" @click="downloadCurrentImage">

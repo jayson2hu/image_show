@@ -66,6 +66,42 @@ func TestSub2APIClientGenerateImageUsesConfiguredModel(t *testing.T) {
 	}
 }
 
+func TestSub2APIClientEditImageUsesMultipartEditsEndpoint(t *testing.T) {
+	var gotPath string
+	var gotModel string
+	var gotPrompt string
+	var gotSize string
+	var gotFileContentType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		if err := r.ParseMultipartForm(2 << 20); err != nil {
+			t.Fatalf("parse multipart: %v", err)
+		}
+		gotModel = r.FormValue("model")
+		gotPrompt = r.FormValue("prompt")
+		gotSize = r.FormValue("size")
+		file, header, err := r.FormFile("image")
+		if err != nil {
+			t.Fatalf("read image: %v", err)
+		}
+		defer file.Close()
+		gotFileContentType = header.Header.Get("Content-Type")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": []map[string]string{{"b64_json": "edit-ok"}},
+		})
+	}))
+	defer server.Close()
+
+	client := NewSub2APIClient(server.URL, "", nil)
+	result, err := client.EditImage("change it", "medium", "1536x1024", "1.2.3.4", []byte("image-bytes"), "source.png", "image/png")
+	if err != nil {
+		t.Fatalf("EditImage: %v", err)
+	}
+	if result.Base64Data != "edit-ok" || gotPath != "/v1/images/edits" || gotModel != "gpt-image-2" || gotPrompt != "change it" || gotSize != "1536x1024" || gotFileContentType != "image/png" {
+		t.Fatalf("unexpected edit request result=%+v path=%s model=%s prompt=%s size=%s contentType=%s", result, gotPath, gotModel, gotPrompt, gotSize, gotFileContentType)
+	}
+}
+
 func TestSub2APIClientGenerateImageRetriesTransientDecodeFailure(t *testing.T) {
 	var attempts int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

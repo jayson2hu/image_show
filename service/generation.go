@@ -22,6 +22,8 @@ type GenerationNotifier struct {
 var Notifier = &GenerationNotifier{channels: make(map[int64]map[chan GenerationEvent]struct{})}
 
 const generationStartDelay = 600 * time.Millisecond
+const GenerationModeGenerate = "generate"
+const GenerationModeEdit = "edit"
 
 func (n *GenerationNotifier) Subscribe(id int64) chan GenerationEvent {
 	ch := make(chan GenerationEvent, 8)
@@ -71,6 +73,7 @@ func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymous
 	generation := &model.Generation{
 		UserID:      userID,
 		AnonymousID: anonymousID,
+		Mode:        GenerationModeGenerate,
 		Prompt:      prompt,
 		Quality:     quality,
 		Size:        size,
@@ -90,6 +93,58 @@ func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymous
 	go func() {
 		time.Sleep(generationStartDelay)
 		runGeneration(generation.ID, prompt, quality, size, ip)
+	}()
+	return generation, nil
+}
+
+func CreateImageEdit(prompt, quality, size, ip string, userID *int64, anonymousID string, imageData []byte, filename, contentType string) (*model.Generation, error) {
+	cost := CostForQuality(quality)
+	if userID != nil {
+		balance, err := GetBalance(*userID)
+		if err != nil {
+			return nil, err
+		}
+		if balance < cost {
+			return nil, ErrInsufficientCredits
+		}
+	}
+	generation := &model.Generation{
+		UserID:      userID,
+		AnonymousID: anonymousID,
+		Mode:        GenerationModeEdit,
+		Prompt:      prompt,
+		Quality:     quality,
+		Size:        size,
+		CreditsCost: cost,
+		Status:      0,
+		IP:          ip,
+	}
+	if err := model.DB.Create(generation).Error; err != nil {
+		return nil, err
+	}
+	sourceURL, sourceKey, err := StoreSourceImage(generation.ID, imageData, contentType)
+	if err != nil {
+		_ = model.DB.Delete(generation).Error
+		return nil, err
+	}
+	if sourceURL != "" || sourceKey != "" {
+		_ = model.DB.Model(&model.Generation{}).Where("id = ?", generation.ID).Updates(map[string]interface{}{
+			"source_image_url": sourceURL,
+			"source_r2_key":    sourceKey,
+		}).Error
+		generation.SourceImageURL = sourceURL
+		generation.SourceR2Key = sourceKey
+	}
+	if userID != nil {
+		if err := Deduct(*userID, cost, generation.ID); err != nil {
+			_ = DeleteR2Object(sourceKey)
+			_ = model.DB.Delete(generation).Error
+			return nil, err
+		}
+	}
+	go func() {
+		time.Sleep(generationStartDelay)
+		runImageEdit(generation.ID, prompt, quality, size, ip, imageData, filename, contentType)
 	}()
 	return generation, nil
 }
@@ -121,6 +176,38 @@ func runGeneration(id int64, prompt, quality, size, ip string) {
 		return
 	}
 	updateGenerationStatus(id, 3, "生成完成", imageURL, "")
+	if r2Key != "" {
+		_ = model.DB.Model(&model.Generation{}).Where("id = ? AND status <> ?", id, 5).Update("r2_key", r2Key).Error
+	}
+}
+
+func runImageEdit(id int64, prompt, quality, size, ip string, imageData []byte, filename, contentType string) {
+	if isGenerationCancelled(id) {
+		return
+	}
+	updateGenerationStatus(id, 1, "正在编辑图片...", "", "")
+	providerSize := ProviderImageSize(size)
+	result, err := EditImageViaChannels(prompt, quality, providerSize, ip, imageData, filename, contentType)
+	if isGenerationCancelled(id) {
+		return
+	}
+	if err != nil {
+		refundGenerationCredits(id)
+		updateGenerationStatus(id, 4, "图片编辑失败", "", err.Error())
+		return
+	}
+
+	updateGenerationStatus(id, 2, "正在保存图片...", "", "")
+	imageURL, r2Key, err := StoreGeneratedImage(id, result, size)
+	if isGenerationCancelled(id) {
+		return
+	}
+	if err != nil {
+		refundGenerationCredits(id)
+		updateGenerationStatus(id, 4, "图片保存失败", "", err.Error())
+		return
+	}
+	updateGenerationStatus(id, 3, "编辑完成", imageURL, "")
 	if r2Key != "" {
 		_ = model.DB.Model(&model.Generation{}).Where("id = ? AND status <> ?", id, 5).Update("r2_key", r2Key).Error
 	}

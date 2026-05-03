@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"strings"
 	"testing"
 	"time"
@@ -120,7 +122,12 @@ func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
 		t.Fatalf("anonymous options status=%d body=%s", anonymous.Code, anonymous.Body.String())
 	}
 	var anonymousResp struct {
-		Sizes []string `json:"sizes"`
+		Sizes       []string `json:"sizes"`
+		SizeOptions []struct {
+			Value string `json:"value"`
+			Label string `json:"label"`
+			Ratio string `json:"ratio"`
+		} `json:"size_options"`
 	}
 	if err := json.Unmarshal(anonymous.Body.Bytes(), &anonymousResp); err != nil {
 		t.Fatalf("decode anonymous options: %v", err)
@@ -128,6 +135,9 @@ func TestGenerationOptionsFiltersAnonymousSizes(t *testing.T) {
 	anonymousSizes := strings.Join(anonymousResp.Sizes, ",")
 	if strings.Contains(anonymousSizes, "1024x1024") || strings.Contains(anonymousSizes, "1024x1536") || !strings.Contains(anonymousSizes, "512x512") {
 		t.Fatalf("unexpected anonymous sizes: %#v", anonymousResp.Sizes)
+	}
+	if len(anonymousResp.SizeOptions) == 0 || anonymousResp.SizeOptions[0].Label == "" || anonymousResp.SizeOptions[0].Ratio == "" {
+		t.Fatalf("expected ratio size options, got %#v", anonymousResp.SizeOptions)
 	}
 
 	token := createGenerationUser(t, 1)
@@ -194,6 +204,59 @@ func TestCreateGenerationAcceptsValidCaptcha(t *testing.T) {
 		t.Fatalf("decode create response: %v", err)
 	}
 	waitGenerationStatus(t, createResp.ID, 3)
+}
+
+func TestCreateImageEditCompletesInMockMode(t *testing.T) {
+	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
+	token := createGenerationUser(t, 3)
+
+	rec := postMultipartEditWithToken(engine, token, map[string]string{
+		"prompt":  "make it brighter",
+		"quality": "low",
+		"size":    "1024x1024",
+	}, "image", "source.png", "image/png", []byte{
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+		0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+		0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+		0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+		0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
+		0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+		0x42, 0x60, 0x82,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create edit status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var createResp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &createResp); err != nil {
+		t.Fatalf("decode create edit: %v", err)
+	}
+	waitGenerationStatus(t, createResp.ID, 3)
+	var generation model.Generation
+	if err := model.DB.First(&generation, createResp.ID).Error; err != nil {
+		t.Fatalf("load edit generation: %v", err)
+	}
+	if generation.Mode != service.GenerationModeEdit || generation.ImageURL == "" {
+		t.Fatalf("unexpected edit generation: %+v", generation)
+	}
+}
+
+func TestCreateImageEditRejectsUnsupportedFileType(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createGenerationUser(t, 3)
+
+	rec := postMultipartEditWithToken(engine, token, map[string]string{
+		"prompt":  "make it brighter",
+		"quality": "low",
+		"size":    "1024x1024",
+	}, "image", "source.txt", "text/plain", []byte("not image"))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
 }
 
 func TestAnonymousTrialOnceAndForcesLow(t *testing.T) {
@@ -433,6 +496,28 @@ func postJSONWithFingerprint(engine http.Handler, path string, body interface{},
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Real-IP", "1.2.3.4")
 	req.Header.Set("X-Fingerprint", fingerprint)
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+	return rec
+}
+
+func postMultipartEditWithToken(engine http.Handler, token string, fields map[string]string, fileField, filename, contentType string, data []byte) *httptest.ResponseRecorder {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for key, value := range fields {
+		_ = writer.WriteField(key, value)
+	}
+	partHeader := make(textproto.MIMEHeader)
+	partHeader.Set("Content-Disposition", `form-data; name="`+fileField+`"; filename="`+filename+`"`)
+	partHeader.Set("Content-Type", contentType)
+	part, _ := writer.CreatePart(partHeader)
+	_, _ = part.Write(data)
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/generations/edit", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Real-IP", "1.2.3.4")
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, req)
 	return rec

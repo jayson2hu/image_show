@@ -1,5 +1,34 @@
 # 开发进度记录
 
+## 2026-05-03 真实图片编辑与比例尺寸
+
+- 需求：
+  - 首页支持“输入文本”和“上传图像”两种创作方式。
+  - 输入文本从零生成图片；上传图像后按描述进行真实图片编辑。
+  - 尺寸选择按产品比例展示：`16:9`、`9:16`、`1:1`、`3:2`、`2:3`。
+
+- 调研：
+  - OpenAI Images API 有文生图 `/v1/images/generations` 和图片编辑 `/v1/images/edits` 两类接口。
+  - 图片编辑使用 multipart 表单上传 `image` 文件，并传入 `prompt`、`model`、`size`、`quality` 等字段。
+  - 官方 GPT Image 尺寸主要是 `1024x1024`、`1536x1024`、`1024x1536` 和 `auto`；产品侧比例需要映射到实际像素尺寸。
+
+- 决策：
+  - 新增 `/api/generations/edit`，沿用现有渠道、积分、匿名试用、SSE、R2 保存流程。
+  - sub2api 编辑调用按 OpenAI 兼容方式转发到 `/v1/images/edits`。
+  - `generation/options` 同时返回原始 `sizes` 和新的 `size_options`，前端显示比例、提交实际尺寸。
+  - 后端默认尺寸补齐小尺寸和登录用户高尺寸：`16:9`、`9:16`、`1:1`、`3:2`、`2:3`。
+
+- 完成：
+  - `generations` 表新增 `mode`、`source_r2_key`、`source_image_url` 字段，AutoMigrate 自动补列。
+  - 新增图片编辑任务创建、编辑状态流转、源图 R2 保存、编辑结果保存。
+  - 前端新增“输入文本 / 上传图像”切换、源图上传预览、格式和大小校验。
+  - 前端尺寸选择改为比例按钮，并展示实际像素尺寸。
+
+- 自测记录：
+  - `go test ./service ./controller`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过；普通沙箱首次触发 `esbuild spawn EPERM`，提权重跑通过。
+
 ## 2026-05-02 下载层级、图片体积和游客尺寸修复
 
 - 问题：
