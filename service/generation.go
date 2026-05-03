@@ -60,7 +60,7 @@ func (n *GenerationNotifier) Publish(id int64, event GenerationEvent) {
 }
 
 func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymousID string) (*model.Generation, error) {
-	cost := CostForQuality(quality)
+	cost := CostForSize(size)
 	if userID != nil {
 		balance, err := GetBalance(*userID)
 		if err != nil {
@@ -98,7 +98,7 @@ func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymous
 }
 
 func CreateImageEdit(prompt, quality, size, ip string, userID *int64, anonymousID string, imageData []byte, filename, contentType string) (*model.Generation, error) {
-	cost := CostForQuality(quality)
+	cost := CostForSize(size)
 	if userID != nil {
 		balance, err := GetBalance(*userID)
 		if err != nil {

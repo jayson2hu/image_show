@@ -67,8 +67,8 @@ func TestGenerationStreamCompletesInMockMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get balance: %v", err)
 	}
-	if balance < 2.79 || balance > 2.81 {
-		t.Fatalf("expected low quality cost 0.2, balance=%v", balance)
+	if balance != 2 {
+		t.Fatalf("expected 1024x1024 size cost 1, balance=%v", balance)
 	}
 }
 
@@ -112,9 +112,10 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 	var anonymousResp struct {
 		Sizes       []string `json:"sizes"`
 		SizeOptions []struct {
-			Value string `json:"value"`
-			Label string `json:"label"`
-			Ratio string `json:"ratio"`
+			Value      string  `json:"value"`
+			Label      string  `json:"label"`
+			Ratio      string  `json:"ratio"`
+			CreditCost float64 `json:"credit_cost"`
 		} `json:"size_options"`
 	}
 	if err := json.Unmarshal(anonymous.Body.Bytes(), &anonymousResp); err != nil {
@@ -126,6 +127,15 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 	}
 	if len(anonymousResp.SizeOptions) == 0 || anonymousResp.SizeOptions[0].Label == "" || anonymousResp.SizeOptions[0].Ratio == "" {
 		t.Fatalf("expected ratio size options, got %#v", anonymousResp.SizeOptions)
+	}
+	var foundWideCost bool
+	for _, item := range anonymousResp.SizeOptions {
+		if item.Value == "1536x1024" && item.CreditCost == 1.5 {
+			foundWideCost = true
+		}
+	}
+	if !foundWideCost {
+		t.Fatalf("expected pixel-based wide size cost, got %#v", anonymousResp.SizeOptions)
 	}
 
 	token := createGenerationUser(t, 1)
@@ -270,7 +280,7 @@ func TestCreateImageEditRequiresLogin(t *testing.T) {
 	}
 }
 
-func TestAnonymousTrialOnceUsesRequestedQuality(t *testing.T) {
+func TestAnonymousTrialOnceUsesStandardQuality(t *testing.T) {
 	engine := setupAuthTest(t)
 	config.AppConfig.MockSub2API = true
 
@@ -293,7 +303,7 @@ func TestAnonymousTrialOnceUsesRequestedQuality(t *testing.T) {
 	if err := model.DB.First(&generation, firstResp.ID).Error; err != nil {
 		t.Fatalf("load trial generation: %v", err)
 	}
-	if generation.UserID != nil || generation.Quality != "high" || generation.AnonymousID != firstResp.AnonymousID {
+	if generation.UserID != nil || generation.Quality != "medium" || generation.AnonymousID != firstResp.AnonymousID {
 		t.Fatalf("unexpected trial generation: %+v", generation)
 	}
 	waitGenerationStatus(t, firstResp.ID, 3)

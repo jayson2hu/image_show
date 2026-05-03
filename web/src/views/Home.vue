@@ -21,6 +21,7 @@ interface SizeOption {
   value: string
   label: string
   ratio: string
+  credit_cost?: number
 }
 
 interface StylePreset {
@@ -49,7 +50,7 @@ const generationMode = ref<GenerationMode>('generate')
 const sourceImageFile = ref<File | null>(null)
 const sourceImagePreview = ref('')
 const selectedStyle = ref('')
-const quality = ref<Quality>('medium')
+const quality: Quality = 'medium'
 const size = ref('1024x1024')
 const sizeOptions = ref<SizeOption[]>([
   { value: '1024x1024', label: '1:1', ratio: '1:1' },
@@ -71,9 +72,6 @@ const isPromptPanelCollapsed = ref(false)
 const isFullscreenOpen = ref(false)
 const fullscreenEl = ref<HTMLElement | null>(null)
 
-const costs: Record<Quality, number> = { low: 0.2, medium: 1, high: 4 }
-const qualityLabels: Record<Quality, string> = { low: '快速', medium: '标准', high: '高清' }
-const qualityOptions: Quality[] = ['low', 'medium', 'high']
 const defaultStylePresets: StylePreset[] = [
   { id: 'style-realistic', name: '写实', prompt: '写实摄影风格，细节丰富，自然光影，真实材质，高质量商业摄影' },
   { id: 'style-anime', name: '动漫', prompt: '动漫插画风格，清晰线稿，高饱和色彩，精致角色设计，干净背景' },
@@ -95,7 +93,7 @@ const selectedStylePrompt = computed(() => stylePresets.value.find((item) => ite
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
 const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value && (generationMode.value === 'generate' || (!!userStore.user && !!sourceImageFile.value)))
 const selectedSizeOption = computed(() => sizeOptions.value.find((item) => item.value === size.value))
-const estimatedCreditCost = computed(() => costs[quality.value])
+const estimatedCreditCost = computed(() => selectedSizeOption.value?.credit_cost ?? 1)
 const generationModeText = computed(() => (generationMode.value === 'edit' ? '图片编辑' : '文本生成'))
 const generateHint = computed(() => {
   if (loading.value) {
@@ -110,7 +108,7 @@ const generateHint = computed(() => {
   if (generationMode.value === 'edit' && !sourceImageFile.value) {
     return '上传要编辑的图片后即可开始'
   }
-  return `${generationModeText.value} · ${qualityLabels[quality.value]}质量 · 预计消耗 ${estimatedCreditCost.value} 积分`
+  return `${generationModeText.value} · ${selectedSizeOption.value?.label || size.value.replace('x', ' x ')} · 预计消耗 ${estimatedCreditCost.value} 积分`
 })
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
 const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '免费试用'))
@@ -222,7 +220,7 @@ function buildPrompt() {
 async function generate() {
   await createGeneration({
     prompt: buildPrompt(),
-    quality: quality.value,
+    quality,
     size: size.value,
     mode: generationMode.value,
     sourceImage: sourceImageFile.value,
@@ -515,7 +513,7 @@ function resetCaptcha() {
               </svg>
             </div>
             <p class="mb-2 text-xl text-gray-700 dark:text-slate-200">把想法变成一张好图</p>
-            <p class="mx-auto max-w-md text-gray-500 dark:text-slate-400">写下你脑海里的画面，选好比例和质量，几秒钟后就能看到第一张作品。</p>
+            <p class="mx-auto max-w-md text-gray-500 dark:text-slate-400">写下你脑海里的画面，选择合适比例，系统会持续展示生成进度，直到作品完成。</p>
           </div>
         </div>
       </main>
@@ -632,28 +630,8 @@ function resetCaptcha() {
           <div class="grid gap-3">
             <div class="text-sm font-medium text-gray-700">
               <div class="mb-2 flex items-center justify-between">
-                <span>生成质量</span>
-                <span class="text-xs font-normal text-gray-500">当前 {{ qualityLabels[quality] }} · {{ estimatedCreditCost }} 积分</span>
-              </div>
-              <div class="grid grid-cols-3 gap-2">
-                <button
-                  v-for="item in qualityOptions"
-                  :key="item"
-                  class="home-button min-h-11 rounded-xl border px-3 py-2 text-sm transition"
-                  :class="quality === item ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-500/20' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
-                  type="button"
-                  @click="quality = item"
-                >
-                  <span class="block font-medium">{{ qualityLabels[item] }}</span>
-                  <span class="mt-0.5 block text-[11px] opacity-80">{{ costs[item] }} 积分</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="text-sm font-medium text-gray-700">
-              <div class="mb-2 flex items-center justify-between">
                 <span>尺寸比例</span>
-                <span class="text-xs font-normal text-gray-500">{{ selectedSizeOption?.value.replace('x', ' x ') }}</span>
+                <span class="text-xs font-normal text-gray-500">{{ selectedSizeOption?.value.replace('x', ' x ') }} · {{ estimatedCreditCost }} 积分</span>
               </div>
               <div class="grid grid-cols-3 gap-2">
                 <button
@@ -666,6 +644,7 @@ function resetCaptcha() {
                 >
                   <span class="block font-medium">{{ item.label }}</span>
                   <span class="mt-0.5 block text-[11px] opacity-75">{{ item.value.replace('x', ' x ') }}</span>
+                  <span class="mt-1 block text-[11px] font-semibold opacity-90">{{ item.credit_cost ?? 1 }} 积分</span>
                 </button>
               </div>
             </div>

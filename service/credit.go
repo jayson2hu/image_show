@@ -2,6 +2,9 @@ package service
 
 import (
 	"errors"
+	"math"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jayson2hu/image-show/model"
@@ -13,14 +16,33 @@ var (
 	ErrCreditsExpired      = errors.New("credits expired")
 )
 
-var QualityCost = map[string]float64{
-	"low":    0.2,
-	"medium": 1.0,
-	"high":   4.0,
+func CostForSize(size string) float64 {
+	width, height, ok := parseCreditImageSize(size)
+	if !ok || width <= 0 || height <= 0 {
+		return 1
+	}
+	basePixels := 1024.0 * 1024.0
+	cost := float64(width*height) / basePixels
+	if cost < 1 {
+		cost = 1
+	}
+	return math.Round(cost*100) / 100
 }
 
-func CostForQuality(quality string) float64 {
-	return QualityCost[quality]
+func parseCreditImageSize(size string) (int, int, bool) {
+	parts := strings.Split(strings.ToLower(strings.TrimSpace(size)), "x")
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	width, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return 0, 0, false
+	}
+	height, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return 0, 0, false
+	}
+	return width, height, true
 }
 
 func GetBalance(userID int64) (float64, error) {
