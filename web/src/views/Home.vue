@@ -52,10 +52,9 @@ const sourceImagePreview = ref('')
 const selectedStyle = ref('')
 const quality: Quality = 'medium'
 const size = ref('1024x1024')
+const defaultSizeValues = ['1280x720', '720x1280', '1024x1024', '1536x1024', '1024x1536']
 const sizeOptions = ref<SizeOption[]>([
-  makeSizeOption('1024x1024'),
-  makeSizeOption('1536x1024'),
-  makeSizeOption('1024x1536'),
+  ...defaultSizeValues.map(makeSizeOption),
 ])
 const isSamplesExpanded = ref(false)
 const generationId = ref<number | null>(null)
@@ -187,8 +186,7 @@ async function loadGenerationOptions() {
       }
     }
   } catch {
-    const fallback = userStore.user ? ['1024x1024', '1536x1024', '1024x1536'] : ['1024x1024']
-    sizeOptions.value = fallback.map(makeSizeOption)
+    sizeOptions.value = defaultSizeValues.map(makeSizeOption)
     if (!sizeOptions.value.some((item) => item.value === size.value)) {
       size.value = sizeOptions.value[0].value
     }

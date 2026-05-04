@@ -242,8 +242,10 @@ func CreateImageEdit(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status})
 }
 
+const defaultEnabledImageSizes = "1280x720,720x1280,1024x1024,1536x1024,1024x1536"
+
 func enabledImageSizes() []string {
-	value := model.GetSettingValue("enabled_image_sizes", "1024x1024,1536x1024,1024x1536")
+	value := model.GetSettingValue("enabled_image_sizes", defaultEnabledImageSizes)
 	parts := strings.Split(value, ",")
 	sizes := make([]string, 0, len(parts))
 	for _, part := range parts {

@@ -96,11 +96,29 @@ func TestCreateGenerationRequiresFingerprintForTrial(t *testing.T) {
 	}
 }
 
+func TestGenerationOptionsDefaultSizesIncludeStableRatios(t *testing.T) {
+	engine := setupAuthTest(t)
+	rec := adminRequest(engine, http.MethodGet, "/api/generation/options", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("options status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Sizes []string `json:"sizes"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode options: %v", err)
+	}
+	want := "1280x720,720x1280,1024x1024,1536x1024,1024x1536"
+	if got := strings.Join(resp.Sizes, ","); got != want {
+		t.Fatalf("unexpected default sizes: got %s want %s", got, want)
+	}
+}
+
 func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) {
 	engine := setupAuthTest(t)
 	if err := model.DB.Create(&model.Setting{
 		Key:   "enabled_image_sizes",
-		Value: "1024x1024,1024x1536,1536x1024",
+		Value: "1280x720,720x1280,1024x1024,1536x1024,1024x1536",
 	}).Error; err != nil {
 		t.Fatalf("create size setting: %v", err)
 	}
@@ -122,20 +140,35 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 		t.Fatalf("decode anonymous options: %v", err)
 	}
 	anonymousSizes := strings.Join(anonymousResp.Sizes, ",")
-	if !strings.Contains(anonymousSizes, "1024x1024") || !strings.Contains(anonymousSizes, "1024x1536") || !strings.Contains(anonymousSizes, "1536x1024") {
+	for _, expected := range []string{"1280x720", "720x1280", "1024x1024", "1536x1024", "1024x1536"} {
+		if !strings.Contains(anonymousSizes, expected) {
+			t.Fatalf("expected size %s, got %#v", expected, anonymousResp.Sizes)
+		}
+	}
+	if len(anonymousResp.SizeOptions) != 5 {
 		t.Fatalf("unexpected anonymous sizes: %#v", anonymousResp.Sizes)
 	}
 	if len(anonymousResp.SizeOptions) == 0 || anonymousResp.SizeOptions[0].Label == "" || anonymousResp.SizeOptions[0].Ratio == "" {
 		t.Fatalf("expected ratio size options, got %#v", anonymousResp.SizeOptions)
 	}
-	var foundWideCost bool
-	for _, item := range anonymousResp.SizeOptions {
-		if item.Value == "1536x1024" && item.CreditCost == 2 {
-			foundWideCost = true
-		}
+	expectedOptions := map[string]struct {
+		ratio string
+		cost  float64
+	}{
+		"1280x720":  {ratio: "16:9", cost: 1},
+		"720x1280":  {ratio: "9:16", cost: 1},
+		"1024x1024": {ratio: "1:1", cost: 1},
+		"1536x1024": {ratio: "3:2", cost: 2},
+		"1024x1536": {ratio: "2:3", cost: 2},
 	}
-	if !foundWideCost {
-		t.Fatalf("expected pixel-based wide size cost, got %#v", anonymousResp.SizeOptions)
+	for _, item := range anonymousResp.SizeOptions {
+		expected, ok := expectedOptions[item.Value]
+		if !ok {
+			t.Fatalf("unexpected size option: %#v", item)
+		}
+		if item.Ratio != expected.ratio || item.Label != expected.ratio || item.CreditCost != expected.cost {
+			t.Fatalf("unexpected option for %s: got ratio=%s label=%s cost=%v", item.Value, item.Ratio, item.Label, item.CreditCost)
+		}
 	}
 
 	token := createGenerationUser(t, 1)
