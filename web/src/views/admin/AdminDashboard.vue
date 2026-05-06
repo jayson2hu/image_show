@@ -118,6 +118,13 @@ const overviewCards = computed(() => [
   { label: '积分消耗', value: monitor.value?.credits_consumed ?? 0, hint: `告警阈值 ${monitor.value?.alert_threshold ?? 0}` },
   { label: '启用渠道', value: enabledChannels.value, hint: `共 ${channels.value.length} 个渠道` },
 ])
+const tabCounts = computed<Record<string, number | string>>(() => ({
+  users: users.value.total,
+  channels: channels.value.length,
+  templates: templates.value.length,
+  credits: creditLogs.value.total,
+  monitor: monitor.value?.alert_triggered ? '!' : '',
+}))
 
 async function guarded<T>(fn: () => Promise<T>, successMessage = '') {
   loading.value = true
@@ -203,6 +210,9 @@ async function saveTemplate() {
 }
 
 async function deleteTemplate(template: PromptTemplate) {
+  if (!window.confirm(`确认删除模板「${template.label}」？`)) {
+    return
+  }
   await guarded(async () => {
     await api.delete(`/admin/prompt-templates/${template.id}`)
     await loadTemplates()
@@ -247,6 +257,9 @@ async function saveChannel() {
 }
 
 async function deleteChannel(channel: Channel) {
+  if (!window.confirm(`确认删除渠道「${channel.name}」？`)) {
+    return
+  }
   await guarded(async () => {
     await api.delete(`/admin/channels/${channel.id}`)
     await loadChannels()
@@ -272,12 +285,33 @@ async function checkMonitorAlert() {
   })
 }
 
+async function refreshDashboard() {
+  await guarded(async () => {
+    await Promise.all([loadUsers(), loadCreditLogs(), loadTemplates(), loadSettings(), loadChannels(), loadMonitor()])
+  }, '数据已刷新')
+}
+
 function fmtTime(value: string) {
   return value ? new Date(value).toLocaleString() : '-'
 }
 
+function fmtNumber(value: number | undefined) {
+  return Number(value ?? 0).toLocaleString()
+}
+
 function statusText(status: number) {
   return status === 1 ? '启用' : '禁用'
+}
+
+function creditTypeText(type: number) {
+  const map: Record<number, string> = { 1: '充值', 2: '消费', 3: '退款', 4: '赠送', 5: '注册赠送' }
+  return map[type] || `类型 ${type}`
+}
+
+function clearSelectedUser() {
+  selectedUser.value = null
+  userGenerations.value = emptyGenerationPage()
+  creditForm.value = { amount: 1, remark: '' }
 }
 
 function templateCategoryText(category: string) {
@@ -359,323 +393,415 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="min-h-[calc(100vh-65px)] bg-slate-50 text-slate-950">
-    <div class="grid gap-0 lg:grid-cols-[260px_1fr]">
-      <aside class="border-b border-slate-200 bg-white lg:min-h-[calc(100vh-65px)] lg:border-b-0 lg:border-r">
-        <div class="p-5">
-          <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Admin Console</p>
-          <h1 class="mt-2 text-xl font-semibold text-slate-950">管理后台</h1>
-          <p class="mt-1 text-sm text-slate-500">用户、渠道、模板和系统运行配置。</p>
+  <section class="admin-shell min-h-[calc(100vh-65px)] bg-slate-100 text-slate-950">
+    <div class="grid min-h-[calc(100vh-65px)] lg:grid-cols-[236px_1fr]">
+      <aside class="border-b border-slate-200 bg-white lg:border-b-0 lg:border-r">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 lg:block">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Admin</p>
+            <h1 class="mt-1 text-lg font-semibold text-slate-950">管理后台</h1>
+          </div>
+          <span class="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-500 lg:mt-4 lg:inline-block">{{ userStore.user?.email }}</span>
         </div>
-        <nav class="flex gap-2 overflow-x-auto px-4 pb-4 lg:block lg:space-y-1 lg:overflow-visible">
+        <nav class="flex gap-1 overflow-x-auto px-3 py-3 lg:block lg:space-y-1 lg:overflow-visible">
           <button
             v-for="tab in tabs"
             :key="tab.id"
             type="button"
-            class="min-w-28 rounded-lg px-3 py-2 text-left text-sm transition lg:w-full"
-            :class="activeTab === tab.id ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'"
+            class="min-w-24 rounded-md px-3 py-2 text-left text-sm transition lg:w-full"
+            :class="activeTab === tab.id ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'"
             @click="activeTab = tab.id"
           >
-            <span class="block font-medium">{{ tab.label }}</span>
-            <span class="hidden text-xs opacity-70 lg:block">{{ tab.description }}</span>
+            <span class="flex items-center justify-between gap-3">
+              <span class="font-medium">{{ tab.label }}</span>
+              <span v-if="tabCounts[tab.id]" class="rounded-full px-2 py-0.5 text-xs" :class="activeTab === tab.id ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'">
+                {{ tabCounts[tab.id] }}
+              </span>
+            </span>
           </button>
         </nav>
       </aside>
 
-      <main class="min-w-0 p-4 sm:p-6 lg:p-8">
-        <header class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <main class="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
+        <header class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-2xl font-semibold text-slate-950">{{ currentTab.label }}</h2>
             <p class="mt-1 text-sm text-slate-500">{{ currentTab.description }}</p>
           </div>
-          <div class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
-            {{ userStore.user?.email }}
+          <div class="flex items-center gap-2">
+            <span v-if="loading" class="text-sm text-slate-500">处理中...</span>
+            <button class="admin-btn" type="button" :disabled="loading" @click="refreshDashboard">刷新数据</button>
           </div>
         </header>
 
-        <p v-if="message" class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p v-if="message" class="mb-4 rounded-md border px-4 py-3 text-sm" :class="message.includes('失败') ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'">
           {{ message }}
         </p>
 
-        <div v-if="activeTab === 'overview'" class="space-y-6">
-          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div v-for="card in overviewCards" :key="card.label" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div class="text-sm text-slate-500">{{ card.label }}</div>
-              <div class="mt-3 text-3xl font-semibold text-slate-950">{{ card.value }}</div>
-              <div class="mt-2 text-sm text-slate-500">{{ card.hint }}</div>
+        <div v-if="activeTab === 'overview'" class="space-y-5">
+          <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div v-for="card in overviewCards" :key="card.label" class="admin-panel p-4">
+              <div class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ card.label }}</div>
+              <div class="mt-2 text-2xl font-semibold text-slate-950">{{ fmtNumber(Number(card.value)) }}</div>
+              <div class="mt-1 text-sm text-slate-500">{{ card.hint }}</div>
             </div>
           </div>
-          <div class="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div class="flex items-center justify-between">
-                <h3 class="font-semibold">渠道状态</h3>
-                <button class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm" type="button" @click="activeTab = 'channels'">管理渠道</button>
+          <div class="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div class="admin-panel p-4">
+              <div class="flex items-center justify-between gap-3">
+                <h3 class="admin-section-title">渠道状态</h3>
+                <button class="admin-btn" type="button" @click="activeTab = 'channels'">管理渠道</button>
               </div>
-              <div class="mt-4 space-y-3">
-                <div v-for="channel in channels.slice(0, 4)" :key="channel.id" class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+              <div class="mt-3 divide-y divide-slate-100">
+                <div v-for="channel in channels.slice(0, 5)" :key="channel.id" class="flex items-center justify-between gap-3 py-3 text-sm">
                   <div class="min-w-0">
-                    <div class="truncate font-medium">{{ channel.name }}</div>
-                    <div class="truncate text-slate-500">{{ channel.base_url }}</div>
+                    <div class="truncate font-medium text-slate-800">{{ channel.name }}</div>
+                    <div class="truncate text-xs text-slate-500">{{ channel.base_url }}</div>
                   </div>
-                  <span class="rounded-full px-2 py-1 text-xs" :class="channel.status === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'">
-                    {{ statusText(channel.status) }}
-                  </span>
+                  <span class="admin-badge" :class="channel.status === 1 ? 'admin-badge-ok' : 'admin-badge-muted'">{{ statusText(channel.status) }}</span>
                 </div>
-                <p v-if="!channels.length" class="text-sm text-slate-500">还没有配置渠道，生成时会使用环境变量兜底。</p>
+                <p v-if="!channels.length" class="py-8 text-center text-sm text-slate-500">暂无渠道配置</p>
               </div>
             </div>
-            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 class="font-semibold">今日监控</h3>
+            <div class="admin-panel p-4">
+              <div class="flex items-center justify-between gap-3">
+                <h3 class="admin-section-title">今日监控</h3>
+                <span class="admin-badge" :class="monitor?.alert_triggered ? 'admin-badge-danger' : 'admin-badge-ok'">{{ monitor?.alert_triggered ? '已触发' : '正常' }}</span>
+              </div>
               <dl class="mt-4 space-y-3 text-sm">
-                <div class="flex justify-between"><dt class="text-slate-500">支付订单</dt><dd>{{ monitor?.paid_order_count ?? 0 }}</dd></div>
-                <div class="flex justify-between"><dt class="text-slate-500">支付金额</dt><dd>¥{{ monitor?.paid_order_amount ?? 0 }}</dd></div>
-                <div class="flex justify-between"><dt class="text-slate-500">告警状态</dt><dd>{{ monitor?.alert_triggered ? '已触发' : '正常' }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">支付订单</dt><dd class="font-medium">{{ monitor?.paid_order_count ?? 0 }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">支付金额</dt><dd class="font-medium">¥{{ monitor?.paid_order_amount ?? 0 }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">告警阈值</dt><dd class="font-medium">{{ monitor?.alert_threshold ?? 0 }}</dd></div>
               </dl>
-              <button class="mt-5 w-full rounded-lg bg-slate-950 px-4 py-2 text-sm text-white" type="button" @click="checkMonitorAlert">检查告警</button>
+              <button class="admin-primary mt-5 w-full" type="button" @click="checkMonitorAlert">检查告警</button>
             </div>
           </div>
         </div>
 
         <div v-if="activeTab === 'users'" class="space-y-4">
-          <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="flex flex-col gap-3 sm:flex-row">
-              <input v-model="userKeyword" class="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2" placeholder="搜索邮箱或用户名" />
-              <button class="rounded-lg bg-slate-950 px-4 py-2 text-white" type="button" @click="loadUsers">搜索</button>
+          <div class="admin-panel p-3">
+            <div class="flex flex-col gap-2 sm:flex-row">
+              <input v-model="userKeyword" class="admin-input min-w-0 flex-1" placeholder="搜索邮箱或用户名" @keydown.enter.prevent="loadUsers" />
+              <button class="admin-primary" type="button" @click="loadUsers">搜索</button>
             </div>
           </div>
-          <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-            <table class="min-w-full text-sm">
-              <thead class="bg-slate-50 text-left text-slate-500">
+          <div class="admin-panel overflow-x-auto">
+            <table class="admin-table">
+              <thead>
                 <tr>
-                  <th class="px-4 py-3">用户</th>
-                  <th class="px-4 py-3">角色</th>
-                  <th class="px-4 py-3">状态</th>
-                  <th class="px-4 py-3">积分</th>
-                  <th class="px-4 py-3">创建时间</th>
-                  <th class="px-4 py-3">操作</th>
+                  <th>用户</th>
+                  <th>角色</th>
+                  <th>状态</th>
+                  <th>积分</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="user in users.items" :key="user.id" class="border-t border-slate-100">
-                  <td class="px-4 py-3">
-                    <div class="font-medium">{{ user.email }}</div>
+                <tr v-for="user in users.items" :key="user.id" :class="selectedUser?.id === user.id ? 'bg-teal/5' : ''">
+                  <td>
+                    <div class="font-medium text-slate-900">{{ user.email }}</div>
                     <div class="text-xs text-slate-500">ID {{ user.id }} · {{ user.username || '未设置用户名' }}</div>
                   </td>
-                  <td class="px-4 py-3">{{ user.role >= 10 ? '管理员' : '用户' }}</td>
-                  <td class="px-4 py-3">
-                    <span class="rounded-full px-2 py-1 text-xs" :class="user.status === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'">
-                      {{ user.status === 1 ? '正常' : '封禁' }}
-                    </span>
-                  </td>
-                  <td class="px-4 py-3">{{ user.credits }}</td>
-                  <td class="px-4 py-3 text-slate-500">{{ fmtTime(user.created_at) }}</td>
-                  <td class="px-4 py-3">
-                    <div class="flex flex-wrap gap-2">
-                      <button class="rounded-lg border border-slate-200 px-2 py-1" type="button" @click="loadUserGenerations(user)">记录</button>
-                      <button class="rounded-lg border border-slate-200 px-2 py-1" type="button" @click="selectedUser = user">充值</button>
-                      <button class="rounded-lg border border-slate-200 px-2 py-1" type="button" @click="updateUserStatus(user, user.status === 1 ? 2 : 1)">
-                        {{ user.status === 1 ? '封禁' : '解封' }}
-                      </button>
-                      <button class="rounded-lg border border-slate-200 px-2 py-1" type="button" @click="updateUserRole(user, user.role >= 10 ? 1 : 10)">
-                        {{ user.role >= 10 ? '设为用户' : '设为管理员' }}
-                      </button>
+                  <td><span class="admin-badge" :class="user.role >= 10 ? 'admin-badge-info' : 'admin-badge-muted'">{{ user.role >= 10 ? '管理员' : '用户' }}</span></td>
+                  <td><span class="admin-badge" :class="user.status === 1 ? 'admin-badge-ok' : 'admin-badge-danger'">{{ user.status === 1 ? '正常' : '封禁' }}</span></td>
+                  <td class="font-medium">{{ user.credits }}</td>
+                  <td class="text-slate-500">{{ fmtTime(user.created_at) }}</td>
+                  <td>
+                    <div class="flex flex-wrap gap-1.5">
+                      <button class="admin-btn" type="button" @click="loadUserGenerations(user)">记录</button>
+                      <button class="admin-btn" type="button" @click="selectedUser = user">充值</button>
+                      <button class="admin-btn" type="button" @click="updateUserStatus(user, user.status === 1 ? 2 : 1)">{{ user.status === 1 ? '封禁' : '解封' }}</button>
+                      <button class="admin-btn" type="button" @click="updateUserRole(user, user.role >= 10 ? 1 : 10)">{{ user.role >= 10 ? '设为用户' : '设为管理员' }}</button>
                     </div>
                   </td>
+                </tr>
+                <tr v-if="!users.items.length">
+                  <td class="py-12 text-center text-slate-500" colspan="6">没有匹配的用户</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div v-if="selectedUser" class="grid gap-4 xl:grid-cols-[380px_1fr]">
-            <form class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="topupCredits(selectedUser)">
-              <h3 class="font-semibold">给 {{ selectedUser.email }} 充值</h3>
-              <input v-model.number="creditForm.amount" class="mt-4 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" min="0.01" step="0.01" type="number" />
-              <input v-model="creditForm.remark" class="mt-3 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="备注" />
-              <button class="mt-4 w-full rounded-lg bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-2 text-white" type="submit">确认充值</button>
+          <div v-if="selectedUser" class="grid gap-4 xl:grid-cols-[360px_1fr]">
+            <form class="admin-panel p-4" @submit.prevent="topupCredits(selectedUser)">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="admin-section-title">用户充值</h3>
+                  <p class="mt-1 break-all text-sm text-slate-500">{{ selectedUser.email }}</p>
+                </div>
+                <button class="admin-btn" type="button" @click="clearSelectedUser">关闭</button>
+              </div>
+              <label class="admin-label mt-4">金额</label>
+              <input v-model.number="creditForm.amount" class="admin-input mt-2 w-full" min="0.01" step="0.01" type="number" />
+              <label class="admin-label mt-3">备注</label>
+              <input v-model="creditForm.remark" class="admin-input mt-2 w-full" placeholder="备注" />
+              <button class="admin-primary mt-4 w-full" type="submit">确认充值</button>
             </form>
-            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 class="font-semibold">最近生成记录</h3>
-              <div v-for="item in userGenerations.items" :key="item.id" class="mt-3 border-t border-slate-100 pt-3 text-sm">
+            <div class="admin-panel p-4">
+              <h3 class="admin-section-title">最近生成记录</h3>
+              <div v-for="item in userGenerations.items" :key="item.id" class="border-t border-slate-100 py-3 text-sm first:mt-3">
                 <div class="font-medium">#{{ item.id }} · {{ item.quality }} · {{ generationStatus(item.status) }}</div>
                 <p class="mt-1 line-clamp-2 text-slate-500">{{ item.prompt }}</p>
               </div>
-              <p v-if="!userGenerations.items.length" class="mt-3 text-sm text-slate-500">暂无记录。</p>
+              <p v-if="!userGenerations.items.length" class="py-8 text-center text-sm text-slate-500">暂无记录</p>
             </div>
           </div>
         </div>
 
-        <div v-if="activeTab === 'channels'" class="grid gap-4 xl:grid-cols-[1fr_420px]">
+        <div v-if="activeTab === 'channels'" class="grid gap-4 xl:grid-cols-[1fr_400px]">
           <div class="space-y-3">
-            <div v-for="channel in channels" :key="channel.id" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div v-for="channel in channels" :key="channel.id" class="admin-panel p-4">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
-                    <h3 class="font-semibold">{{ channel.name }}</h3>
-                    <span class="rounded-full px-2 py-1 text-xs" :class="channel.status === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'">{{ statusText(channel.status) }}</span>
+                    <h3 class="font-semibold text-slate-900">{{ channel.name }}</h3>
+                    <span class="admin-badge" :class="channel.status === 1 ? 'admin-badge-ok' : 'admin-badge-muted'">{{ statusText(channel.status) }}</span>
                   </div>
                   <p class="mt-1 break-all text-sm text-slate-500">{{ channel.base_url }}</p>
                   <p v-if="channel.remark" class="mt-2 text-sm text-slate-500">{{ channel.remark }}</p>
                 </div>
-                <div class="flex flex-wrap gap-2">
-                  <button class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm" type="button" @click="testChannel(channel)">测试</button>
-                  <button class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm" type="button" @click="editChannel(channel)">编辑</button>
-                  <button class="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600" type="button" @click="deleteChannel(channel)">删除</button>
+                <div class="flex flex-wrap gap-1.5">
+                  <button class="admin-btn" type="button" @click="testChannel(channel)">测试</button>
+                  <button class="admin-btn" type="button" @click="editChannel(channel)">编辑</button>
+                  <button class="admin-btn-danger" type="button" @click="deleteChannel(channel)">删除</button>
                 </div>
               </div>
-              <div class="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
-                <span>权重 {{ channel.weight }}</span>
-                <span>API Key {{ channel.api_key ? '已配置' : '未配置' }}</span>
-                <span v-if="channelTestResult[channel.id]">{{ channelTestResult[channel.id] }}</span>
+              <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                <span class="rounded bg-slate-100 px-2 py-1">权重 {{ channel.weight }}</span>
+                <span class="rounded bg-slate-100 px-2 py-1">API Key {{ channel.api_key ? '已配置' : '未配置' }}</span>
+                <span v-if="channelTestResult[channel.id]" class="rounded bg-slate-100 px-2 py-1">{{ channelTestResult[channel.id] }}</span>
               </div>
             </div>
-            <p v-if="!channels.length" class="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-              暂无渠道。没有启用渠道时，后端会使用 `SUB2API_BASE_URL` 环境变量作为兜底。
-            </p>
+            <p v-if="!channels.length" class="admin-panel border-dashed p-8 text-center text-sm text-slate-500">暂无渠道。没有启用渠道时，后端会使用 SUB2API_BASE_URL 环境变量作为兜底。</p>
           </div>
 
-          <form class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="saveChannel">
-            <h3 class="font-semibold">{{ channelForm.id ? '编辑渠道' : '新增渠道' }}</h3>
-            <label class="mt-4 block text-sm font-medium">
-              名称
-              <input v-model="channelForm.name" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" required />
-            </label>
-            <label class="mt-3 block text-sm font-medium">
-              Base URL
-              <input v-model="channelForm.base_url" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="http://sub2api:8080" required />
-            </label>
-            <label class="mt-3 block text-sm font-medium">
-              API Key
-              <input v-model="channelForm.api_key" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" />
-            </label>
-            <label class="mt-3 block text-sm font-medium">
-              Headers JSON
-              <textarea v-model="channelForm.headers" class="mt-2 min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder='{"X-Custom":"value"}' />
-            </label>
+          <form class="admin-panel p-4 xl:sticky xl:top-4 xl:self-start" @submit.prevent="saveChannel">
+            <div class="flex items-center justify-between gap-3">
+              <h3 class="admin-section-title">{{ channelForm.id ? '编辑渠道' : '新增渠道' }}</h3>
+              <span v-if="channelForm.id" class="admin-badge admin-badge-info">ID {{ channelForm.id }}</span>
+            </div>
+            <label class="admin-label mt-4">名称</label>
+            <input v-model="channelForm.name" class="admin-input mt-2 w-full" required />
+            <label class="admin-label mt-3">Base URL</label>
+            <input v-model="channelForm.base_url" class="admin-input mt-2 w-full" placeholder="http://sub2api:8080" required />
+            <label class="admin-label mt-3">API Key</label>
+            <input v-model="channelForm.api_key" class="admin-input mt-2 w-full" />
+            <label class="admin-label mt-3">Headers JSON</label>
+            <textarea v-model="channelForm.headers" class="admin-textarea mt-2 w-full" placeholder='{"X-Custom":"value"}' />
             <div class="mt-3 grid grid-cols-2 gap-3">
-              <label class="text-sm font-medium">
-                权重
-                <input v-model.number="channelForm.weight" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" min="1" type="number" />
-              </label>
-              <label class="text-sm font-medium">
-                状态
-                <select v-model.number="channelForm.status" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2">
+              <div>
+                <label class="admin-label">权重</label>
+                <input v-model.number="channelForm.weight" class="admin-input mt-2 w-full" min="1" type="number" />
+              </div>
+              <div>
+                <label class="admin-label">状态</label>
+                <select v-model.number="channelForm.status" class="admin-input mt-2 w-full">
                   <option :value="1">启用</option>
                   <option :value="2">禁用</option>
                 </select>
-              </label>
+              </div>
             </div>
-            <label class="mt-3 block text-sm font-medium">
-              备注
-              <input v-model="channelForm.remark" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" />
-            </label>
+            <label class="admin-label mt-3">备注</label>
+            <input v-model="channelForm.remark" class="admin-input mt-2 w-full" />
             <div class="mt-4 flex gap-2">
-              <button class="flex-1 rounded-lg bg-slate-950 px-4 py-2 text-white" type="submit">保存渠道</button>
-              <button class="rounded-lg border border-slate-200 px-4 py-2" type="button" @click="resetChannel">清空</button>
+              <button class="admin-primary flex-1" type="submit">保存</button>
+              <button class="admin-btn" type="button" @click="resetChannel">清空</button>
             </div>
           </form>
         </div>
 
-        <div v-if="activeTab === 'templates'" class="grid gap-4 xl:grid-cols-[1fr_420px]">
-          <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-100 p-4 text-sm text-slate-500">
-              启用状态会展示到前台；分类为“首页风格预设”时展示在风格按钮，分类为“首页推荐样例”时展示在推荐样例。
-            </div>
+        <div v-if="activeTab === 'templates'" class="grid gap-4 xl:grid-cols-[1fr_400px]">
+          <div class="admin-panel overflow-hidden">
+            <div class="border-b border-slate-100 px-4 py-3 text-sm text-slate-500">启用状态会展示到前台，排序越小越靠前。</div>
             <div v-for="template in templates" :key="template.id" class="flex gap-3 border-b border-slate-100 p-4 text-sm last:border-b-0">
               <div class="min-w-0 flex-1">
-                <div class="font-medium">{{ template.label }} · {{ templateCategoryText(template.category) }}</div>
-                <div class="mt-1 text-xs" :class="template.status === 1 ? 'text-emerald-700' : 'text-slate-400'">{{ statusText(template.status) }}</div>
-                <p class="mt-1 line-clamp-2 text-slate-500">{{ template.prompt }}</p>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="font-medium text-slate-900">{{ template.label }}</span>
+                  <span class="admin-badge admin-badge-info">{{ templateCategoryText(template.category) }}</span>
+                  <span class="admin-badge" :class="template.status === 1 ? 'admin-badge-ok' : 'admin-badge-muted'">{{ statusText(template.status) }}</span>
+                </div>
+                <p class="mt-2 line-clamp-2 text-slate-500">{{ template.prompt }}</p>
               </div>
-              <button class="rounded-lg border border-slate-200 px-3 py-1.5" type="button" @click="editTemplate(template)">编辑</button>
-              <button class="rounded-lg border border-red-200 px-3 py-1.5 text-red-600" type="button" @click="deleteTemplate(template)">删除</button>
+              <div class="flex shrink-0 gap-1.5">
+                <button class="admin-btn" type="button" @click="editTemplate(template)">编辑</button>
+                <button class="admin-btn-danger" type="button" @click="deleteTemplate(template)">删除</button>
+              </div>
             </div>
+            <p v-if="!templates.length" class="p-8 text-center text-sm text-slate-500">暂无提示词模板</p>
           </div>
-          <form class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="saveTemplate">
-            <h3 class="font-semibold">{{ templateForm.id ? '编辑模板' : '新增模板' }}</h3>
-            <input v-model="templateForm.label" class="mt-4 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="名称" />
-            <select v-model="templateForm.category" class="mt-3 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2">
+          <form class="admin-panel p-4 xl:sticky xl:top-4 xl:self-start" @submit.prevent="saveTemplate">
+            <div class="flex items-center justify-between gap-3">
+              <h3 class="admin-section-title">{{ templateForm.id ? '编辑模板' : '新增模板' }}</h3>
+              <span v-if="templateForm.id" class="admin-badge admin-badge-info">ID {{ templateForm.id }}</span>
+            </div>
+            <label class="admin-label mt-4">名称</label>
+            <input v-model="templateForm.label" class="admin-input mt-2 w-full" placeholder="名称" />
+            <label class="admin-label mt-3">分类</label>
+            <select v-model="templateForm.category" class="admin-input mt-2 w-full">
               <option value="style">首页风格预设</option>
               <option value="sample">首页推荐样例</option>
               <option value="default">默认标签</option>
               <option value="repair">修复标签</option>
             </select>
-            <textarea v-model="templateForm.prompt" class="mt-3 min-h-32 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Prompt" />
+            <label class="admin-label mt-3">Prompt</label>
+            <textarea v-model="templateForm.prompt" class="admin-textarea mt-2 w-full" placeholder="Prompt" />
             <div class="mt-3 grid grid-cols-2 gap-3">
-              <input v-model.number="templateForm.sort_order" class="rounded-lg border border-slate-300 px-3 py-2" type="number" />
-              <select v-model.number="templateForm.status" class="rounded-lg border border-slate-300 px-3 py-2">
-                <option :value="1">启用</option>
-                <option :value="2">禁用</option>
-              </select>
+              <div>
+                <label class="admin-label">排序</label>
+                <input v-model.number="templateForm.sort_order" class="admin-input mt-2 w-full" type="number" />
+              </div>
+              <div>
+                <label class="admin-label">状态</label>
+                <select v-model.number="templateForm.status" class="admin-input mt-2 w-full">
+                  <option :value="1">启用</option>
+                  <option :value="2">禁用</option>
+                </select>
+              </div>
             </div>
             <div class="mt-4 flex gap-2">
-              <button class="flex-1 rounded-lg bg-slate-950 px-4 py-2 text-white" type="submit">保存模板</button>
-              <button class="rounded-lg border border-slate-200 px-4 py-2" type="button" @click="resetTemplate">清空</button>
+              <button class="admin-primary flex-1" type="submit">保存</button>
+              <button class="admin-btn" type="button" @click="resetTemplate">清空</button>
             </div>
           </form>
         </div>
 
-        <form v-if="activeTab === 'settings'" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="saveSettings">
+        <form v-if="activeTab === 'settings'" class="admin-panel p-4" @submit.prevent="saveSettings">
           <div class="grid gap-4 md:grid-cols-2">
             <label v-for="key in settingEntries" :key="key" class="block text-sm">
-              <span class="font-medium text-slate-700">{{ settingLabel(key) }}</span>
-              <textarea
-                v-if="isTextareaSetting(key)"
-                v-model="settings[key]"
-                class="mt-2 min-h-24 w-full resize-y rounded-lg border border-slate-300 px-3 py-2"
-              />
-              <input v-else v-model="settings[key]" :type="settingInputType(key)" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" />
-              <span v-if="settingHelp(key)" class="mt-1 block text-xs text-slate-500">{{ settingHelp(key) }}</span>
+              <span class="admin-label">{{ settingLabel(key) }}</span>
+              <textarea v-if="isTextareaSetting(key)" v-model="settings[key]" class="admin-textarea mt-2 w-full" />
+              <input v-else v-model="settings[key]" :type="settingInputType(key)" class="admin-input mt-2 w-full" />
+              <span v-if="settingHelp(key)" class="mt-1 block text-xs leading-5 text-slate-500">{{ settingHelp(key) }}</span>
             </label>
           </div>
-          <button class="mt-5 rounded-lg bg-slate-950 px-4 py-2 text-white" type="submit">保存设置</button>
+          <button class="admin-primary mt-5" type="submit">保存设置</button>
         </form>
 
-        <div v-if="activeTab === 'credits'" class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 text-left text-slate-500">
+        <div v-if="activeTab === 'credits'" class="admin-panel overflow-x-auto">
+          <table class="admin-table">
+            <thead>
               <tr>
-                <th class="px-4 py-3">用户</th>
-                <th class="px-4 py-3">类型</th>
-                <th class="px-4 py-3">金额</th>
-                <th class="px-4 py-3">余额</th>
-                <th class="px-4 py-3">备注</th>
-                <th class="px-4 py-3">时间</th>
+                <th>用户</th>
+                <th>类型</th>
+                <th>金额</th>
+                <th>余额</th>
+                <th>备注</th>
+                <th>时间</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="log in creditLogs.items" :key="log.id" class="border-t border-slate-100">
-                <td class="px-4 py-3">{{ log.user_id }}</td>
-                <td class="px-4 py-3">{{ log.type }}</td>
-                <td class="px-4 py-3">{{ log.amount }}</td>
-                <td class="px-4 py-3">{{ log.balance }}</td>
-                <td class="px-4 py-3">{{ log.remark }}</td>
-                <td class="px-4 py-3 text-slate-500">{{ fmtTime(log.created_at) }}</td>
+              <tr v-for="log in creditLogs.items" :key="log.id">
+                <td>{{ log.user_id }}</td>
+                <td><span class="admin-badge admin-badge-muted">{{ creditTypeText(log.type) }}</span></td>
+                <td class="font-medium" :class="log.amount >= 0 ? 'text-emerald-700' : 'text-red-700'">{{ log.amount }}</td>
+                <td>{{ log.balance }}</td>
+                <td class="max-w-md truncate">{{ log.remark || '-' }}</td>
+                <td class="text-slate-500">{{ fmtTime(log.created_at) }}</td>
+              </tr>
+              <tr v-if="!creditLogs.items.length">
+                <td class="py-12 text-center text-slate-500" colspan="6">暂无积分流水</td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <div v-if="activeTab === 'monitor' && monitor" class="space-y-4">
-          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div v-for="card in overviewCards" :key="card.label" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div class="text-sm text-slate-500">{{ card.label }}</div>
-              <div class="mt-3 text-3xl font-semibold">{{ card.value }}</div>
-              <div class="mt-2 text-sm text-slate-500">{{ card.hint }}</div>
+          <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div v-for="card in overviewCards" :key="card.label" class="admin-panel p-4">
+              <div class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ card.label }}</div>
+              <div class="mt-2 text-2xl font-semibold">{{ fmtNumber(Number(card.value)) }}</div>
+              <div class="mt-1 text-sm text-slate-500">{{ card.hint }}</div>
             </div>
           </div>
-          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="admin-panel p-4">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div class="font-medium">每日积分阈值 {{ monitor.alert_threshold }}</div>
+                <div class="font-medium text-slate-900">每日积分阈值 {{ monitor.alert_threshold }}</div>
                 <div class="mt-1 text-sm text-slate-500">{{ monitor.alert_triggered ? '当前已触发告警条件' : '当前未触发告警条件' }}</div>
               </div>
-              <button class="rounded-lg bg-slate-950 px-4 py-2 text-white" type="button" @click="checkMonitorAlert">检查告警</button>
+              <button class="admin-primary" type="button" @click="checkMonitorAlert">检查告警</button>
             </div>
           </div>
         </div>
+        <p v-else-if="activeTab === 'monitor'" class="admin-panel p-8 text-center text-sm text-slate-500">监控数据加载中</p>
 
-        <div v-if="loading" class="fixed bottom-4 right-4 rounded-lg bg-slate-950 px-4 py-3 text-sm text-white shadow-lg">处理中...</div>
+        <div v-if="loading" class="fixed bottom-4 right-4 rounded-md bg-slate-950 px-4 py-3 text-sm text-white shadow-lg">处理中...</div>
       </main>
     </div>
   </section>
 </template>
+
+<style scoped>
+.admin-panel {
+  @apply rounded-lg border border-slate-200 bg-white shadow-sm;
+}
+
+.admin-section-title {
+  @apply text-sm font-semibold text-slate-950;
+}
+
+.admin-input {
+  @apply min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:opacity-60;
+}
+
+.admin-textarea {
+  @apply min-h-28 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:opacity-60;
+}
+
+.admin-label {
+  @apply block text-xs font-medium uppercase tracking-wide text-slate-500;
+}
+
+.admin-primary {
+  @apply min-h-10 rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60;
+}
+
+.admin-btn {
+  @apply min-h-9 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60;
+}
+
+.admin-btn-danger {
+  @apply min-h-9 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60;
+}
+
+.admin-badge {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+}
+
+.admin-badge-ok {
+  @apply bg-emerald-50 text-emerald-700;
+}
+
+.admin-badge-danger {
+  @apply bg-red-50 text-red-700;
+}
+
+.admin-badge-muted {
+  @apply bg-slate-100 text-slate-600;
+}
+
+.admin-badge-info {
+  @apply bg-blue-50 text-blue-700;
+}
+
+.admin-table {
+  @apply min-w-full text-sm;
+}
+
+.admin-table thead {
+  @apply bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500;
+}
+
+.admin-table th {
+  @apply whitespace-nowrap px-4 py-3;
+}
+
+.admin-table td {
+  @apply whitespace-nowrap border-t border-slate-100 px-4 py-3 align-middle;
+}
+
+.admin-table tbody tr {
+  @apply transition hover:bg-slate-50;
+}
+</style>

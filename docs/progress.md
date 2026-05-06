@@ -1,5 +1,20 @@
 # 开发进度记录
 
+## 2026-05-06 合并 feature/parallel-dev
+
+- 来源：
+  - 合并 GitHub 远端分支 `origin/feature/parallel-dev`，提交 `d1d11de feat: refine auth flow and admin UI`。
+- 冲突处理：
+  - `controller/auth_test.go`：PR 将邮箱注册改为禁用，但当前主线需要保留“新注册赠送积分且后台可配置”，因此保留主线注册测试和注册接口能力。
+  - `web/src/views/admin/AdminDashboard.vue`：合入 PR 的后台 UI 样式，同时保留额度用完提示文案的 textarea 配置能力。
+- 完成：
+  - 合入登录页、注册页、路由和后台管理 UI 优化。
+  - 保留主线的注册赠送积分、额度用完联系方式配置、宽高比配置等功能。
+- 自测记录：
+  - `go test ./...`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `pnpm.cmd build`：沙箱内 `spawn EPERM`，提升权限后通过。
+
 ## 2026-05-06 注册赠送积分和额度用完联系配置
 
 - 需求：

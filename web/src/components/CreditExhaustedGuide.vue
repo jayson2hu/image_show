@@ -24,8 +24,8 @@ const guide = computed(() => {
   const map = {
     free_trial_exhausted: {
       title: '免费体验已结束',
-      description: '你已使用 1 次免费生成机会。注册账号即可获得更多积分，继续创作和保存历史作品。',
-      primaryText: '立即注册',
+      description: '你已使用 1 次游客免费生成机会。通过微信注册账号即可获得更多积分，继续创作和保存历史作品。',
+      primaryText: '微信注册',
       primaryRoute: '/register',
       secondaryText: '已有账号？去登录',
       secondaryRoute: '/login',

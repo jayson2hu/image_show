@@ -22,14 +22,11 @@ router.beforeEach(async (to) => {
   }
 
   const isAdmin = (userStore.user?.role || 0) >= 10
-  if (to.path === '/admin' || to.path === '/console/image-show-admin') {
-    return { name: 'home' }
-  }
   if (to.name === 'admin' && !isAdmin) {
-    return userStore.token ? { name: 'home' } : { name: 'login' }
+    return { name: 'login' }
   }
   if (to.name === 'login' && isAdmin) {
-    return { name: 'home' }
+    return { name: 'admin' }
   }
 })
 
