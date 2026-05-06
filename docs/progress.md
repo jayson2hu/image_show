@@ -1,5 +1,20 @@
 # 开发进度记录
 
+## 2026-05-06 高清尺寸前端不可见排查
+
+- 问题：
+  - 询问新增的 `1920x1080`、`1080x1920`、`2048x2048` 前端是否未加，或是否区分游客和登录用户。
+- 结论：
+  - 前端 fallback 已包含 8 个尺寸，后端 `/api/generation/options` 也不区分游客和登录用户。
+  - 如果页面只显示 5 个尺寸，原因是数据库中已有旧的 `enabled_image_sizes` 设置，后端会优先读取该配置，从而覆盖代码里的新默认值。
+- 完成：
+  - 后端新增旧默认尺寸兼容升级：当 `enabled_image_sizes` 恰好等于旧默认 5 个尺寸时，接口自动返回新默认 8 个尺寸。
+  - 管理员自定义过的其他尺寸配置不被强制覆盖，避免破坏后台配置。
+  - 新增 `TestGenerationOptionsUpgradesLegacyDefaultSizeSetting` 覆盖旧默认设置升级。
+- 自测记录：
+  - `go test ./controller -run "TestGenerationOptions(DefaultSizesIncludeStableRatios|ReturnsSameSizesForAnonymousAndLoggedIn|UpgradesLegacyDefaultSizeSetting)" -v`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+
 ## 2026-05-06 功能规格 v2 终验补齐
 
 - 来源：

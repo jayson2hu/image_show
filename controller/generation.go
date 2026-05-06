@@ -275,9 +275,13 @@ func CreateImageEdit(c *gin.Context) {
 }
 
 const defaultEnabledImageSizes = "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048"
+const legacyDefaultEnabledImageSizes = "1280x720,720x1280,1024x1024,1536x1024,1024x1536"
 
 func enabledImageSizes() []string {
 	value := model.GetSettingValue("enabled_image_sizes", defaultEnabledImageSizes)
+	if normalizeImageSizesValue(value) == legacyDefaultEnabledImageSizes {
+		value = defaultEnabledImageSizes
+	}
 	parts := strings.Split(value, ",")
 	sizes := make([]string, 0, len(parts))
 	for _, part := range parts {
@@ -290,6 +294,18 @@ func enabledImageSizes() []string {
 		return []string{"1024x1024"}
 	}
 	return sizes
+}
+
+func normalizeImageSizesValue(value string) string {
+	parts := strings.Split(value, ",")
+	sizes := make([]string, 0, len(parts))
+	for _, part := range parts {
+		size := strings.TrimSpace(part)
+		if size != "" {
+			sizes = append(sizes, size)
+		}
+	}
+	return strings.Join(sizes, ",")
 }
 
 func isValidQuality(quality string) bool {

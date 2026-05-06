@@ -202,6 +202,31 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 	}
 }
 
+func TestGenerationOptionsUpgradesLegacyDefaultSizeSetting(t *testing.T) {
+	engine := setupAuthTest(t)
+	if err := model.DB.Create(&model.Setting{
+		Key:   "enabled_image_sizes",
+		Value: "1280x720,720x1280,1024x1024,1536x1024,1024x1536",
+	}).Error; err != nil {
+		t.Fatalf("create legacy size setting: %v", err)
+	}
+
+	rec := adminRequest(engine, http.MethodGet, "/api/generation/options", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("options status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Sizes []string `json:"sizes"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode options: %v", err)
+	}
+	want := "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048"
+	if got := strings.Join(resp.Sizes, ","); got != want {
+		t.Fatalf("unexpected upgraded sizes: got %s want %s", got, want)
+	}
+}
+
 func TestCreateGenerationRequiresCaptchaWhenEnabled(t *testing.T) {
 	engine := setupAuthTest(t)
 	enableCaptchaForTest(t)
