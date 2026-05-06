@@ -399,6 +399,16 @@ func TestAnonymousTrialOnceUsesStandardQuality(t *testing.T) {
 		t.Fatalf("second trial status=%d body=%s", second.Code, second.Body.String())
 	}
 	assertJSONError(t, second, "free_trial_exhausted")
+	if strings.Contains(second.Body.String(), "free trial used") || strings.Contains(second.Body.String(), "please register") {
+		t.Fatalf("trial exhausted response should not expose legacy message: %s", second.Body.String())
+	}
+	var secondBody map[string]string
+	if err := json.Unmarshal(second.Body.Bytes(), &secondBody); err != nil {
+		t.Fatalf("decode second trial body: %v", err)
+	}
+	if secondBody["message"] == "" {
+		t.Fatalf("expected friendly message in second trial body: %s", second.Body.String())
+	}
 
 	third := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
 		"prompt":  "trial image",

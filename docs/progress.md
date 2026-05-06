@@ -1,5 +1,16 @@
 # 开发进度记录
 
+## 2026-05-06 游客额度用尽友好提示验收修复
+
+- 问题：
+  - 验收时游客额度用尽仍看到旧英文 `free trial used, please register`，未稳定展示友好引导卡片。
+- 完成：
+  - 前端创建任务失败处理新增旧错误字符串兜底映射：即使后端或旧进程返回旧文案，也会展示 `CreditExhaustedGuide` 的“免费体验已结束”引导卡片。
+  - 后端游客免费试用测试新增验收断言：第二次请求必须返回 HTTP 402、`free_trial_exhausted`、中文 `message`，且不能包含旧英文文案。
+- 自测记录：
+  - `go test ./controller -run TestAnonymousTrialOnceUsesStandardQuality -v`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+
 ## 2026-05-06 GPT Image 2 输出参数和 8 个尺寸
 
 - 来源：

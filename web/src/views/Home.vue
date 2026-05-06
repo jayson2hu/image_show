@@ -315,9 +315,9 @@ async function createGeneration(payload: GenerationPayload) {
           })
     generationId.value = response.data.id
   } catch (err: any) {
-    const errCode = err.response?.data?.error
-    if (err.response?.status === 402 && isCreditError(errCode)) {
-      creditError.value = errCode
+    const mappedCreditError = resolveCreditError(err)
+    if (mappedCreditError) {
+      creditError.value = mappedCreditError
       error.value = ''
     } else {
       error.value = err.response?.data?.message || err.response?.data?.error || err.message || '创建生成任务失败'
@@ -329,6 +329,24 @@ async function createGeneration(payload: GenerationPayload) {
 
 function isCreditError(value: unknown): value is CreditErrorType {
   return value === 'free_trial_exhausted' || value === 'insufficient_credits' || value === 'credits_expired'
+}
+
+function resolveCreditError(err: any): CreditErrorType | null {
+  const status = err.response?.status
+  const errCode = err.response?.data?.error
+  if (status === 402 && isCreditError(errCode)) {
+    return errCode
+  }
+  if (typeof errCode === 'string') {
+    const normalized = errCode.toLowerCase()
+    if (normalized.includes('free trial used') || normalized.includes('please register')) {
+      return 'free_trial_exhausted'
+    }
+    if (status === 402 && normalized.includes('insufficient credits')) {
+      return 'insufficient_credits'
+    }
+  }
+  return null
 }
 
 function createImageEditRequest(payload: GenerationPayload) {
