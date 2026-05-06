@@ -26,6 +26,14 @@ interface SizeOption {
   credit_cost?: number
 }
 
+const aspectRatioFallbacks: Record<string, SizeOption> = {
+  square: { value: 'square', label: '方形', ratio: '1:1', credit_cost: 1 },
+  portrait_3_4: { value: 'portrait_3_4', label: '竖版', ratio: '3:4', credit_cost: 2 },
+  story: { value: 'story', label: '故事版', ratio: '9:16', credit_cost: 2 },
+  landscape_4_3: { value: 'landscape_4_3', label: '横版', ratio: '4:3', credit_cost: 2 },
+  widescreen: { value: 'widescreen', label: '宽屏', ratio: '16:9', credit_cost: 2 },
+}
+
 interface StylePreset {
   id: string
   name: string
@@ -60,8 +68,8 @@ const sourceImageFile = ref<File | null>(null)
 const sourceImagePreview = ref('')
 const selectedStyle = ref('')
 const quality: Quality = 'medium'
-const size = ref('1024x1024')
-const defaultSizeValues = ['1280x720', '720x1280', '1024x1024', '1536x1024', '1024x1536', '1920x1080', '1080x1920', '2048x2048']
+const size = ref('square')
+const defaultSizeValues = ['square', 'portrait_3_4', 'story', 'landscape_4_3', 'widescreen']
 const sizeOptions = ref<SizeOption[]>([
   ...defaultSizeValues.map(makeSizeOption),
 ])
@@ -104,6 +112,7 @@ const canRetry = computed(() => !!lastRequest.value && !loading.value)
 const canGenerate = computed(() => prompt.value.trim().length > 0 && !loading.value && (generationMode.value === 'generate' || (!!userStore.user && !!sourceImageFile.value)))
 const selectedSizeOption = computed(() => sizeOptions.value.find((item) => item.value === size.value))
 const estimatedCreditCost = computed(() => selectedSizeOption.value?.credit_cost ?? creditCostForSize(size.value))
+const selectedSizeDisplay = computed(() => formatSizeOption(selectedSizeOption.value, size.value))
 const generationModeText = computed(() => (generationMode.value === 'edit' ? '图片编辑' : '文本生成'))
 const generateHint = computed(() => {
   if (loading.value) {
@@ -118,7 +127,7 @@ const generateHint = computed(() => {
   if (generationMode.value === 'edit' && !sourceImageFile.value) {
     return '上传要编辑的图片后即可开始'
   }
-  return `${generationModeText.value} · ${selectedSizeOption.value?.label || size.value.replace('x', ' x ')} · 预计消耗 ${estimatedCreditCost.value} 积分`
+  return `${generationModeText.value} · ${selectedSizeDisplay.value} · 预计消耗 ${estimatedCreditCost.value} 积分`
 })
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
 const creditBalanceText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '1 次免费试用'))
@@ -246,6 +255,10 @@ function persistGenerationDraft() {
 }
 
 function makeSizeOption(value: string): SizeOption {
+  const fallback = aspectRatioFallbacks[value]
+  if (fallback) {
+    return { ...fallback }
+  }
   const ratio = sizeRatioLabel(value)
   return {
     value,
@@ -256,6 +269,10 @@ function makeSizeOption(value: string): SizeOption {
 }
 
 function creditCostForSize(value: string) {
+  const fallback = aspectRatioFallbacks[value]
+  if (fallback?.credit_cost) {
+    return fallback.credit_cost
+  }
   const [width, height] = value.toLowerCase().split('x').map((part) => Number.parseInt(part.trim(), 10))
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     return 1
@@ -264,6 +281,10 @@ function creditCostForSize(value: string) {
 }
 
 function sizeRatioLabel(value: string) {
+  const fallback = aspectRatioFallbacks[value]
+  if (fallback) {
+    return fallback.ratio
+  }
   const [width, height] = value.split('x').map((item) => Number(item))
   if (!width || !height) {
     return value.replace('x', ' x ')
@@ -274,6 +295,14 @@ function sizeRatioLabel(value: string) {
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b)
+}
+
+function formatSizeOption(option: SizeOption | undefined, fallbackValue: string) {
+  const item = option || makeSizeOption(fallbackValue)
+  if (item.label && item.ratio && item.label !== item.ratio) {
+    return `${item.label} ${item.ratio}`
+  }
+  return item.label || item.ratio || fallbackValue.replace('x', ' x ')
 }
 
 function useSample(sample: SamplePrompt) {
@@ -587,7 +616,7 @@ function resetCaptcha() {
               <div class="pointer-events-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="text-white">
                   <h2 class="text-lg font-medium">生成结果</h2>
-                  <p class="mt-1 text-sm text-white/70">{{ selectedSizeOption?.label || size.replace('x', ' x ') }} · {{ estimatedCreditCost }} 积分</p>
+                  <p class="mt-1 text-sm text-white/70">{{ selectedSizeDisplay }} · {{ estimatedCreditCost }} 积分</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                   <button
@@ -766,7 +795,7 @@ function resetCaptcha() {
             <div class="text-sm font-medium text-gray-700">
               <div class="mb-2 flex items-center justify-between">
                 <span>尺寸比例</span>
-                <span class="text-xs font-normal text-gray-500">{{ selectedSizeOption?.value.replace('x', ' x ') }} · {{ estimatedCreditCost }} 积分</span>
+                <span class="text-xs font-normal text-gray-500">{{ selectedSizeDisplay }} · {{ estimatedCreditCost }} 积分</span>
               </div>
               <div class="grid grid-cols-3 gap-2">
                 <button
@@ -778,7 +807,7 @@ function resetCaptcha() {
                   @click="size = item.value"
                 >
                   <span class="block font-medium">{{ item.label }}</span>
-                  <span class="mt-0.5 block text-[11px] opacity-75">{{ item.value.replace('x', ' x ') }}</span>
+                  <span class="mt-0.5 block text-[11px] opacity-75">{{ item.ratio }}</span>
                   <span class="mt-1 block text-[11px] font-semibold opacity-90">{{ item.credit_cost ?? creditCostForSize(item.value) }} 积分</span>
                 </button>
               </div>
@@ -823,7 +852,7 @@ function resetCaptcha() {
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <p class="font-medium text-slate-700 dark:text-slate-200">本次预计消耗</p>
-                  <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ generationModeText }} · {{ selectedSizeOption?.value.replace('x', ' x ') }}</p>
+                  <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ generationModeText }} · {{ selectedSizeDisplay }}</p>
                 </div>
                 <span class="rounded-full border px-3 py-1 text-sm font-semibold shadow-sm dark:border-violet-400/20 dark:bg-slate-900 dark:text-violet-200" :class="creditCostTone">{{ estimatedCreditCost }} 积分</span>
               </div>
@@ -850,7 +879,7 @@ function resetCaptcha() {
       <div class="flex min-h-16 items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-white sm:px-6">
         <div class="min-w-0">
           <p class="truncate text-sm font-medium">生成结果</p>
-          <p class="text-xs text-white/60">{{ selectedSizeOption?.label || size.replace('x', ' x ') }} · {{ estimatedCreditCost }} 积分</p>
+          <p class="text-xs text-white/60">{{ selectedSizeDisplay }} · {{ estimatedCreditCost }} 积分</p>
         </div>
         <div class="flex shrink-0 gap-2">
           <button class="rounded-full border border-white/20 px-4 py-2 text-sm transition hover:bg-white/10" type="button" @click="downloadCurrentImage">

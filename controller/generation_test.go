@@ -120,7 +120,7 @@ func TestGenerationOptionsDefaultSizesIncludeStableRatios(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode options: %v", err)
 	}
-	want := "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048"
+	want := "square,portrait_3_4,story,landscape_4_3,widescreen"
 	if got := strings.Join(resp.Sizes, ","); got != want {
 		t.Fatalf("unexpected default sizes: got %s want %s", got, want)
 	}
@@ -130,7 +130,7 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 	engine := setupAuthTest(t)
 	if err := model.DB.Create(&model.Setting{
 		Key:   "enabled_image_sizes",
-		Value: "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048",
+		Value: "square,portrait_3_4,story,landscape_4_3,widescreen",
 	}).Error; err != nil {
 		t.Fatalf("create size setting: %v", err)
 	}
@@ -152,36 +152,34 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 		t.Fatalf("decode anonymous options: %v", err)
 	}
 	anonymousSizes := strings.Join(anonymousResp.Sizes, ",")
-	for _, expected := range []string{"1280x720", "720x1280", "1024x1024", "1536x1024", "1024x1536", "1920x1080", "1080x1920", "2048x2048"} {
+	for _, expected := range []string{"square", "portrait_3_4", "story", "landscape_4_3", "widescreen"} {
 		if !strings.Contains(anonymousSizes, expected) {
 			t.Fatalf("expected size %s, got %#v", expected, anonymousResp.Sizes)
 		}
 	}
-	if len(anonymousResp.SizeOptions) != 8 {
+	if len(anonymousResp.SizeOptions) != 5 {
 		t.Fatalf("unexpected anonymous sizes: %#v", anonymousResp.Sizes)
 	}
 	if len(anonymousResp.SizeOptions) == 0 || anonymousResp.SizeOptions[0].Label == "" || anonymousResp.SizeOptions[0].Ratio == "" {
 		t.Fatalf("expected ratio size options, got %#v", anonymousResp.SizeOptions)
 	}
 	expectedOptions := map[string]struct {
+		label string
 		ratio string
 		cost  float64
 	}{
-		"1280x720":  {ratio: "16:9", cost: 1},
-		"720x1280":  {ratio: "9:16", cost: 1},
-		"1024x1024": {ratio: "1:1", cost: 1},
-		"1536x1024": {ratio: "3:2", cost: 2},
-		"1024x1536": {ratio: "2:3", cost: 2},
-		"1920x1080": {ratio: "16:9", cost: 2},
-		"1080x1920": {ratio: "9:16", cost: 2},
-		"2048x2048": {ratio: "1:1", cost: 4},
+		"square":        {label: "方形", ratio: "1:1", cost: 1},
+		"portrait_3_4":  {label: "竖版", ratio: "3:4", cost: 2},
+		"story":         {label: "故事版", ratio: "9:16", cost: 2},
+		"landscape_4_3": {label: "横版", ratio: "4:3", cost: 2},
+		"widescreen":    {label: "宽屏", ratio: "16:9", cost: 2},
 	}
 	for _, item := range anonymousResp.SizeOptions {
 		expected, ok := expectedOptions[item.Value]
 		if !ok {
 			t.Fatalf("unexpected size option: %#v", item)
 		}
-		if item.Ratio != expected.ratio || item.Label != expected.ratio || item.CreditCost != expected.cost {
+		if item.Ratio != expected.ratio || item.Label != expected.label || item.CreditCost != expected.cost {
 			t.Fatalf("unexpected option for %s: got ratio=%s label=%s cost=%v", item.Value, item.Ratio, item.Label, item.CreditCost)
 		}
 	}
@@ -221,10 +219,66 @@ func TestGenerationOptionsUpgradesLegacyDefaultSizeSetting(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode options: %v", err)
 	}
-	want := "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048"
+	want := "square,portrait_3_4,story,landscape_4_3,widescreen"
 	if got := strings.Join(resp.Sizes, ","); got != want {
 		t.Fatalf("unexpected upgraded sizes: got %s want %s", got, want)
 	}
+}
+
+func TestCreateGenerationAcceptsAspectRatioKey(t *testing.T) {
+	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
+
+	rec := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
+		"prompt":  "wide image",
+		"quality": "medium",
+		"size":    "widescreen",
+	}, "aspect-ratio-fp")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	var generation model.Generation
+	if err := model.DB.First(&generation, resp.ID).Error; err != nil {
+		t.Fatalf("load generation: %v", err)
+	}
+	if generation.Size != "1792x1008" || generation.CreditsCost != 2 {
+		t.Fatalf("unexpected generation size/cost: %+v", generation)
+	}
+	waitGenerationStatus(t, resp.ID, 3)
+}
+
+func TestCreateGenerationStillAcceptsMappedPixelSize(t *testing.T) {
+	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
+
+	rec := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
+		"prompt":  "square image",
+		"quality": "medium",
+		"size":    "1024x1024",
+	}, "pixel-size-fp")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	var generation model.Generation
+	if err := model.DB.First(&generation, resp.ID).Error; err != nil {
+		t.Fatalf("load generation: %v", err)
+	}
+	if generation.Size != "1024x1024" || generation.CreditsCost != 1 {
+		t.Fatalf("unexpected generation size/cost: %+v", generation)
+	}
+	waitGenerationStatus(t, resp.ID, 3)
 }
 
 func TestCreateGenerationRequiresCaptchaWhenEnabled(t *testing.T) {

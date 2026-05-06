@@ -36,6 +36,13 @@ type imageSizeOption struct {
 	CreditCost float64 `json:"credit_cost"`
 }
 
+type aspectRatioOption struct {
+	Value string
+	Label string
+	Ratio string
+	Size  string
+}
+
 type batchDeleteGenerationsRequest struct {
 	IDs      []int64 `json:"ids" binding:"required"`
 	DeleteR2 bool    `json:"delete_r2"`
@@ -129,10 +136,12 @@ func CreateGeneration(c *gin.Context) {
 		return
 	}
 	req.Quality = standardImageQuality
-	if !isEnabledImageSize(req.Size) {
+	realSize, ok := enabledImageSizeValue(req.Size)
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported image size"})
 		return
 	}
+	req.Size = realSize
 	if !validateImageOutputOptions(c, req.OutputFormat, req.Background, req.OutputCompression) {
 		return
 	}
@@ -215,10 +224,12 @@ func CreateImageEdit(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
-	if !isEnabledImageSize(req.Size) {
+	realSize, ok := enabledImageSizeValue(req.Size)
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported image size"})
 		return
 	}
+	req.Size = realSize
 	if !validateImageOutputOptions(c, req.OutputFormat, req.Background, req.OutputCompression) {
 		return
 	}
@@ -274,12 +285,30 @@ func CreateImageEdit(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status})
 }
 
-const defaultEnabledImageSizes = "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048"
+const defaultEnabledImageSizes = "square,portrait_3_4,story,landscape_4_3,widescreen"
 const legacyDefaultEnabledImageSizes = "1280x720,720x1280,1024x1024,1536x1024,1024x1536"
+const legacyHDDefaultEnabledImageSizes = "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048"
+
+var aspectRatioOptions = []aspectRatioOption{
+	{Value: "square", Label: "方形", Ratio: "1:1", Size: "1024x1024"},
+	{Value: "portrait_3_4", Label: "竖版", Ratio: "3:4", Size: "1152x1536"},
+	{Value: "story", Label: "故事版", Ratio: "9:16", Size: "1008x1792"},
+	{Value: "landscape_4_3", Label: "横版", Ratio: "4:3", Size: "1536x1152"},
+	{Value: "widescreen", Label: "宽屏", Ratio: "16:9", Size: "1792x1008"},
+}
+
+var aspectRatioSizeMap = func() map[string]aspectRatioOption {
+	items := make(map[string]aspectRatioOption, len(aspectRatioOptions))
+	for _, option := range aspectRatioOptions {
+		items[option.Value] = option
+	}
+	return items
+}()
 
 func enabledImageSizes() []string {
 	value := model.GetSettingValue("enabled_image_sizes", defaultEnabledImageSizes)
-	if normalizeImageSizesValue(value) == legacyDefaultEnabledImageSizes {
+	normalized := normalizeImageSizesValue(value)
+	if normalized == legacyDefaultEnabledImageSizes || normalized == legacyHDDefaultEnabledImageSizes {
 		value = defaultEnabledImageSizes
 	}
 	parts := strings.Split(value, ",")
@@ -352,12 +381,23 @@ func isValidOutputCompression(compression *int) bool {
 func buildImageSizeOptions(sizes []string) []imageSizeOption {
 	options := make([]imageSizeOption, 0, len(sizes))
 	for _, size := range sizes {
-		ratio := imageRatioLabel(size)
-		label := ratio
-		if ratio == "" {
-			label = strings.Replace(size, "x", " x ", 1)
+		realSize, ok := resolveImageSize(size)
+		if !ok {
+			continue
 		}
-		options = append(options, imageSizeOption{Value: size, Label: label, Ratio: ratio, CreditCost: service.CostForSize(size)})
+		label := ""
+		ratio := imageRatioLabel(realSize)
+		if option, ok := aspectRatioSizeMap[size]; ok {
+			label = option.Label
+			ratio = option.Ratio
+		}
+		if label == "" {
+			label = ratio
+		}
+		if label == "" {
+			label = strings.Replace(realSize, "x", " x ", 1)
+		}
+		options = append(options, imageSizeOption{Value: size, Label: label, Ratio: ratio, CreditCost: service.CostForSize(realSize)})
 	}
 	return options
 }
@@ -387,14 +427,46 @@ func greatestCommonDivisor(a, b int) int {
 	return a
 }
 
-func isEnabledImageSize(size string) bool {
+func enabledImageSizeValue(size string) (string, bool) {
+	requestedSize, requestedIsPixel := normalizePixelSize(size)
 	for _, item := range enabledImageSizes() {
 		if item == size {
-			width, height, ok := parseImageSize(size)
-			return ok && isGPTImage2CompatibleSize(width, height)
+			realSize, ok := resolveImageSize(size)
+			if !ok {
+				return "", false
+			}
+			width, height, ok := parseImageSize(realSize)
+			return realSize, ok && isGPTImage2CompatibleSize(width, height)
+		}
+		if requestedIsPixel {
+			realSize, ok := resolveImageSize(item)
+			if ok && realSize == requestedSize {
+				width, height, ok := parseImageSize(realSize)
+				return realSize, ok && isGPTImage2CompatibleSize(width, height)
+			}
 		}
 	}
-	return false
+	return "", false
+}
+
+func isEnabledImageSize(size string) bool {
+	_, ok := enabledImageSizeValue(size)
+	return ok
+}
+
+func resolveImageSize(size string) (string, bool) {
+	if option, ok := aspectRatioSizeMap[size]; ok {
+		return option.Size, true
+	}
+	return normalizePixelSize(size)
+}
+
+func normalizePixelSize(size string) (string, bool) {
+	width, height, ok := parseImageSize(size)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("%dx%d", width, height), true
 }
 
 func isGPTImage2CompatibleSize(width, height int) bool {
