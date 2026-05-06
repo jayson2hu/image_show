@@ -96,6 +96,27 @@ func TestWeChatDisabled(t *testing.T) {
 	}
 }
 
+func TestWeChatInvalidCodeFromServer(t *testing.T) {
+	engine := setupAuthTest(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "code expired",
+		})
+	}))
+	t.Cleanup(server.Close)
+	config.AppConfig.WeChatEnabled = true
+	config.AppConfig.WeChatServer = server.URL
+	config.AppConfig.WeChatToken = "wechat-token"
+	config.AppConfig.WeChatQRCode = "https://example.com/qrcode.png"
+
+	rec := adminRequest(engine, http.MethodGet, "/api/auth/wechat/callback?code=expired", "")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid code 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func configureWeChatTestServer(t *testing.T) {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

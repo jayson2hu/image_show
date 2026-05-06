@@ -1,5 +1,25 @@
 # 开发进度记录
 
+## 2026-05-06 微信公众号验证码登录验收
+
+- 需求：
+  - 按“点击获取验证码 -> 弹出公众号二维码 -> 用户扫码关注 -> 公众号返回验证码 -> 用户输入验证码 -> 验证通过登录/注册”的流程核对现有微信登录逻辑。
+  - 输出配置和操作文档，方便后续接真实公众号/WeChat Server。
+- 鉴别结论：
+  - 当前项目采用 new-api 风格的验证码换 OpenID 模式，不直接接微信公众号 OAuth 回调。
+  - 后端核心链路已经符合“公众号返回验证码，后端用验证码换 OpenID”的模式。
+  - 前端原先进入登录页会自动展示二维码，不是“点击获取验证码后弹出二维码”，已调整为点击按钮后弹窗展示。
+- 完成：
+  - 登录页改为“获取验证码”按钮，点击后弹出公众号二维码弹窗。
+  - 验证码输入框改为等待用户拿到公众号验证码后手动提交。
+  - 后端补充 WeChat Server 非 2xx 响应校验，避免异常响应被当成正常验证码结果解析。
+  - 新增 `docs/wechat-verification-login.md`，说明后台配置位置、环境变量、WeChat Server 接口协议和人工验收步骤。
+- 自测记录：
+  - `go test ./controller -run "TestWeChatQRCodeAndLoginCreatesUser|TestWeChatInvalidCodeFromServer|TestWeChatBindAndUnbind|TestWeChatDisabled" -v`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次因 esbuild `spawn EPERM` 失败，提升权限后重跑通过。
+
 ## 2026-05-06 后台二维码本地图片配置
 
 - 需求：

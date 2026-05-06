@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -151,6 +152,14 @@ func WeChatOpenIDByCode(code string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		payload, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		message := strings.TrimSpace(string(payload))
+		if message != "" {
+			return "", fmt.Errorf("%w: status %d: %s", ErrWeChatCodeInvalid, resp.StatusCode, message)
+		}
+		return "", fmt.Errorf("%w: status %d", ErrWeChatCodeInvalid, resp.StatusCode)
+	}
 	var payload weChatServerResponse
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return "", err

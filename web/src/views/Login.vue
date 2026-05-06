@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import api from '@/api'
@@ -16,9 +16,10 @@ const wechatCode = ref('')
 const wechatQRCode = ref('')
 const wechatEnabled = ref(false)
 const wechatLoaded = ref(false)
+const qrDialogOpen = ref(false)
 const showEmailLogin = ref(false)
 const titleText = computed(() => (wechatLoaded.value ? '微信登录 / 注册' : '登录 / 注册'))
-const subtitleText = computed(() => (wechatLoaded.value ? '扫码获取验证码，首次使用会自动创建账号。' : '加载微信二维码后即可继续。'))
+const subtitleText = computed(() => (wechatLoaded.value ? '关注公众号获取验证码，首次使用会自动创建账号。' : '点击获取验证码后扫码关注公众号。'))
 
 async function submitEmailLogin() {
   error.value = ''
@@ -51,6 +52,17 @@ async function loadWechatLogin() {
   }
 }
 
+async function openWechatQRCode() {
+  qrDialogOpen.value = true
+  if (!wechatLoaded.value) {
+    await loadWechatLogin()
+  }
+}
+
+function closeWechatQRCode() {
+  qrDialogOpen.value = false
+}
+
 async function submitWechatCode() {
   if (!wechatCode.value || !wechatEnabled.value) {
     return
@@ -66,10 +78,6 @@ async function submitWechatCode() {
     wechatLoading.value = false
   }
 }
-
-onMounted(() => {
-  loadWechatLogin()
-})
 </script>
 
 <template>
@@ -106,32 +114,20 @@ onMounted(() => {
           </div>
 
           <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
-            <div class="grid gap-4 sm:grid-cols-[168px_1fr] sm:items-center">
-              <div class="mx-auto flex size-40 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
-                <img v-if="wechatQRCode" :src="wechatQRCode" class="size-32 object-contain" alt="微信二维码" />
-                <div v-else class="text-center text-slate-400">
-                  <svg class="mx-auto size-10" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 0 1 .598.082l1.584.926a.272.272 0 0 0 .14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.582.582 0 0 1 .023-.156.49.49 0 0 1 .201-.398C23.024 18.48 24 16.82 24 14.98c0-3.21-2.931-5.837-6.656-6.088V8.89c-.135-.01-.27-.027-.407-.03zm-2.53 3.274c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.969-.982zm4.844 0c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.969-.982z" />
-                  </svg>
-                  <p class="mt-2 text-xs">{{ wechatLoading ? '加载中' : '未加载' }}</p>
-                </div>
-              </div>
-
-              <div class="space-y-3">
-                <input
-                  v-model="wechatCode"
-                  class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                  placeholder="输入微信验证码"
-                  :disabled="!wechatEnabled"
-                  @keydown.enter.prevent="submitWechatCode"
-                />
-                <button class="min-h-11 w-full rounded-lg bg-teal px-4 text-sm font-medium text-white transition hover:bg-teal/90 disabled:opacity-60" type="button" :disabled="!wechatEnabled || wechatLoading || !wechatCode" @click="submitWechatCode">
-                  {{ wechatLoading ? '处理中...' : '继续' }}
-                </button>
-                <button class="min-h-10 w-full rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-900" type="button" :disabled="wechatLoading" @click="loadWechatLogin">
-                  {{ wechatLoaded ? '刷新二维码' : '加载二维码' }}
-                </button>
-              </div>
+            <div class="space-y-3">
+              <button class="min-h-11 w-full rounded-lg border border-teal/30 bg-teal/5 px-4 text-sm font-medium text-teal transition hover:bg-teal/10 disabled:opacity-60" type="button" :disabled="wechatLoading" @click="openWechatQRCode">
+                {{ wechatLoading ? '正在加载公众号二维码...' : '获取验证码' }}
+              </button>
+              <input
+                v-model="wechatCode"
+                class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                placeholder="输入公众号返回的验证码"
+                :disabled="!wechatLoaded || !wechatEnabled"
+                @keydown.enter.prevent="submitWechatCode"
+              />
+              <button class="min-h-11 w-full rounded-lg bg-teal px-4 text-sm font-medium text-white transition hover:bg-teal/90 disabled:opacity-60" type="button" :disabled="!wechatLoaded || !wechatEnabled || wechatLoading || !wechatCode" @click="submitWechatCode">
+                {{ wechatLoading ? '处理中...' : '登录 / 注册' }}
+              </button>
             </div>
             <p v-if="error" class="mt-3 text-sm text-red-600 dark:text-red-400">{{ error }}</p>
           </div>
@@ -163,6 +159,26 @@ onMounted(() => {
               </button>
             </form>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="qrDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4" role="dialog" aria-modal="true" aria-labelledby="wechat-qrcode-title" @click.self="closeWechatQRCode">
+      <div class="w-full max-w-sm rounded-2xl bg-white p-5 text-slate-900 shadow-xl dark:bg-slate-900 dark:text-slate-100">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 id="wechat-qrcode-title" class="text-lg font-semibold">关注公众号获取验证码</h3>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">扫码关注后，公众号会返回验证码。</p>
+          </div>
+          <button class="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800" type="button" @click="closeWechatQRCode">关闭</button>
+        </div>
+        <div class="mt-5 flex min-h-64 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
+          <img v-if="wechatQRCode" :src="wechatQRCode" class="size-56 object-contain" alt="微信公众号二维码" />
+          <p v-else class="text-sm text-slate-500">{{ wechatLoading ? '二维码加载中...' : '未配置公众号二维码' }}</p>
+        </div>
+        <div class="mt-4 grid gap-2 sm:grid-cols-2">
+          <button class="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800" type="button" :disabled="wechatLoading" @click="loadWechatLogin">刷新二维码</button>
+          <button class="min-h-10 rounded-lg bg-teal px-4 text-sm font-medium text-white transition hover:bg-teal/90" type="button" @click="closeWechatQRCode">我已拿到验证码</button>
         </div>
       </div>
     </div>
