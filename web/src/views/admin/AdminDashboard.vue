@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
 import { useRouter } from 'vue-router'
 
 import api from '@/api'
@@ -97,6 +98,7 @@ const creditForm = ref({ amount: 1, remark: '' })
 const templateForm = ref<PromptTemplate>({ id: 0, category: 'style', label: '', prompt: '', sort_order: 0, status: 1 })
 const channelForm = ref<Channel>({ id: 0, name: '', base_url: '', api_key: '', headers: '', status: 1, weight: 1, remark: '' })
 const channelTestResult = ref<Record<number, string>>({})
+const settingFileInputs = ref<Record<string, HTMLInputElement | null>>({})
 
 const tabs = [
   { id: 'overview', label: '概览', description: '核心指标与运行状态' },
@@ -365,12 +367,12 @@ function settingHelp(key: string) {
     image_model: '默认 gpt-image-2。如果 sub2api 要求其他模型名，可在这里切换。',
     enabled_image_sizes: '逗号分隔，默认开放 5 个比例：square 方形 1:1、portrait_3_4 竖版 3:4、story 故事版 9:16、landscape_4_3 横版 4:3、widescreen 宽屏 16:9；后端会映射到 GPT Image 2 合规像素尺寸。',
     wechat_auth_enabled: '控制前台微信登录/注册是否启用。启用后需同时配置二维码、服务地址和 Token。',
-    wechat_qrcode_url: '前台登录/注册页展示的微信二维码图片 URL。',
+    wechat_qrcode_url: '前台登录/注册页展示的微信二维码图片。可填写图片 URL，也可直接上传本地图片。',
     wechat_server_address: '微信验证码服务地址，例如 https://wechat.example.com；后端会请求 /api/wechat/user?code=xxx。',
     wechat_server_token: '请求微信验证码服务时写入 Authorization 头的 Token。',
     register_gift_credits: '新用户注册成功后赠送的积分，默认 10；设置为 0 表示不赠送。',
     credit_exhausted_message: '用户免费额度或积分用完时展示的温馨提示文案。',
-    credit_exhausted_wechat_qrcode_url: '可填写微信二维码图片 URL，额度用完提示会展示该二维码。',
+    credit_exhausted_wechat_qrcode_url: '额度用完提示展示的联系二维码。可填写图片 URL，也可直接上传本地图片。',
     credit_exhausted_qq: '可填写 QQ 号码或 QQ 群号，额度用完提示会展示联系方式。',
   }
   return map[key] || ''
@@ -392,6 +394,52 @@ function isTextareaSetting(key: string) {
 
 function isBooleanSetting(key: string) {
   return key.endsWith('_enabled') || key === 'wechat_auth_enabled'
+}
+
+function isImageSetting(key: string) {
+  return key === 'wechat_qrcode_url' || key === 'credit_exhausted_wechat_qrcode_url'
+}
+
+function setSettingFileInput(key: string, el: Element | ComponentPublicInstance | null) {
+  settingFileInputs.value[key] = el instanceof HTMLInputElement ? el : null
+}
+
+function chooseSettingImage(key: string) {
+  settingFileInputs.value[key]?.click()
+}
+
+function clearSettingImage(key: string) {
+  settings.value[key] = ''
+  if (settingFileInputs.value[key]) {
+    settingFileInputs.value[key]!.value = ''
+  }
+}
+
+function handleSettingImageChange(key: string, event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) {
+    return
+  }
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    message.value = '二维码图片仅支持 PNG、JPG、WebP'
+    input.value = ''
+    return
+  }
+  if (file.size > 512 * 1024) {
+    message.value = '二维码图片不能超过 512KB'
+    input.value = ''
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    settings.value[key] = String(reader.result || '')
+    message.value = '二维码图片已读取，请点击保存设置'
+  }
+  reader.onerror = () => {
+    message.value = '二维码图片读取失败'
+  }
+  reader.readAsDataURL(file)
 }
 
 onMounted(async () => {
@@ -687,6 +735,15 @@ onMounted(async () => {
                 <option value="true">开启</option>
                 <option value="false">关闭</option>
               </select>
+              <div v-else-if="isImageSetting(key)" class="mt-2 space-y-2">
+                <input v-model="settings[key]" type="text" class="admin-input w-full" placeholder="图片 URL，或点击下方选择本地图片" />
+                <div class="flex flex-wrap gap-2">
+                  <button class="admin-btn" type="button" @click="chooseSettingImage(key)">选择图片</button>
+                  <button v-if="settings[key]" class="admin-btn-danger" type="button" @click="clearSettingImage(key)">清除图片</button>
+                </div>
+                <input :ref="(el) => setSettingFileInput(key, el)" class="hidden" type="file" accept="image/png,image/jpeg,image/webp" @change="handleSettingImageChange(key, $event)" />
+                <img v-if="settings[key]" class="size-28 rounded-lg border border-slate-200 bg-white object-contain p-1" :src="settings[key]" alt="二维码预览" />
+              </div>
               <input v-else v-model="settings[key]" :type="settingInputType(key)" class="admin-input mt-2 w-full" />
               <span v-if="settingHelp(key)" class="mt-1 block text-xs leading-5 text-slate-500">{{ settingHelp(key) }}</span>
             </label>
