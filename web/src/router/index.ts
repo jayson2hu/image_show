@@ -26,9 +26,6 @@ router.beforeEach(async (to) => {
   if (to.name === 'admin' && !isAdmin) {
     return { name: 'admin-login' }
   }
-  if (to.name === 'login' && isAdmin) {
-    return { name: 'admin' }
-  }
   if (to.name === 'admin-login') {
     if (isAdmin) {
       return { name: 'admin' }

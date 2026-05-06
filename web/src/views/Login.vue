@@ -25,12 +25,6 @@ async function submitEmailLogin() {
   loading.value = true
   try {
     await userStore.login(email.value, password.value)
-    if ((userStore.user?.role || 0) >= 10) {
-      error.value = '管理员请从后台登录入口进入'
-      userStore.logout()
-      await router.push('/console/admin/login')
-      return
-    }
     await router.push('/')
   } catch {
     error.value = '邮箱或密码不正确'
@@ -65,12 +59,6 @@ async function submitWechatCode() {
   wechatLoading.value = true
   try {
     await userStore.wechatLogin(wechatCode.value)
-    if ((userStore.user?.role || 0) >= 10) {
-      error.value = '管理员请从后台登录入口进入'
-      userStore.logout()
-      await router.push('/console/admin/login')
-      return
-    }
     await router.push('/')
   } catch {
     error.value = '微信验证码无效或已过期'
@@ -175,11 +163,6 @@ onMounted(() => {
               </button>
             </form>
           </div>
-
-          <p class="mt-2 text-center text-sm text-slate-500 dark:text-slate-400">
-            管理员请使用
-            <RouterLink class="font-medium text-slate-700 transition hover:text-slate-950 dark:text-slate-200 dark:hover:text-white" to="/console/admin/login">后台登录入口</RouterLink>
-          </p>
         </div>
       </div>
     </div>
