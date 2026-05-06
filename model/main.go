@@ -43,6 +43,7 @@ func InitDB() error {
 		&Setting{},
 		&PromptTemplate{},
 		&Announcement{},
+		&AnnouncementRead{},
 		&Package{},
 		&Order{},
 		&AnonymousIdentity{},

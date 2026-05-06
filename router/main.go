@@ -39,6 +39,8 @@ func Register(r *gin.Engine) {
 	api.GET("/generation/options", middleware.OptionalAuth(), controller.GenerationOptions)
 	api.GET("/support/contact", controller.SupportContact)
 	api.GET("/announcement", controller.ActiveAnnouncement)
+	api.GET("/announcements", middleware.OptionalAuth(), controller.UserAnnouncements)
+	api.POST("/announcements/:id/read", middleware.AuthRequired(), controller.MarkAnnouncementRead)
 	api.GET("/packages", controller.Packages)
 	api.POST("/payment/notify", controller.PaymentNotify)
 	api.GET("/payment/notify", controller.PaymentNotify)

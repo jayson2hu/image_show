@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
+import AnnouncementCenter from './components/AnnouncementCenter.vue'
 import { useUserStore } from './stores/user'
 
 const userStore = useUserStore()
@@ -10,6 +11,8 @@ const route = useRoute()
 const isHome = computed(() => route.name === 'home' || route.path === '/')
 const isAdmin = computed(() => (userStore.user?.role || 0) >= 10)
 const isAdminArea = computed(() => route.path.startsWith('/console/admin'))
+const isAdminConsole = computed(() => route.name === 'admin')
+const isFullBleed = computed(() => isHome.value || isAdminConsole.value)
 const roleLabel = computed(() => (isAdmin.value ? '管理员' : userStore.user ? '普通用户' : '未登录'))
 
 function handleUnauthorized() {
@@ -36,7 +39,7 @@ onUnmounted(() => {
 
 <template>
   <div class="min-h-screen bg-mist text-ink dark:bg-slate-950 dark:text-slate-100">
-    <header class="border-b border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <header v-if="!isAdminConsole" class="border-b border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <nav class="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <RouterLink to="/" class="flex items-center gap-3">
           <span class="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 text-white">
@@ -58,6 +61,7 @@ onUnmounted(() => {
           >
             历史
           </RouterLink>
+          <AnnouncementCenter v-if="!isAdminConsole" />
           <div v-if="userStore.user" class="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 dark:border-slate-700 dark:bg-slate-800">
             <span class="px-2 text-sm text-slate-700 dark:text-slate-200">
               {{ roleLabel }}<template v-if="!isAdmin"> · {{ userStore.user.credits }} 积分</template>
@@ -77,7 +81,7 @@ onUnmounted(() => {
       </nav>
     </header>
 
-    <main :class="isHome ? 'mx-auto max-w-none p-0' : 'mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8'">
+    <main :class="isFullBleed ? 'mx-auto max-w-none p-0' : 'mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8'">
       <RouterView />
     </main>
   </div>

@@ -100,9 +100,19 @@ type Announcement struct {
 	Title     string    `gorm:"size:128" json:"title"`
 	Content   string    `gorm:"type:text" json:"content"`
 	Status    int       `gorm:"default:1;index" json:"status"`
+	NotifyMode string   `gorm:"size:16;default:silent;index" json:"notify_mode"`
 	SortOrder int       `gorm:"default:0;index" json:"sort_order"`
+	StartsAt  *time.Time `gorm:"index" json:"starts_at"`
+	EndsAt    *time.Time `gorm:"index" json:"ends_at"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type AnnouncementRead struct {
+	ID             int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	AnnouncementID int64     `gorm:"uniqueIndex:idx_announcement_user;index" json:"announcement_id"`
+	UserID         int64     `gorm:"uniqueIndex:idx_announcement_user;index" json:"user_id"`
+	ReadAt         time.Time `json:"read_at"`
 }
 
 type Package struct {

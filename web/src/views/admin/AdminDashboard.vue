@@ -69,7 +69,10 @@ interface Announcement {
   title: string
   content: string
   status: number
+  notify_mode: 'silent' | 'popup'
   sort_order: number
+  starts_at?: string | null
+  ends_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -118,7 +121,7 @@ const creditForm = ref({ amount: 1, remark: '' })
 const userForm = ref({ email: '', username: '', password: '', role: 1, status: 1, credits: 0 })
 const templateForm = ref<PromptTemplate>({ id: 0, category: 'style', label: '', prompt: '', sort_order: 0, status: 1 })
 const channelForm = ref<Channel>({ id: 0, name: '', base_url: '', api_key: '', headers: '', status: 1, weight: 1, remark: '' })
-const announcementForm = ref<Announcement>({ id: 0, title: '', content: '', sort_order: 0, status: 1, created_at: '', updated_at: '' })
+const announcementForm = ref<Announcement>({ id: 0, title: '', content: '', notify_mode: 'silent', sort_order: 0, status: 1, starts_at: '', ends_at: '', created_at: '', updated_at: '' })
 const channelTestResult = ref<Record<number, string>>({})
 const settingFileInputs = ref<Record<string, HTMLInputElement | null>>({})
 
@@ -377,7 +380,7 @@ async function loadAnnouncements() {
 }
 
 function resetAnnouncement() {
-  announcementForm.value = { id: 0, title: '', content: '', sort_order: 0, status: 1, created_at: '', updated_at: '' }
+  announcementForm.value = { id: 0, title: '', content: '', notify_mode: 'silent', sort_order: 0, status: 1, starts_at: '', ends_at: '', created_at: '', updated_at: '' }
 }
 
 function openCreateAnnouncementModal() {
@@ -386,7 +389,12 @@ function openCreateAnnouncementModal() {
 }
 
 function editAnnouncement(item: Announcement) {
-  announcementForm.value = { ...item }
+  announcementForm.value = {
+    ...item,
+    notify_mode: item.notify_mode || 'silent',
+    starts_at: toDatetimeLocal(item.starts_at),
+    ends_at: toDatetimeLocal(item.ends_at),
+  }
   isAnnouncementModalOpen.value = true
 }
 
@@ -397,7 +405,11 @@ function closeAnnouncementModal() {
 
 async function saveAnnouncement() {
   await guarded(async () => {
-    const payload = { ...announcementForm.value }
+    const payload = {
+      ...announcementForm.value,
+      starts_at: toRFC3339(announcementForm.value.starts_at),
+      ends_at: toRFC3339(announcementForm.value.ends_at),
+    }
     if (payload.id) {
       await api.put(`/admin/announcements/${payload.id}`, payload)
     } else {
@@ -406,6 +418,26 @@ async function saveAnnouncement() {
     closeAnnouncementModal()
     await loadAnnouncements()
   }, '公告已保存')
+}
+
+function toDatetimeLocal(value?: string | null) {
+  if (!value) {
+    return ''
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function toRFC3339(value?: string | null) {
+  if (!value) {
+    return ''
+  }
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString()
 }
 
 async function deleteAnnouncement(item: Announcement) {
@@ -684,9 +716,9 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="admin-shell min-h-[calc(100vh-65px)] bg-gray-50 text-slate-950">
+  <section class="admin-shell min-h-screen bg-gray-50 text-slate-950">
     <div class="pointer-events-none fixed inset-0 admin-bg-mesh"></div>
-    <div class="relative grid min-h-[calc(100vh-65px)] lg:grid-cols-[256px_1fr]">
+    <div class="relative grid min-h-screen lg:grid-cols-[256px_1fr]">
       <aside class="admin-sidebar">
         <div class="admin-sidebar-header">
           <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal to-blue-500 font-bold text-white shadow-lg shadow-teal/20">
@@ -1001,10 +1033,11 @@ onMounted(async () => {
                   <div class="flex flex-wrap items-center gap-2">
                     <h3 class="font-semibold text-slate-900">{{ item.title }}</h3>
                     <span class="admin-badge" :class="item.status === 1 ? 'admin-badge-ok' : 'admin-badge-muted'">{{ statusText(item.status) }}</span>
+                    <span class="admin-badge" :class="item.notify_mode === 'popup' ? 'admin-badge-warning' : 'admin-badge-muted'">{{ item.notify_mode === 'popup' ? '弹窗提醒' : '仅公告中心' }}</span>
                     <span class="admin-badge admin-badge-muted">排序 {{ item.sort_order }}</span>
                   </div>
                   <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{{ item.content }}</p>
-                  <p class="mt-2 text-xs text-slate-400">更新时间：{{ fmtTime(item.updated_at) }}</p>
+                  <p class="mt-2 text-xs text-slate-400">展示时间：{{ fmtTime(item.starts_at) }} - {{ fmtTime(item.ends_at) }} · 更新时间：{{ fmtTime(item.updated_at) }}</p>
                 </div>
                 <div class="flex shrink-0 gap-1.5">
                   <button class="admin-btn" type="button" @click="editAnnouncement(item)">编辑</button>
@@ -1315,6 +1348,23 @@ onMounted(async () => {
                   <option :value="2">禁用</option>
                 </select>
               </label>
+              <label class="block">
+                <span class="admin-label">通知方式</span>
+                <select v-model="announcementForm.notify_mode" class="admin-input mt-2 w-full">
+                  <option value="silent">仅公告中心</option>
+                  <option value="popup">未读弹窗提醒</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="admin-label">开始时间</span>
+                <input v-model="announcementForm.starts_at" class="admin-input mt-2 w-full" type="datetime-local" />
+                <span class="mt-1 block text-xs text-slate-500">留空表示立即展示。</span>
+              </label>
+              <label class="block">
+                <span class="admin-label">结束时间</span>
+                <input v-model="announcementForm.ends_at" class="admin-input mt-2 w-full" type="datetime-local" />
+                <span class="mt-1 block text-xs text-slate-500">留空表示不过期。</span>
+              </label>
               <label class="block sm:col-span-2">
                 <span class="admin-label">内容</span>
                 <textarea v-model="announcementForm.content" class="admin-textarea mt-2 w-full" placeholder="写给前台用户看的公告内容" required />
@@ -1341,7 +1391,7 @@ onMounted(async () => {
 }
 
 .admin-sidebar {
-  @apply flex flex-col border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur lg:sticky lg:top-0 lg:h-[calc(100vh-65px)] lg:border-b-0 lg:border-r;
+  @apply flex flex-col border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r;
 }
 
 .admin-sidebar-header {
@@ -1458,6 +1508,10 @@ onMounted(async () => {
 
 .admin-badge-info {
   @apply bg-blue-100 text-blue-700;
+}
+
+.admin-badge-warning {
+  @apply bg-amber-100 text-amber-700;
 }
 
 .admin-table {

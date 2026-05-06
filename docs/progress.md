@@ -1,5 +1,41 @@
 # 开发进度记录
 
+## 2026-05-07 公告系统第一阶段：公告中心与弹窗通知
+
+- 需求：
+  - 参考 `D:\vscodefile\sub2api`，分两步开发公告系统；第一步先完成公告中心、未读和 popup 通知。
+- 完成：
+  - 后端公告表增加通知方式、开始时间、结束时间。
+  - 新增公告已读表，支持登录用户标记公告已读。
+  - 新增 `/api/announcements` 公告列表接口，按启用状态和时间窗口过滤。
+  - 新增 `/api/announcements/:id/read` 已读接口。
+  - 保留旧 `/api/announcement` 单条接口兼容。
+  - 管理后台公告表单增加通知方式、开始时间、结束时间。
+  - 前台全局导航增加公告铃铛、未读红点、公告中心弹窗。
+  - `popup` 类型未读公告会弹出强提醒，点击“我知道了”后标记已读。
+  - 移除生成页右侧旧公告横幅，避免和公告中心重复展示。
+- 自测记录：
+  - `go test ./controller -run "TestAnnouncementAdminCRUDAndPublicActive|TestUserAnnouncementsAndReadStatus" -v`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `go test ./controller -run "TestAnnouncementAdminCRUDAndPublicActive|TestUserAnnouncementsAndReadStatus|TestAdminPromptTemplateCRUDAndSettings" -v`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次因 esbuild `spawn EPERM` 失败，提升权限后重跑通过。
+
+## 2026-05-07 管理后台全屏壳层修复
+
+- 需求：
+  - 后台应像 `D:\vscodefile\sub2api` 一样全屏显示，当前尺寸不对、风格不对。
+- 问题定位：
+  - `/console/admin` 被 `App.vue` 的普通页面容器包住，存在 `max-w-6xl`、外层 padding 和全站顶部导航。
+  - 后台自身高度使用 `calc(100vh - 65px)`，进一步让后台不像独立管理应用。
+- 完成：
+  - `App.vue` 将 `admin` 路由纳入 full-bleed 页面，不再使用普通页面最大宽度和 padding。
+  - 管理后台页隐藏全站顶部导航，改为后台自身侧边栏和内容区全屏承载。
+  - 后台根容器、布局容器和侧边栏高度改为 `100vh` / `min-h-screen`。
+- 自测记录：
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次因 esbuild `spawn EPERM` 失败，提升权限后重跑通过。
+
 ## 2026-05-07 管理后台整体风格对齐 sub2api
 
 - 需求：
