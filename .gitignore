@@ -5,6 +5,7 @@ image-show-dev.exe
 *.log
 *~
 .env
+.claude/
 web/node_modules/
 web/.pnpm-store/
 web/dist/*
