@@ -64,6 +64,7 @@ const generationDraftKey = 'image_show_generation_draft'
 const userStore = useUserStore()
 const prompt = ref('')
 const generationMode = ref<GenerationMode>('generate')
+const isImageEditEnabled = false
 const sourceImageFile = ref<File | null>(null)
 const sourceImagePreview = ref('')
 const selectedStyle = ref('')
@@ -236,8 +237,10 @@ function restoreGenerationDraft() {
     if (typeof draft.size === 'string' && draft.size) {
       size.value = draft.size
     }
-    if (draft.generationMode === 'generate' || draft.generationMode === 'edit') {
+    if (draft.generationMode === 'generate' || (isImageEditEnabled && draft.generationMode === 'edit')) {
       generationMode.value = draft.generationMode
+    } else {
+      generationMode.value = 'generate'
     }
   } catch {
     localStorage.removeItem(generationDraftKey)
@@ -710,7 +713,7 @@ function resetCaptcha() {
             </div>
           </div>
 
-          <div>
+          <div v-if="isImageEditEnabled">
             <label class="mb-2 block text-gray-900">创作方式</label>
             <div class="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
               <button
@@ -732,7 +735,7 @@ function resetCaptcha() {
             </div>
           </div>
 
-          <div v-if="generationMode === 'edit'" class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
+          <div v-if="isImageEditEnabled && generationMode === 'edit'" class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
             <p v-if="!userStore.user" class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               上传图像编辑仅对登录用户开放，请先登录或注册后使用。
             </p>
