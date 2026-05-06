@@ -45,6 +45,14 @@ interface PromptTemplate {
   prompt: string
 }
 
+interface GenerationDraft {
+  prompt: string
+  selectedStyle: string
+  size: string
+  generationMode: GenerationMode
+}
+
+const generationDraftKey = 'image_show_generation_draft'
 const userStore = useUserStore()
 const health = ref('检查中')
 const prompt = ref('')
@@ -106,7 +114,7 @@ const generateHint = computed(() => {
     return generationMode.value === 'edit' ? '填写编辑描述后即可开始' : '输入提示词后即可开始'
   }
   if (generationMode.value === 'edit' && !userStore.user) {
-    return '请先登录后再使用上传图像编辑'
+    return ''
   }
   if (generationMode.value === 'edit' && !sourceImageFile.value) {
     return '上传要编辑的图片后即可开始'
@@ -126,6 +134,7 @@ declare global {
 }
 
 onMounted(async () => {
+  restoreGenerationDraft()
   try {
     const response = await api.get('/health')
     health.value = response.data.status === 'ok' ? '后端已连接' : '后端响应异常'
@@ -145,6 +154,8 @@ watch(
     loadGenerationOptions()
   },
 )
+
+watch([prompt, selectedStyle, size, generationMode], persistGenerationDraft)
 
 watch(isPromptPanelCollapsed, (collapsed) => {
   if (!collapsed) {
@@ -206,6 +217,36 @@ async function loadGenerationOptions() {
       size.value = sizeOptions.value[0].value
     }
   }
+}
+
+function restoreGenerationDraft() {
+  const raw = localStorage.getItem(generationDraftKey)
+  if (!raw) {
+    return
+  }
+  try {
+    const draft = JSON.parse(raw) as Partial<GenerationDraft>
+    prompt.value = typeof draft.prompt === 'string' ? draft.prompt : ''
+    selectedStyle.value = typeof draft.selectedStyle === 'string' ? draft.selectedStyle : ''
+    if (typeof draft.size === 'string' && draft.size) {
+      size.value = draft.size
+    }
+    if (draft.generationMode === 'generate' || draft.generationMode === 'edit') {
+      generationMode.value = draft.generationMode
+    }
+  } catch {
+    localStorage.removeItem(generationDraftKey)
+  }
+}
+
+function persistGenerationDraft() {
+  const draft: GenerationDraft = {
+    prompt: prompt.value,
+    selectedStyle: selectedStyle.value,
+    size: size.value,
+    generationMode: generationMode.value,
+  }
+  localStorage.setItem(generationDraftKey, JSON.stringify(draft))
 }
 
 function makeSizeOption(value: string): SizeOption {
@@ -345,7 +386,7 @@ function createImageEditRequest(payload: GenerationPayload) {
 function handleSourceImageChange(event: Event) {
   const input = event.target as HTMLInputElement
   if (!userStore.user) {
-    error.value = '请先登录后再使用上传图像编辑'
+    error.value = ''
     input.value = ''
     clearSourceImage()
     return
@@ -656,7 +697,7 @@ function resetCaptcha() {
                 class="rounded-lg px-3 py-2 text-sm font-medium transition"
                 :class="generationMode === 'edit' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
                 type="button"
-                @click="generationMode = 'edit'; if (!userStore.user) error = '请先登录后再使用上传图像编辑'"
+                @click="generationMode = 'edit'; error = ''"
               >
                 上传图像
               </button>
@@ -788,7 +829,7 @@ function resetCaptcha() {
                 <span>{{ generationModeText }} · {{ selectedSizeOption?.value.replace('x', ' x ') }}</span>
                 <span>{{ userStore.user ? `余额 ${userStore.user.credits} 积分` : '未登录免费试用 1 次' }}</span>
               </div>
-              <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ generateHint }}</p>
+              <p v-if="generateHint" class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ generateHint }}</p>
             </div>
             <button
               class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 py-4 text-white shadow-lg shadow-violet-500/30 transition hover:from-violet-700 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
