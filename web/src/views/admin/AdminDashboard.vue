@@ -21,6 +21,7 @@ interface User {
   status: number
   credits: number
   created_at: string
+  last_login_at?: string | null
 }
 
 interface CreditLog {
@@ -63,6 +64,16 @@ interface Channel {
   remark?: string
 }
 
+interface Announcement {
+  id: number
+  title: string
+  content: string
+  status: number
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 interface MonitorSummary {
   date: string
   generation_count: number
@@ -87,6 +98,7 @@ const activeSettingGroup = ref('account')
 const isCreateUserOpen = ref(false)
 const isChannelModalOpen = ref(false)
 const isTemplateModalOpen = ref(false)
+const isAnnouncementModalOpen = ref(false)
 const loading = ref(false)
 const message = ref('')
 const userKeyword = ref('')
@@ -96,12 +108,15 @@ const userGenerations = ref<Page<Generation>>(emptyGenerationPage())
 const creditLogs = ref<Page<CreditLog>>(emptyCreditPage())
 const templates = ref<PromptTemplate[]>([])
 const channels = ref<Channel[]>([])
+const announcements = ref<Announcement[]>([])
 const settings = ref<Record<string, string>>({})
+const revealedSettings = ref<Record<string, boolean>>({})
 const monitor = ref<MonitorSummary | null>(null)
 const creditForm = ref({ amount: 1, remark: '' })
 const userForm = ref({ email: '', username: '', password: '', role: 1, status: 1, credits: 0 })
 const templateForm = ref<PromptTemplate>({ id: 0, category: 'style', label: '', prompt: '', sort_order: 0, status: 1 })
 const channelForm = ref<Channel>({ id: 0, name: '', base_url: '', api_key: '', headers: '', status: 1, weight: 1, remark: '' })
+const announcementForm = ref<Announcement>({ id: 0, title: '', content: '', sort_order: 0, status: 1, created_at: '', updated_at: '' })
 const channelTestResult = ref<Record<number, string>>({})
 const settingFileInputs = ref<Record<string, HTMLInputElement | null>>({})
 
@@ -111,6 +126,7 @@ const tabs = [
   { id: 'channels', label: '渠道', description: 'Sub2API 渠道配置与测试' },
   { id: 'templates', label: '模板', description: '提示词模板管理' },
   { id: 'settings', label: '设置', description: '按场景维护系统配置' },
+  { id: 'announcements', label: '公告', description: '发布前台生成页通知' },
   { id: 'credits', label: '积分', description: '积分流水审计' },
   { id: 'monitor', label: '监控', description: '每日指标和告警检查' },
 ]
@@ -190,6 +206,7 @@ const tabCounts = computed<Record<string, number | string>>(() => ({
   users: users.value.total,
   channels: channels.value.length,
   templates: templates.value.length,
+  announcements: announcements.value.length,
   credits: creditLogs.value.total,
   monitor: monitor.value?.alert_triggered ? '!' : '',
 }))
@@ -328,6 +345,53 @@ async function loadSettings() {
   }
 }
 
+async function loadAnnouncements() {
+  const response = await api.get('/admin/announcements')
+  announcements.value = response.data.items
+}
+
+function resetAnnouncement() {
+  announcementForm.value = { id: 0, title: '', content: '', sort_order: 0, status: 1, created_at: '', updated_at: '' }
+}
+
+function openCreateAnnouncementModal() {
+  resetAnnouncement()
+  isAnnouncementModalOpen.value = true
+}
+
+function editAnnouncement(item: Announcement) {
+  announcementForm.value = { ...item }
+  isAnnouncementModalOpen.value = true
+}
+
+function closeAnnouncementModal() {
+  isAnnouncementModalOpen.value = false
+  resetAnnouncement()
+}
+
+async function saveAnnouncement() {
+  await guarded(async () => {
+    const payload = { ...announcementForm.value }
+    if (payload.id) {
+      await api.put(`/admin/announcements/${payload.id}`, payload)
+    } else {
+      await api.post('/admin/announcements', payload)
+    }
+    closeAnnouncementModal()
+    await loadAnnouncements()
+  }, '公告已保存')
+}
+
+async function deleteAnnouncement(item: Announcement) {
+  if (!window.confirm(`确认删除公告「${item.title}」？`)) {
+    return
+  }
+  await guarded(async () => {
+    await api.delete(`/admin/announcements/${item.id}`)
+    await loadAnnouncements()
+  }, '公告已删除')
+}
+
 async function saveSettings() {
   await guarded(async () => {
     await api.put('/admin/settings', { items: settings.value })
@@ -402,11 +466,11 @@ async function checkMonitorAlert() {
 
 async function refreshDashboard() {
   await guarded(async () => {
-    await Promise.all([loadUsers(), loadCreditLogs(), loadTemplates(), loadSettings(), loadChannels(), loadMonitor()])
+    await Promise.all([loadUsers(), loadCreditLogs(), loadTemplates(), loadSettings(), loadChannels(), loadAnnouncements(), loadMonitor()])
   }, '数据已刷新')
 }
 
-function fmtTime(value: string) {
+function fmtTime(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '-'
 }
 
@@ -461,7 +525,7 @@ function settingLabel(key: string) {
     wechat_qrcode_url: '微信登录二维码',
     wechat_server_address: '微信服务地址',
     wechat_server_token: '微信服务 Token',
-    register_gift_credits: '注册赠送积分',
+    register_gift_credits: '新用户注册赠送积分',
     credit_exhausted_message: '额度用完提示文案',
     credit_exhausted_wechat_qrcode_url: '额度用完微信二维码',
     credit_exhausted_qq: '额度用完 QQ 联系',
@@ -483,12 +547,34 @@ function settingHelp(key: string) {
     wechat_qrcode_url: '前台登录/注册页展示的微信二维码图片。可填写图片 URL，也可直接上传本地图片。',
     wechat_server_address: '微信验证码服务地址，例如 https://wechat.example.com；后端会请求 /api/wechat/user?code=xxx。',
     wechat_server_token: '请求微信验证码服务时写入 Authorization 头的 Token。',
-    register_gift_credits: '新用户注册成功后赠送的积分，默认 10；设置为 0 表示不赠送。',
+    register_gift_credits: '控制新账号注册成功后的初始额度。示例：10 表示注册即送 10 积分；0 表示不赠送。',
     credit_exhausted_message: '用户免费额度或积分用完时展示的温馨提示文案。',
     credit_exhausted_wechat_qrcode_url: '额度用完提示展示的联系二维码。可填写图片 URL，也可直接上传本地图片。',
     credit_exhausted_qq: '可填写 QQ 号码或 QQ 群号，额度用完提示会展示联系方式。',
+    ip_blacklist: '拦截不允许访问的来源 IP。每行一个 IP 或 CIDR，例如 192.168.1.10、10.0.0.0/24；留空表示不拦截。',
+    monitor_daily_credit_threshold: '每日积分消耗告警阈值。示例：500 表示当天消耗达到 500 积分后触发告警检查；0 表示不告警。',
+    monitor_alert_last_date: '系统记录的最近告警日期，格式示例 2026-05-07。通常无需手动填写，清空后当天可重新触发告警。',
   }
   return map[key] || ''
+}
+
+function settingPlaceholder(key: string) {
+  const map: Record<string, string> = {
+    ip_blacklist: '192.168.1.10\n10.0.0.0/24\n203.0.113.5',
+    enabled_image_sizes: 'square,portrait_3_4,story,landscape_4_3,widescreen',
+    register_gift_credits: '10',
+    monitor_daily_credit_threshold: '500',
+    monitor_alert_last_date: '2026-05-07',
+  }
+  return map[key] || ''
+}
+
+function isSecretSetting(key: string) {
+  return key.includes('secret') || key.includes('password') || key.includes('access_key') || key.endsWith('_token')
+}
+
+function toggleSettingReveal(key: string) {
+  revealedSettings.value[key] = !revealedSettings.value[key]
 }
 
 function settingInputType(key: string) {
@@ -498,11 +584,11 @@ function settingInputType(key: string) {
   if (key.includes('credits')) {
     return 'number'
   }
-  return key.includes('secret') || key.includes('password') || key.includes('access_key') ? 'password' : 'text'
+  return isSecretSetting(key) && !revealedSettings.value[key] ? 'password' : 'text'
 }
 
 function isTextareaSetting(key: string) {
-  return key.includes('message')
+  return key.includes('message') || key === 'ip_blacklist'
 }
 
 function isBooleanSetting(key: string) {
@@ -561,7 +647,7 @@ onMounted(async () => {
     await router.push('/')
     return
   }
-  await Promise.all([loadUsers(), loadCreditLogs(), loadTemplates(), loadSettings(), loadChannels(), loadMonitor()])
+  await Promise.all([loadUsers(), loadCreditLogs(), loadTemplates(), loadSettings(), loadChannels(), loadAnnouncements(), loadMonitor()])
 })
 </script>
 
@@ -669,6 +755,7 @@ onMounted(async () => {
                     <th>角色</th>
                     <th>状态</th>
                     <th>积分</th>
+                    <th>最近使用</th>
                     <th>创建时间</th>
                     <th>操作</th>
                   </tr>
@@ -682,6 +769,7 @@ onMounted(async () => {
                     <td><span class="admin-badge" :class="user.role >= 10 ? 'admin-badge-info' : 'admin-badge-muted'">{{ user.role >= 10 ? '管理员' : '用户' }}</span></td>
                     <td><span class="admin-badge" :class="user.status === 1 ? 'admin-badge-ok' : 'admin-badge-danger'">{{ user.status === 1 ? '正常' : '封禁' }}</span></td>
                     <td class="font-medium">{{ user.credits }}</td>
+                    <td class="text-slate-500">{{ fmtTime(user.last_login_at) }}</td>
                     <td class="text-slate-500">{{ fmtTime(user.created_at) }}</td>
                     <td>
                       <div class="flex flex-wrap gap-1.5">
@@ -693,7 +781,7 @@ onMounted(async () => {
                     </td>
                   </tr>
                   <tr v-if="!users.items.length">
-                    <td class="py-12 text-center text-slate-500" colspan="6">没有匹配的用户</td>
+                    <td class="py-12 text-center text-slate-500" colspan="7">没有匹配的用户</td>
                   </tr>
                 </tbody>
               </table>
@@ -828,7 +916,7 @@ onMounted(async () => {
                     <span v-if="settingHelp(key)" class="mt-1 block text-xs leading-5 text-slate-500">{{ settingHelp(key) }}</span>
                   </span>
                   <span class="min-w-0">
-                    <textarea v-if="isTextareaSetting(key)" v-model="settings[key]" class="admin-textarea w-full" />
+                    <textarea v-if="isTextareaSetting(key)" v-model="settings[key]" class="admin-textarea w-full" :placeholder="settingPlaceholder(key)" />
                     <select v-else-if="isBooleanSetting(key)" v-model="settings[key]" class="admin-input w-full">
                       <option value="true">开启</option>
                       <option value="false">关闭</option>
@@ -842,13 +930,55 @@ onMounted(async () => {
                       <input :ref="(el) => setSettingFileInput(key, el)" class="hidden" type="file" accept="image/png,image/jpeg,image/webp" @change="handleSettingImageChange(key, $event)" />
                       <img v-if="settings[key]" class="size-28 rounded-lg border border-slate-200 bg-white object-contain p-1" :src="settings[key]" alt="二维码预览" />
                     </span>
-                    <input v-else v-model="settings[key]" :type="settingInputType(key)" class="admin-input w-full" />
+                    <span v-else-if="isSecretSetting(key)" class="flex min-w-0 gap-2">
+                      <input v-model="settings[key]" :type="settingInputType(key)" class="admin-input min-w-0 flex-1" :placeholder="settingPlaceholder(key)" />
+                      <button class="admin-icon-btn" type="button" :aria-label="revealedSettings[key] ? '隐藏敏感内容' : '显示敏感内容'" @click="toggleSettingReveal(key)">
+                        <svg v-if="!revealedSettings[key]" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12s-3.75 6.75-9.75 6.75S2.25 12 2.25 12Z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15.25A3.25 3.25 0 1 0 12 8.75a3.25 3.25 0 0 0 0 6.5Z" />
+                        </svg>
+                        <svg v-else class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m3 3 18 18M10.7 5.5A8.3 8.3 0 0 1 12 5.4c6 0 9.75 6.6 9.75 6.6a18 18 0 0 1-2.7 3.45M6.1 6.8C3.7 8.6 2.25 12 2.25 12s3.75 6.75 9.75 6.75c1.7 0 3.2-.53 4.48-1.28" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.9 9.9A3.25 3.25 0 0 0 14.1 14.1" />
+                        </svg>
+                      </button>
+                    </span>
+                    <input v-else v-model="settings[key]" :type="settingInputType(key)" class="admin-input w-full" :placeholder="settingPlaceholder(key)" />
                   </span>
                 </label>
               </div>
             </section>
           </div>
         </form>
+
+        <div v-if="activeTab === 'announcements'" class="space-y-4">
+          <div class="admin-toolbar">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-sm text-slate-500">发布给生成图片页面的通知。启用状态下，前台会展示排序最靠前且最近更新的一条公告。</p>
+              <button class="admin-primary" type="button" @click="openCreateAnnouncementModal">发布公告</button>
+            </div>
+          </div>
+          <div class="admin-list">
+            <div v-for="item in announcements" :key="item.id" class="admin-list-row">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="font-semibold text-slate-900">{{ item.title }}</h3>
+                    <span class="admin-badge" :class="item.status === 1 ? 'admin-badge-ok' : 'admin-badge-muted'">{{ statusText(item.status) }}</span>
+                    <span class="admin-badge admin-badge-muted">排序 {{ item.sort_order }}</span>
+                  </div>
+                  <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{{ item.content }}</p>
+                  <p class="mt-2 text-xs text-slate-400">更新时间：{{ fmtTime(item.updated_at) }}</p>
+                </div>
+                <div class="flex shrink-0 gap-1.5">
+                  <button class="admin-btn" type="button" @click="editAnnouncement(item)">编辑</button>
+                  <button class="admin-btn-danger" type="button" @click="deleteAnnouncement(item)">删除</button>
+                </div>
+              </div>
+            </div>
+            <p v-if="!announcements.length" class="admin-empty">暂无公告。发布后会在生成图片页面展示给用户。</p>
+          </div>
+        </div>
 
         <div v-if="activeTab === 'credits'" class="admin-panel overflow-x-auto">
           <table class="admin-table">
@@ -1051,6 +1181,46 @@ onMounted(async () => {
             </div>
           </form>
         </div>
+
+        <div v-if="isAnnouncementModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4" role="dialog" aria-modal="true" aria-labelledby="announcement-modal-title" @click.self="closeAnnouncementModal">
+          <form class="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl shadow-slate-950/20" @submit.prevent="saveAnnouncement">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-teal">Notice</p>
+                <h3 id="announcement-modal-title" class="mt-1 text-xl font-semibold text-slate-950">{{ announcementForm.id ? '编辑公告' : '发布公告' }}</h3>
+                <p class="mt-1 text-sm text-slate-500">用于生成图片页面的公告通知，适合维护、活动、额度说明等短消息。</p>
+              </div>
+              <button class="admin-btn" type="button" @click="closeAnnouncementModal">关闭</button>
+            </div>
+
+            <div class="mt-5 grid gap-4 sm:grid-cols-2">
+              <label class="block sm:col-span-2">
+                <span class="admin-label">标题</span>
+                <input v-model="announcementForm.title" class="admin-input mt-2 w-full" placeholder="例如：系统维护通知" required />
+              </label>
+              <label class="block">
+                <span class="admin-label">排序</span>
+                <input v-model.number="announcementForm.sort_order" class="admin-input mt-2 w-full" type="number" />
+              </label>
+              <label class="block">
+                <span class="admin-label">状态</span>
+                <select v-model.number="announcementForm.status" class="admin-input mt-2 w-full">
+                  <option :value="1">启用</option>
+                  <option :value="2">禁用</option>
+                </select>
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="admin-label">内容</span>
+                <textarea v-model="announcementForm.content" class="admin-textarea mt-2 w-full" placeholder="写给前台用户看的公告内容" required />
+              </label>
+            </div>
+
+            <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button class="admin-btn" type="button" @click="closeAnnouncementModal">取消</button>
+              <button class="admin-primary" type="submit" :disabled="loading">保存公告</button>
+            </div>
+          </form>
+        </div>
       </main>
     </div>
   </section>
@@ -1127,6 +1297,10 @@ onMounted(async () => {
 
 .admin-btn-danger {
   @apply min-h-9 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60;
+}
+
+.admin-icon-btn {
+  @apply inline-flex min-h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900;
 }
 
 .admin-badge {

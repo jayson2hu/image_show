@@ -1,5 +1,28 @@
 # 开发进度记录
 
+## 2026-05-07 后台设置可视化与公告能力增强
+
+- 需求：
+  - 后台密文配置增加眼睛按钮，可临时显示/隐藏。
+  - “账号与额度”需要更明显地配置新用户注册赠送积分。
+  - “安全与监控”增加含义和示例，IP 黑名单输入更友好。
+  - 用户列表增加最近一次使用时间。
+  - 后台增加公告发布能力，生成图片页面展示公告通知。
+- 完成：
+  - 新增 `Announcement` 数据模型、自动建表和后台公告 CRUD 接口。
+  - 新增公开公告接口，前台生成页读取启用公告并展示通知，可手动关闭当前公告。
+  - 后台新增“公告”栏目，支持发布、编辑、禁用、删除公告。
+  - 设置页敏感项增加眼睛图标按钮，支持显示/隐藏密文。
+  - 注册赠送积分文案改为“新用户注册赠送积分”，说明初始额度含义和示例。
+  - IP 黑名单改为多行输入并增加 IP/CIDR 示例；安全监控阈值和告警日期补充说明。
+  - 用户列表增加“最近使用”列，展示最近登录时间。
+- 自测记录：
+  - `go test ./controller -run TestAnnouncementAdminCRUDAndPublicActive -v`：通过。
+  - `go test ./controller -run "TestAnnouncementAdminCRUDAndPublicActive|TestAdminUserManagementAndCredits|TestAdminChannelCRUDAndTest|TestAdminPromptTemplateCRUDAndSettings" -v`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次因 esbuild `spawn EPERM` 失败，提升权限后重跑通过。
+
 ## 2026-05-07 管理后台开阔版重设计
 
 - 需求：

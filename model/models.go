@@ -95,6 +95,16 @@ type PromptTemplate struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type Announcement struct {
+	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	Title     string    `gorm:"size:128" json:"title"`
+	Content   string    `gorm:"type:text" json:"content"`
+	Status    int       `gorm:"default:1;index" json:"status"`
+	SortOrder int       `gorm:"default:0;index" json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type Package struct {
 	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name      string    `gorm:"size:64" json:"name"`

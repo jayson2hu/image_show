@@ -53,6 +53,14 @@ interface PromptTemplate {
   prompt: string
 }
 
+interface Announcement {
+  id: number
+  title: string
+  content: string
+  status: number
+  updated_at: string
+}
+
 interface GenerationDraft {
   prompt: string
   selectedStyle: string
@@ -107,6 +115,8 @@ const defaultSamplePrompts: SamplePrompt[] = [
 ]
 const stylePresets = ref<StylePreset[]>([...defaultStylePresets])
 const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
+const announcement = ref<Announcement | null>(null)
+const dismissedAnnouncementId = ref<number | null>(Number(localStorage.getItem('dismissed_announcement_id') || 0) || null)
 
 const selectedStylePrompt = computed(() => stylePresets.value.find((item) => item.id === selectedStyle.value)?.prompt || '')
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
@@ -135,6 +145,7 @@ const creditBalanceText = computed(() => (userStore.user ? `${userStore.user.cre
 const creditStatusText = computed(() => (userStore.user ? '当前可用额度' : '登录后可获得更多积分'))
 const canAffordCurrentGeneration = computed(() => !userStore.user || userStore.user.credits >= estimatedCreditCost.value)
 const creditCostTone = computed(() => (canAffordCurrentGeneration.value ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100'))
+const visibleAnnouncement = computed(() => (announcement.value && announcement.value.id !== dismissedAnnouncementId.value ? announcement.value : null))
 
 declare global {
   interface Window {
@@ -147,7 +158,7 @@ declare global {
 
 onMounted(async () => {
   restoreGenerationDraft()
-  await Promise.all([loadPromptTemplates(), loadGenerationOptions(), loadCaptcha()])
+  await Promise.all([loadPromptTemplates(), loadGenerationOptions(), loadCaptcha(), loadAnnouncement()])
 })
 
 onUnmounted(() => {
@@ -223,6 +234,23 @@ async function loadGenerationOptions() {
       size.value = sizeOptions.value[0].value
     }
   }
+}
+
+async function loadAnnouncement() {
+  try {
+    const response = await api.get('/announcement')
+    announcement.value = response.data.item || null
+  } catch {
+    announcement.value = null
+  }
+}
+
+function dismissAnnouncement() {
+  if (!announcement.value) {
+    return
+  }
+  dismissedAnnouncementId.value = announcement.value.id
+  localStorage.setItem('dismissed_announcement_id', String(announcement.value.id))
 }
 
 function restoreGenerationDraft() {
@@ -697,6 +725,18 @@ function resetCaptcha() {
 
         <div v-show="!isPromptPanelCollapsed" class="h-full overflow-y-auto">
           <div class="space-y-6 p-6 pb-36">
+          <section v-if="visibleAnnouncement" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm shadow-amber-900/5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold">{{ visibleAnnouncement.title }}</p>
+                <p class="mt-1 whitespace-pre-line text-sm leading-6 text-amber-900/80">{{ visibleAnnouncement.content }}</p>
+              </div>
+              <button class="shrink-0 rounded-full border border-amber-200 bg-white/70 px-2.5 py-1 text-xs font-medium text-amber-800 transition hover:bg-white" type="button" @click="dismissAnnouncement">
+                知道了
+              </button>
+            </div>
+          </section>
+
           <div class="home-card rounded-2xl border border-violet-100 bg-violet-50 px-4 py-4 shadow-sm shadow-violet-900/5">
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0">

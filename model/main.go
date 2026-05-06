@@ -42,6 +42,7 @@ func InitDB() error {
 		&Channel{},
 		&Setting{},
 		&PromptTemplate{},
+		&Announcement{},
 		&Package{},
 		&Order{},
 		&AnonymousIdentity{},
