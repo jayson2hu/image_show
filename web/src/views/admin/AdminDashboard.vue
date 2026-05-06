@@ -684,37 +684,43 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="admin-shell min-h-[calc(100vh-65px)] bg-[#f6f7f9] text-slate-950">
-    <div class="grid min-h-[calc(100vh-65px)] lg:grid-cols-[248px_1fr]">
-      <aside class="bg-slate-950 text-white">
-        <div class="flex items-center justify-between gap-3 px-6 py-6 lg:block">
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-teal-300">Console</p>
-            <h1 class="mt-1 text-lg font-semibold text-white">来看看巴后台</h1>
+  <section class="admin-shell min-h-[calc(100vh-65px)] bg-gray-50 text-slate-950">
+    <div class="pointer-events-none fixed inset-0 admin-bg-mesh"></div>
+    <div class="relative grid min-h-[calc(100vh-65px)] lg:grid-cols-[256px_1fr]">
+      <aside class="admin-sidebar">
+        <div class="admin-sidebar-header">
+          <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal to-blue-500 font-bold text-white shadow-lg shadow-teal/20">
+            来
           </div>
-          <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 lg:mt-4 lg:inline-block">{{ userStore.user?.email }}</span>
+          <div class="min-w-0">
+            <h1 class="truncate text-lg font-bold text-slate-950">来看看巴后台</h1>
+            <p class="mt-0.5 text-xs text-slate-500">Console</p>
+          </div>
         </div>
-        <nav class="flex gap-1 overflow-x-auto px-3 pb-4 lg:block lg:space-y-1 lg:overflow-visible">
+        <nav class="admin-sidebar-nav">
+          <div class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">管理菜单</div>
           <button
             v-for="tab in tabs"
             :key="tab.id"
             type="button"
-            class="min-w-24 rounded-md px-3 py-2 text-left text-sm transition lg:w-full"
-            :class="activeTab === tab.id ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-300 hover:bg-white/8 hover:text-white'"
+            class="admin-sidebar-link"
+            :class="activeTab === tab.id ? 'admin-sidebar-link-active' : ''"
             @click="activeTab = tab.id"
           >
-            <span class="flex items-center justify-between gap-3">
-              <span class="font-medium">{{ tab.label }}</span>
-              <span v-if="tabCounts[tab.id]" class="rounded-full px-2 py-0.5 text-xs" :class="activeTab === tab.id ? 'bg-slate-100 text-slate-600' : 'bg-white/10 text-slate-300'">
-                {{ tabCounts[tab.id] }}
-              </span>
+            <span class="min-w-0 truncate">{{ tab.label }}</span>
+            <span v-if="tabCounts[tab.id]" class="rounded-full px-2 py-0.5 text-xs" :class="activeTab === tab.id ? 'bg-teal/10 text-teal' : 'bg-slate-100 text-slate-500'">
+              {{ tabCounts[tab.id] }}
             </span>
           </button>
         </nav>
+        <div class="admin-sidebar-footer">
+          <div class="truncate text-sm font-medium text-slate-700">{{ userStore.user?.email }}</div>
+          <p class="mt-1 text-xs text-slate-400">管理员账号</p>
+        </div>
       </aside>
 
-      <main class="min-w-0 px-4 py-5 sm:px-7 lg:px-10">
-        <header class="admin-topbar mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <main class="min-w-0 p-4 md:p-6 lg:p-8">
+        <header class="admin-topbar mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-2xl font-semibold tracking-tight text-slate-950">{{ currentTab.label }}</h2>
             <p class="mt-1 text-sm text-slate-500">{{ currentTab.description }}</p>
@@ -923,14 +929,14 @@ onMounted(async () => {
                 :key="group.id"
                 type="button"
                 class="w-full rounded-md px-3 py-3 text-left transition"
-                :class="activeSettingGroup === group.id ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'"
+                :class="activeSettingGroup === group.id ? 'bg-teal/10 text-teal shadow-sm' : 'text-slate-600 hover:bg-gray-50 hover:text-slate-950'"
                 @click="activeSettingGroup = group.id"
               >
                 <span class="flex items-center justify-between gap-3">
                   <span class="font-medium">{{ group.title }}</span>
-                  <span class="rounded-full px-2 py-0.5 text-xs" :class="activeSettingGroup === group.id ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'">{{ group.keys.length }}</span>
+                  <span class="rounded-full px-2 py-0.5 text-xs" :class="activeSettingGroup === group.id ? 'bg-teal/10 text-teal' : 'bg-gray-100 text-slate-500'">{{ group.keys.length }}</span>
                 </span>
-                <span class="mt-1 block text-xs leading-5" :class="activeSettingGroup === group.id ? 'text-white/65' : 'text-slate-400'">{{ group.description }}</span>
+                <span class="mt-1 block text-xs leading-5" :class="activeSettingGroup === group.id ? 'text-teal/75' : 'text-slate-400'">{{ group.description }}</span>
               </button>
             </aside>
 
@@ -1327,48 +1333,79 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.admin-bg-mesh {
+  background:
+    radial-gradient(circle at 18% 18%, rgb(23 126 137 / 0.08), transparent 28%),
+    radial-gradient(circle at 82% 4%, rgb(59 130 246 / 0.08), transparent 24%),
+    radial-gradient(circle at 65% 88%, rgb(229 111 90 / 0.06), transparent 26%);
+}
+
+.admin-sidebar {
+  @apply flex flex-col border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur lg:sticky lg:top-0 lg:h-[calc(100vh-65px)] lg:border-b-0 lg:border-r;
+}
+
+.admin-sidebar-header {
+  @apply flex h-16 items-center gap-3 border-b border-gray-100 px-6;
+}
+
+.admin-sidebar-nav {
+  @apply flex gap-1 overflow-x-auto px-3 py-4 lg:block lg:flex-1 lg:space-y-1 lg:overflow-y-auto;
+}
+
+.admin-sidebar-link {
+  @apply flex min-w-24 items-center justify-between gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium text-slate-600 transition-all hover:bg-gray-100 hover:text-slate-950 lg:w-full;
+}
+
+.admin-sidebar-link-active {
+  @apply bg-teal/10 text-teal shadow-sm hover:bg-teal/15 hover:text-teal;
+}
+
+.admin-sidebar-footer {
+  @apply hidden border-t border-gray-100 p-4 lg:block;
+}
+
 .admin-panel {
-  @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.03];
+  @apply rounded-2xl border border-gray-100 bg-white shadow-sm shadow-slate-900/[0.04];
 }
 
 .admin-topbar {
-  @apply border-b border-slate-200/80 pb-6;
+  @apply rounded-2xl border border-gray-100 bg-white/85 px-5 py-4 shadow-sm shadow-slate-900/[0.03] backdrop-blur;
 }
 
 .admin-hero {
-  @apply flex flex-col gap-4 rounded-3xl bg-white px-7 py-6 shadow-sm shadow-slate-900/[0.04] ring-1 ring-slate-200/70 sm:flex-row sm:items-center sm:justify-between;
+  @apply flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white px-6 py-5 shadow-sm shadow-slate-900/[0.04] sm:flex-row sm:items-center sm:justify-between;
 }
 
 .admin-metric-grid {
-  @apply grid overflow-hidden rounded-3xl bg-white shadow-sm shadow-slate-900/[0.04] ring-1 ring-slate-200/70 md:grid-cols-2 xl:grid-cols-4;
+  @apply grid overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm shadow-slate-900/[0.04] md:grid-cols-2 xl:grid-cols-4;
 }
 
 .admin-metric {
-  @apply border-b border-slate-200/70 p-6 md:border-r xl:border-b-0;
+  @apply border-b border-gray-100 p-6 md:border-r xl:border-b-0;
 }
 
 .admin-toolbar {
-  @apply rounded-2xl bg-white px-4 py-4 shadow-sm shadow-slate-900/[0.03] ring-1 ring-slate-200/70;
+  @apply rounded-2xl border border-gray-100 bg-white px-4 py-4 shadow-sm shadow-slate-900/[0.04];
 }
 
 .admin-list {
-  @apply overflow-hidden rounded-3xl bg-white shadow-sm shadow-slate-900/[0.04] ring-1 ring-slate-200/70;
+  @apply overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm shadow-slate-900/[0.04];
 }
 
 .admin-list-row {
-  @apply border-t border-slate-200/70 p-5 first:border-t-0;
+  @apply border-t border-gray-100 p-5 first:border-t-0 hover:bg-gray-50/70;
 }
 
 .admin-empty {
-  @apply border-t border-slate-200/70 p-10 text-center text-sm text-slate-500;
+  @apply border-t border-gray-100 p-10 text-center text-sm text-slate-500;
 }
 
 .admin-settings-nav {
-  @apply overflow-hidden rounded-3xl bg-white p-2 shadow-sm shadow-slate-900/[0.04] ring-1 ring-slate-200/70;
+  @apply overflow-hidden rounded-2xl border border-gray-100 bg-white p-2 shadow-sm shadow-slate-900/[0.04];
 }
 
 .admin-settings-content {
-  @apply overflow-hidden rounded-3xl bg-white shadow-sm shadow-slate-900/[0.04] ring-1 ring-slate-200/70;
+  @apply overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm shadow-slate-900/[0.04];
 }
 
 .admin-section-title {
@@ -1376,11 +1413,11 @@ onMounted(async () => {
 }
 
 .admin-input {
-  @apply min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:opacity-60;
+  @apply min-h-10 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20 disabled:opacity-60;
 }
 
 .admin-textarea {
-  @apply min-h-28 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:opacity-60;
+  @apply min-h-28 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20 disabled:opacity-60;
 }
 
 .admin-label {
@@ -1388,19 +1425,19 @@ onMounted(async () => {
 }
 
 .admin-primary {
-  @apply min-h-10 rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-slate-900/10 transition hover:bg-slate-800 disabled:opacity-60;
+  @apply inline-flex min-h-10 items-center justify-center rounded-xl bg-gradient-to-r from-teal to-blue-600 px-4 py-2 text-sm font-medium text-white shadow-md shadow-teal/20 transition hover:shadow-lg hover:shadow-teal/25 disabled:opacity-60;
 }
 
 .admin-btn {
-  @apply min-h-9 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60;
+  @apply inline-flex min-h-9 items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 disabled:opacity-60;
 }
 
 .admin-btn-danger {
-  @apply min-h-9 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60;
+  @apply inline-flex min-h-9 items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50 disabled:opacity-60;
 }
 
 .admin-icon-btn {
-  @apply inline-flex min-h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900;
+  @apply inline-flex min-h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-slate-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-slate-900;
 }
 
 .admin-badge {
@@ -1408,19 +1445,19 @@ onMounted(async () => {
 }
 
 .admin-badge-ok {
-  @apply bg-emerald-50 text-emerald-700;
+  @apply bg-emerald-100 text-emerald-700;
 }
 
 .admin-badge-danger {
-  @apply bg-red-50 text-red-700;
+  @apply bg-red-100 text-red-700;
 }
 
 .admin-badge-muted {
-  @apply bg-slate-100 text-slate-600;
+  @apply bg-gray-100 text-slate-600;
 }
 
 .admin-badge-info {
-  @apply bg-blue-50 text-blue-700;
+  @apply bg-blue-100 text-blue-700;
 }
 
 .admin-table {
@@ -1432,7 +1469,7 @@ onMounted(async () => {
 }
 
 .admin-table thead {
-  @apply bg-slate-50/80 text-left text-xs font-medium uppercase tracking-wide text-slate-500;
+  @apply bg-gray-50/80 text-left text-xs font-medium uppercase tracking-wide text-slate-500;
 }
 
 .admin-table th {
@@ -1440,10 +1477,10 @@ onMounted(async () => {
 }
 
 .admin-table td {
-  @apply whitespace-nowrap border-t border-slate-100 px-4 py-4 align-middle;
+  @apply whitespace-nowrap border-t border-gray-100 px-4 py-4 align-middle text-slate-700;
 }
 
 .admin-table tbody tr {
-  @apply transition hover:bg-slate-50;
+  @apply transition hover:bg-gray-50;
 }
 </style>
