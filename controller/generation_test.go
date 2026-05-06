@@ -484,6 +484,28 @@ func TestCreateImageEditInsufficientCredits(t *testing.T) {
 	assertJSONError(t, rec, "insufficient_credits")
 }
 
+func TestCreateImageEditCreditsExpired(t *testing.T) {
+	engine := setupAuthTest(t)
+	expiry := time.Now().Add(-time.Hour)
+	user := model.User{Email: "edit-expired@example.com", Role: 1, Status: 1, Credits: 3, CreditsExpiry: &expiry}
+	if err := model.DB.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	token, err := service.GenerateToken(user.ID, user.Role)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	rec := postMultipartEditWithToken(engine, token, map[string]string{
+		"prompt":  "make it brighter",
+		"quality": "low",
+		"size":    "1024x1024",
+	}, "image", "source.png", "image/png", testPNGBytes)
+	if rec.Code != http.StatusPaymentRequired {
+		t.Fatalf("expected 402, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	assertJSONError(t, rec, "credits_expired")
+}
+
 func TestGenerationFailureRefundsCredits(t *testing.T) {
 	engine := setupAuthTest(t)
 	config.AppConfig.MockSub2API = false

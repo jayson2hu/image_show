@@ -1,5 +1,21 @@
 # 开发进度记录
 
+## 2026-05-06 功能规格 v2 终验补齐
+
+- 来源：
+  - 对照 `feature-spec-v2-generation-ux-optimization.md` 的验收标准做补查。
+- 发现：
+  - `CreditExhaustedGuide` 已有浅色样式，但缺少深色模式下的显式可读样式。
+  - `/generations/edit` 已支持积分过期错误码，但缺少图片编辑积分过期的测试覆盖。
+- 完成：
+  - 补齐引导卡片深色模式样式，标题、正文、关闭按钮、图标容器和次要按钮在深色背景下保持可读。
+  - 新增 `TestCreateImageEditCreditsExpired`，覆盖图片编辑端点积分过期时返回 `credits_expired`。
+- 自测记录：
+  - `go build ./...`：通过。
+  - `rg "console\\.(error|warn|log)" web/src controller service model`：无匹配。
+  - `go test ./controller -run "TestCreateImageEdit(InsufficientCredits|CreditsExpired)|TestAnonymousTrialOnceUsesStandardQuality|TestCreateGenerationCreditsExpired" -v`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+
 ## 2026-05-06 游客额度用尽友好提示验收修复
 
 - 问题：

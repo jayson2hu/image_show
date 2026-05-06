@@ -59,9 +59,9 @@ function goSecondary() {
 </script>
 
 <template>
-  <div class="relative w-full max-w-md rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-blue-50 p-6 shadow-xl shadow-violet-900/10">
+  <div class="relative w-full max-w-md rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-blue-50 p-6 shadow-xl shadow-violet-900/10 dark:border-violet-400/30 dark:from-slate-900 dark:to-slate-950 dark:shadow-black/30">
     <button
-      class="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/80 hover:text-slate-700"
+      class="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/80 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
       type="button"
       aria-label="关闭引导"
       @click="emit('dismiss')"
@@ -69,19 +69,19 @@ function goSecondary() {
       ×
     </button>
 
-    <div class="mb-4 flex size-12 items-center justify-center rounded-2xl bg-white text-violet-700 shadow-sm">
+    <div class="mb-4 flex size-12 items-center justify-center rounded-2xl bg-white text-violet-700 shadow-sm dark:bg-violet-500/15 dark:text-violet-200">
       <svg class="size-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" :d="guide.iconPath" />
       </svg>
     </div>
 
-    <h2 class="text-lg font-semibold text-slate-900">{{ guide.title }}</h2>
-    <p class="mt-2 text-sm leading-6 text-slate-600">{{ guide.description }}</p>
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">{{ guide.title }}</h2>
+    <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ guide.description }}</p>
 
     <button class="mt-5 w-full rounded-xl bg-violet-600 py-3 font-semibold text-white transition hover:bg-violet-700" type="button" @click="goPrimary">
       {{ guide.primaryText }}
     </button>
-    <button v-if="guide.secondaryText" class="mt-3 w-full text-center text-sm font-medium text-violet-600 transition hover:text-violet-800" type="button" @click="goSecondary">
+    <button v-if="guide.secondaryText" class="mt-3 w-full text-center text-sm font-medium text-violet-600 transition hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-100" type="button" @click="goSecondary">
       {{ guide.secondaryText }}
     </button>
   </div>
