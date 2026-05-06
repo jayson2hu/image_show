@@ -1,5 +1,22 @@
 # 开发进度记录
 
+## 2026-05-06 后台微信登录配置入口
+
+- 需求：
+  - 管理后台没有明显的微信登录配置入口，需要增加微信登录方式配置。
+- 现状确认：
+  - 后端已经支持从设置表读取 `wechat_auth_enabled`、`wechat_qrcode_url`、`wechat_server_address`、`wechat_server_token`。
+  - 管理后台会返回这些 key，但前端设置页没有中文标签和说明，体验上像没有入口。
+- 完成：
+  - 管理后台设置页补充微信登录开关、微信登录二维码、微信服务地址、微信服务 Token 的中文标签和帮助说明。
+  - 对 `*_enabled` 开关使用“开启/关闭”下拉，降低手填 true/false 的错误率。
+  - 后台设置测试补充微信登录配置 key 的存在性检查。
+- 自测记录：
+  - `go test ./controller -run "TestAdminPromptTemplateCRUDAndSettings|TestWeChatQRCodeAndLoginCreatesUser" -v`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：沙箱内 `spawn EPERM`，提升权限后通过。
+
 ## 2026-05-06 管理员作为用户登录
 
 - 需求：

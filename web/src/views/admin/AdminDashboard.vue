@@ -342,6 +342,10 @@ function settingLabel(key: string) {
     turnstile_site_key: 'Turnstile Site Key',
     turnstile_secret: 'Turnstile Secret',
     register_enabled: '注册开关',
+    wechat_auth_enabled: '微信登录开关',
+    wechat_qrcode_url: '微信登录二维码',
+    wechat_server_address: '微信服务地址',
+    wechat_server_token: '微信服务 Token',
     register_gift_credits: '注册赠送积分',
     credit_exhausted_message: '额度用完提示文案',
     credit_exhausted_wechat_qrcode_url: '额度用完微信二维码',
@@ -360,6 +364,10 @@ function settingHelp(key: string) {
     r2_public_url: '可选。绑定自定义域名或 CDN 后填写，例如 https://cdn.example.com；为空时使用 1 小时签名链接。',
     image_model: '默认 gpt-image-2。如果 sub2api 要求其他模型名，可在这里切换。',
     enabled_image_sizes: '逗号分隔，默认开放 5 个比例：square 方形 1:1、portrait_3_4 竖版 3:4、story 故事版 9:16、landscape_4_3 横版 4:3、widescreen 宽屏 16:9；后端会映射到 GPT Image 2 合规像素尺寸。',
+    wechat_auth_enabled: '控制前台微信登录/注册是否启用。启用后需同时配置二维码、服务地址和 Token。',
+    wechat_qrcode_url: '前台登录/注册页展示的微信二维码图片 URL。',
+    wechat_server_address: '微信验证码服务地址，例如 https://wechat.example.com；后端会请求 /api/wechat/user?code=xxx。',
+    wechat_server_token: '请求微信验证码服务时写入 Authorization 头的 Token。',
     register_gift_credits: '新用户注册成功后赠送的积分，默认 10；设置为 0 表示不赠送。',
     credit_exhausted_message: '用户免费额度或积分用完时展示的温馨提示文案。',
     credit_exhausted_wechat_qrcode_url: '可填写微信二维码图片 URL，额度用完提示会展示该二维码。',
@@ -380,6 +388,10 @@ function settingInputType(key: string) {
 
 function isTextareaSetting(key: string) {
   return key.includes('message')
+}
+
+function isBooleanSetting(key: string) {
+  return key.endsWith('_enabled') || key === 'wechat_auth_enabled'
 }
 
 onMounted(async () => {
@@ -671,6 +683,10 @@ onMounted(async () => {
             <label v-for="key in settingEntries" :key="key" class="block text-sm">
               <span class="admin-label">{{ settingLabel(key) }}</span>
               <textarea v-if="isTextareaSetting(key)" v-model="settings[key]" class="admin-textarea mt-2 w-full" />
+              <select v-else-if="isBooleanSetting(key)" v-model="settings[key]" class="admin-input mt-2 w-full">
+                <option value="true">开启</option>
+                <option value="false">关闭</option>
+              </select>
               <input v-else v-model="settings[key]" :type="settingInputType(key)" class="admin-input mt-2 w-full" />
               <span v-if="settingHelp(key)" class="mt-1 block text-xs leading-5 text-slate-500">{{ settingHelp(key) }}</span>
             </label>

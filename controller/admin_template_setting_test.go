@@ -76,7 +76,7 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 			t.Fatalf("missing r2 setting %s in %#v", key, settingsResp.Items)
 		}
 	}
-	for _, key := range []string{"register_gift_credits", "credit_exhausted_message", "credit_exhausted_wechat_qrcode_url", "credit_exhausted_qq"} {
+	for _, key := range []string{"register_gift_credits", "credit_exhausted_message", "credit_exhausted_wechat_qrcode_url", "credit_exhausted_qq", "wechat_auth_enabled", "wechat_qrcode_url", "wechat_server_address", "wechat_server_token"} {
 		if _, ok := settingsResp.Items[key]; !ok {
 			t.Fatalf("missing support setting %s in %#v", key, settingsResp.Items)
 		}
