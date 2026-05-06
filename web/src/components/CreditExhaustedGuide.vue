@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import api from '@/api'
 
 type CreditGuideType = 'free_trial_exhausted' | 'insufficient_credits' | 'credits_expired'
 
@@ -13,6 +14,11 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const supportContact = ref({
+  credit_exhausted_message: '',
+  credit_exhausted_wechat_qrcode_url: '',
+  credit_exhausted_qq: '',
+})
 
 const guide = computed(() => {
   const map = {
@@ -47,6 +53,10 @@ const guide = computed(() => {
   return map[props.type]
 })
 
+const contactMessage = computed(() => supportContact.value.credit_exhausted_message.trim())
+const wechatQRCodeURL = computed(() => supportContact.value.credit_exhausted_wechat_qrcode_url.trim())
+const qqContact = computed(() => supportContact.value.credit_exhausted_qq.trim())
+
 function goPrimary() {
   router.push(guide.value.primaryRoute)
 }
@@ -56,6 +66,25 @@ function goSecondary() {
     router.push(guide.value.secondaryRoute)
   }
 }
+
+async function loadSupportContact() {
+  try {
+    const response = await api.get('/support/contact')
+    supportContact.value = {
+      credit_exhausted_message: response.data.credit_exhausted_message || '',
+      credit_exhausted_wechat_qrcode_url: response.data.credit_exhausted_wechat_qrcode_url || '',
+      credit_exhausted_qq: response.data.credit_exhausted_qq || '',
+    }
+  } catch {
+    supportContact.value = {
+      credit_exhausted_message: '',
+      credit_exhausted_wechat_qrcode_url: '',
+      credit_exhausted_qq: '',
+    }
+  }
+}
+
+onMounted(loadSupportContact)
 </script>
 
 <template>
@@ -77,6 +106,17 @@ function goSecondary() {
 
     <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">{{ guide.title }}</h2>
     <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ guide.description }}</p>
+
+    <div v-if="contactMessage || wechatQRCodeURL || qqContact" class="mt-4 rounded-xl border border-white/80 bg-white/75 p-4 text-left shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+      <p v-if="contactMessage" class="text-sm leading-6 text-slate-700 dark:text-slate-200">{{ contactMessage }}</p>
+      <div v-if="wechatQRCodeURL || qqContact" class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <img v-if="wechatQRCodeURL" class="size-28 rounded-lg border border-slate-200 bg-white object-contain p-1 dark:border-slate-700" :src="wechatQRCodeURL" alt="微信联系二维码" />
+        <div v-if="qqContact" class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+          <span class="text-slate-500 dark:text-slate-400">QQ 联系：</span>
+          <span class="font-semibold">{{ qqContact }}</span>
+        </div>
+      </div>
+    </div>
 
     <button class="mt-5 w-full rounded-xl bg-violet-600 py-3 font-semibold text-white transition hover:bg-violet-700" type="button" @click="goPrimary">
       {{ guide.primaryText }}

@@ -47,7 +47,13 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 	}
 
 	settings := adminJSON(engine, http.MethodPut, "/api/admin/settings", map[string]interface{}{
-		"items": map[string]string{"register_enabled": "false", "site_name": "Image Show"},
+		"items": map[string]string{
+			"register_enabled":                   "false",
+			"site_name":                          "Image Show",
+			"credit_exhausted_message":           "请联系管理员开通额度",
+			"credit_exhausted_wechat_qrcode_url": "https://cdn.example.com/wechat.png",
+			"credit_exhausted_qq":                "123456",
+		},
 	}, token)
 	if settings.Code != http.StatusOK {
 		t.Fatalf("update settings=%d body=%s", settings.Code, settings.Body.String())
@@ -69,5 +75,21 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 		if _, ok := settingsResp.Items[key]; !ok {
 			t.Fatalf("missing r2 setting %s in %#v", key, settingsResp.Items)
 		}
+	}
+	for _, key := range []string{"register_gift_credits", "credit_exhausted_message", "credit_exhausted_wechat_qrcode_url", "credit_exhausted_qq"} {
+		if _, ok := settingsResp.Items[key]; !ok {
+			t.Fatalf("missing support setting %s in %#v", key, settingsResp.Items)
+		}
+	}
+	contact := adminRequest(engine, http.MethodGet, "/api/support/contact", "")
+	if contact.Code != http.StatusOK {
+		t.Fatalf("support contact=%d body=%s", contact.Code, contact.Body.String())
+	}
+	var contactResp map[string]string
+	if err := json.Unmarshal(contact.Body.Bytes(), &contactResp); err != nil {
+		t.Fatalf("decode support contact: %v", err)
+	}
+	if contactResp["credit_exhausted_message"] != "请联系管理员开通额度" || contactResp["credit_exhausted_wechat_qrcode_url"] == "" || contactResp["credit_exhausted_qq"] != "123456" {
+		t.Fatalf("unexpected support contact: %#v", contactResp)
 	}
 }

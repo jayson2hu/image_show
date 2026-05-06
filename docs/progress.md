@@ -1,5 +1,21 @@
 # 开发进度记录
 
+## 2026-05-06 注册赠送积分和额度用完联系配置
+
+- 需求：
+  - 新注册用户默认赠送 10 积分，赠送数量可在管理后台配置。
+  - 用户额度用完时展示温馨提示，并可展示微信二维码或 QQ 联系方式；这些信息可在管理后台配置。
+- 完成：
+  - 新增设置项 `register_gift_credits`，默认 `10`；注册和微信新用户注册统一读取该设置。
+  - 新增公开接口 `GET /api/support/contact`，返回额度用完提示文案、微信二维码 URL 和 QQ 联系方式。
+  - 管理后台设置页新增上述配置项的中文名称、帮助说明和输入类型。
+  - 额度用完提示卡读取公开配置，展示后台配置的温馨提示、微信二维码和 QQ。
+- 自测记录：
+  - `go test ./controller -run "TestAuthFlow|TestRegisterGiftCreditsConfigurable|TestAdminPromptTemplateCRUDAndSettings" -v`：通过。
+  - `go test ./...`：初次发现微信新用户注册测试仍期望 3 积分，已同步为 10 后通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `pnpm.cmd build`：沙箱内 `spawn EPERM`，提升权限后通过。
+
 ## 2026-05-06 暂时隐藏上传图像入口
 
 - 需求：

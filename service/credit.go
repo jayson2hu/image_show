@@ -130,7 +130,8 @@ func AdminTopup(userID, operatorID int64, amount float64, remark string) error {
 
 func RegisterGift(tx *gorm.DB, user *model.User) error {
 	expiry := time.Now().Add(7 * 24 * time.Hour)
-	user.Credits = 3
+	amount := RegisterGiftCredits()
+	user.Credits = amount
 	user.CreditsExpiry = &expiry
 	if err := tx.Model(user).Updates(map[string]interface{}{"credits": user.Credits, "credits_expiry": user.CreditsExpiry}).Error; err != nil {
 		return err
@@ -138,8 +139,17 @@ func RegisterGift(tx *gorm.DB, user *model.User) error {
 	return tx.Create(&model.CreditLog{
 		UserID:  user.ID,
 		Type:    1,
-		Amount:  3,
-		Balance: 3,
+		Amount:  amount,
+		Balance: amount,
 		Remark:  "register gift",
 	}).Error
+}
+
+func RegisterGiftCredits() float64 {
+	value := strings.TrimSpace(model.GetSettingValue("register_gift_credits", "10"))
+	amount, err := strconv.ParseFloat(value, 64)
+	if err != nil || amount < 0 {
+		return 10
+	}
+	return amount
 }

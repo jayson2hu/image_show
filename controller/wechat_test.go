@@ -41,7 +41,7 @@ func TestWeChatQRCodeAndLoginCreatesUser(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &loginResp); err != nil {
 		t.Fatalf("decode login: %v", err)
 	}
-	if loginResp.Token == "" || loginResp.User.WechatOpenID != "openid-new-user" || loginResp.User.Credits != 3 {
+	if loginResp.Token == "" || loginResp.User.WechatOpenID != "openid-new-user" || loginResp.User.Credits != 10 {
 		t.Fatalf("unexpected login response: %+v", loginResp)
 	}
 

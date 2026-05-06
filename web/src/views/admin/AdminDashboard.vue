@@ -308,6 +308,10 @@ function settingLabel(key: string) {
     turnstile_site_key: 'Turnstile Site Key',
     turnstile_secret: 'Turnstile Secret',
     register_enabled: '注册开关',
+    register_gift_credits: '注册赠送积分',
+    credit_exhausted_message: '额度用完提示文案',
+    credit_exhausted_wechat_qrcode_url: '额度用完微信二维码',
+    credit_exhausted_qq: '额度用完 QQ 联系',
     ip_blacklist: 'IP 黑名单',
   }
   return map[key] || key
@@ -322,12 +326,26 @@ function settingHelp(key: string) {
     r2_public_url: '可选。绑定自定义域名或 CDN 后填写，例如 https://cdn.example.com；为空时使用 1 小时签名链接。',
     image_model: '默认 gpt-image-2。如果 sub2api 要求其他模型名，可在这里切换。',
     enabled_image_sizes: '逗号分隔，默认开放 5 个比例：square 方形 1:1、portrait_3_4 竖版 3:4、story 故事版 9:16、landscape_4_3 横版 4:3、widescreen 宽屏 16:9；后端会映射到 GPT Image 2 合规像素尺寸。',
+    register_gift_credits: '新用户注册成功后赠送的积分，默认 10；设置为 0 表示不赠送。',
+    credit_exhausted_message: '用户免费额度或积分用完时展示的温馨提示文案。',
+    credit_exhausted_wechat_qrcode_url: '可填写微信二维码图片 URL，额度用完提示会展示该二维码。',
+    credit_exhausted_qq: '可填写 QQ 号码或 QQ 群号，额度用完提示会展示联系方式。',
   }
   return map[key] || ''
 }
 
 function settingInputType(key: string) {
+  if (key.includes('url')) {
+    return 'url'
+  }
+  if (key.includes('credits')) {
+    return 'number'
+  }
   return key.includes('secret') || key.includes('password') || key.includes('access_key') ? 'password' : 'text'
+}
+
+function isTextareaSetting(key: string) {
+  return key.includes('message')
 }
 
 onMounted(async () => {
@@ -600,7 +618,12 @@ onMounted(async () => {
           <div class="grid gap-4 md:grid-cols-2">
             <label v-for="key in settingEntries" :key="key" class="block text-sm">
               <span class="font-medium text-slate-700">{{ settingLabel(key) }}</span>
-              <input v-model="settings[key]" :type="settingInputType(key)" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" />
+              <textarea
+                v-if="isTextareaSetting(key)"
+                v-model="settings[key]"
+                class="mt-2 min-h-24 w-full resize-y rounded-lg border border-slate-300 px-3 py-2"
+              />
+              <input v-else v-model="settings[key]" :type="settingInputType(key)" class="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2" />
               <span v-if="settingHelp(key)" class="mt-1 block text-xs text-slate-500">{{ settingHelp(key) }}</span>
             </label>
           </div>

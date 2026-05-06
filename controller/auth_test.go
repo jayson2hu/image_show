@@ -46,7 +46,7 @@ func TestAuthFlow(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &registerResp); err != nil {
 		t.Fatalf("decode register response: %v", err)
 	}
-	if registerResp.Token == "" || registerResp.User.Credits != 3 {
+	if registerResp.Token == "" || registerResp.User.Credits != 10 {
 		t.Fatalf("unexpected register response: %+v", registerResp)
 	}
 	var createdUser model.User
@@ -94,6 +94,37 @@ func TestAuthFlow(t *testing.T) {
 	engine.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected unauthorized without token, got %d", rec.Code)
+	}
+}
+
+func TestRegisterGiftCreditsConfigurable(t *testing.T) {
+	engine := setupAuthTest(t)
+	email := "gift@example.com"
+	if err := model.DB.Create(&model.Setting{Key: "register_gift_credits", Value: "12"}).Error; err != nil {
+		t.Fatalf("create gift setting: %v", err)
+	}
+	if err := service.SendVerificationCode(email); err != nil {
+		t.Fatalf("send code: %v", err)
+	}
+
+	rec := postJSON(engine, "/api/auth/register", map[string]string{
+		"email":    email,
+		"password": "password123",
+		"code":     service.PeekVerificationCode(email),
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	var registerResp struct {
+		User struct {
+			Credits float64 `json:"credits"`
+		} `json:"user"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &registerResp); err != nil {
+		t.Fatalf("decode register response: %v", err)
+	}
+	if registerResp.User.Credits != 12 {
+		t.Fatalf("expected configurable gift credits 12, got %v", registerResp.User.Credits)
 	}
 }
 
