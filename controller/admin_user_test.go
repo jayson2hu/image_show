@@ -3,6 +3,7 @@ package controller_test
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/jayson2hu/image-show/model"
@@ -12,12 +13,33 @@ import (
 func TestAdminUserManagementAndCredits(t *testing.T) {
 	engine := setupAuthTest(t)
 	token := createTokenForRole(t, 10)
-	user := model.User{Username: "managed", Email: "managed@example.com", Role: 1, Status: 1, Credits: 1}
-	if err := model.DB.Create(&user).Error; err != nil {
-		t.Fatalf("create user: %v", err)
+	create := adminJSON(engine, http.MethodPost, "/api/admin/users", map[string]interface{}{
+		"email":    "Managed@Example.com",
+		"username": "managed",
+		"password": "password123",
+		"role":     1,
+		"status":   1,
+		"credits":  1,
+	}, token)
+	if create.Code != http.StatusOK {
+		t.Fatalf("create user=%d body=%s", create.Code, create.Body.String())
+	}
+	var user model.User
+	if err := json.Unmarshal(create.Body.Bytes(), &user); err != nil {
+		t.Fatalf("decode user: %v", err)
+	}
+	if user.Email != "managed@example.com" || strings.Contains(create.Body.String(), "password_hash") {
+		t.Fatalf("unexpected created user response: %s", create.Body.String())
 	}
 	if err := model.DB.Create(&model.Generation{UserID: &user.ID, Prompt: "p", Quality: "low", Size: "1024x1024", Status: 3}).Error; err != nil {
 		t.Fatalf("create generation: %v", err)
+	}
+	duplicate := adminJSON(engine, http.MethodPost, "/api/admin/users", map[string]interface{}{
+		"email":    "managed@example.com",
+		"password": "password123",
+	}, token)
+	if duplicate.Code != http.StatusConflict {
+		t.Fatalf("expected duplicate conflict, got %d body=%s", duplicate.Code, duplicate.Body.String())
 	}
 
 	list := adminRequest(engine, http.MethodGet, "/api/admin/users?keyword=managed", token)

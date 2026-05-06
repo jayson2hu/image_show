@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jayson2hu/image-show/model"
 	"github.com/jayson2hu/image-show/service"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type adminStatusRequest struct {
@@ -21,6 +22,15 @@ type adminRoleRequest struct {
 type adminCreditRequest struct {
 	Amount float64 `json:"amount" binding:"required"`
 	Remark string  `json:"remark"`
+}
+
+type adminCreateUserRequest struct {
+	Email    string  `json:"email" binding:"required,email"`
+	Username string  `json:"username"`
+	Password string  `json:"password" binding:"required,min=8"`
+	Role     int     `json:"role"`
+	Status   int     `json:"status"`
+	Credits  float64 `json:"credits"`
 }
 
 func AdminUsers(c *gin.Context) {
@@ -47,6 +57,66 @@ func AdminUsers(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": users, "total": total, "page": page, "pageSize": pageSize})
+}
+
+func AdminCreateUser(c *gin.Context) {
+	var req adminCreateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	email := strings.TrimSpace(strings.ToLower(req.Email))
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email is required"})
+		return
+	}
+	role := req.Role
+	if role == 0 {
+		role = 1
+	}
+	if role < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
+		return
+	}
+	status := req.Status
+	if status == 0 {
+		status = 1
+	}
+	if status != 1 && status != 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status"})
+		return
+	}
+	if req.Credits < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid credits"})
+		return
+	}
+	var count int64
+	if err := model.DB.Model(&model.User{}).Where("email = ?", email).Count(&count).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check user"})
+		return
+	}
+	if count > 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
+		return
+	}
+	user := model.User{
+		Username:     strings.TrimSpace(req.Username),
+		Email:        email,
+		PasswordHash: string(hash),
+		Role:         role,
+		Status:       status,
+		Credits:      req.Credits,
+	}
+	if err := model.DB.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
+		return
+	}
+	c.JSON(http.StatusOK, user)
 }
 
 func AdminUpdateUserStatus(c *gin.Context) {

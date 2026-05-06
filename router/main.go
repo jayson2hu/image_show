@@ -58,6 +58,7 @@ func Register(r *gin.Engine) {
 	admin.DELETE("/channels/:id", controller.AdminDeleteChannel)
 	admin.POST("/channels/:id/test", controller.AdminTestChannel)
 	admin.GET("/users", controller.AdminUsers)
+	admin.POST("/users", controller.AdminCreateUser)
 	admin.PUT("/users/:id/status", controller.AdminUpdateUserStatus)
 	admin.PUT("/users/:id/role", controller.AdminUpdateUserRole)
 	admin.GET("/users/:id/generations", controller.AdminUserGenerations)

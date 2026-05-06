@@ -83,6 +83,7 @@ const emptyCreditPage = (): Page<CreditLog> => ({ items: [], total: 0, page: 1, 
 const router = useRouter()
 const userStore = useUserStore()
 const activeTab = ref('overview')
+const activeSettingGroup = ref('account')
 const loading = ref(false)
 const message = ref('')
 const userKeyword = ref('')
@@ -95,6 +96,7 @@ const channels = ref<Channel[]>([])
 const settings = ref<Record<string, string>>({})
 const monitor = ref<MonitorSummary | null>(null)
 const creditForm = ref({ amount: 1, remark: '' })
+const userForm = ref({ email: '', username: '', password: '', role: 1, status: 1, credits: 0 })
 const templateForm = ref<PromptTemplate>({ id: 0, category: 'style', label: '', prompt: '', sort_order: 0, status: 1 })
 const channelForm = ref<Channel>({ id: 0, name: '', base_url: '', api_key: '', headers: '', status: 1, weight: 1, remark: '' })
 const channelTestResult = ref<Record<number, string>>({})
@@ -105,15 +107,76 @@ const tabs = [
   { id: 'users', label: '用户', description: '账号、角色、状态与充值' },
   { id: 'channels', label: '渠道', description: 'Sub2API 渠道配置与测试' },
   { id: 'templates', label: '模板', description: '提示词模板管理' },
-  { id: 'settings', label: '设置', description: '系统开关和第三方配置' },
+  { id: 'settings', label: '设置', description: '按场景维护系统配置' },
   { id: 'credits', label: '积分', description: '积分流水审计' },
   { id: 'monitor', label: '监控', description: '每日指标和告警检查' },
+]
+
+const settingGroups = [
+  {
+    id: 'account',
+    title: '账号与额度',
+    description: '注册开关、新用户赠送积分和额度用完后的联系提示。',
+    keys: ['register_enabled', 'register_gift_credits', 'credit_exhausted_message', 'credit_exhausted_wechat_qrcode_url', 'credit_exhausted_qq'],
+  },
+  {
+    id: 'wechat',
+    title: '微信登录',
+    description: '公众号二维码、验证码服务地址和访问凭证。敏感项只在后台展示。',
+    keys: ['wechat_auth_enabled', 'wechat_qrcode_url', 'wechat_server_address', 'wechat_server_token'],
+  },
+  {
+    id: 'generation',
+    title: '图像生成',
+    description: '模型名称和前台可选尺寸比例。',
+    keys: ['image_model', 'enabled_image_sizes'],
+  },
+  {
+    id: 'storage',
+    title: '图片存储',
+    description: 'Cloudflare R2 上传和公开访问地址。',
+    keys: ['r2_endpoint', 'r2_access_key', 'r2_secret_key', 'r2_bucket', 'r2_public_url'],
+  },
+  {
+    id: 'captcha',
+    title: '人机验证',
+    description: 'Cloudflare Turnstile 验证开关和密钥。',
+    keys: ['captcha_enabled', 'turnstile_site_key', 'turnstile_secret'],
+  },
+  {
+    id: 'security',
+    title: '安全与监控',
+    description: 'IP 黑名单和每日消耗告警。',
+    keys: ['ip_blacklist', 'monitor_daily_credit_threshold', 'monitor_alert_last_date'],
+  },
 ]
 
 const isAdmin = computed(() => (userStore.user?.role || 0) >= 10)
 const enabledChannels = computed(() => channels.value.filter((item) => item.status === 1).length)
 const currentTab = computed(() => tabs.find((item) => item.id === activeTab.value) || tabs[0])
-const settingEntries = computed(() => Object.keys(settings.value).sort())
+const knownSettingKeys = computed(() => new Set(settingGroups.flatMap((group) => group.keys)))
+const visibleSettingGroups = computed(() => {
+  const groups = settingGroups
+    .map((group) => ({
+      ...group,
+      keys: group.keys.filter((key) => Object.prototype.hasOwnProperty.call(settings.value, key)),
+    }))
+    .filter((group) => group.keys.length > 0)
+  const otherKeys = Object.keys(settings.value)
+    .filter((key) => !knownSettingKeys.value.has(key))
+    .sort()
+  if (otherKeys.length > 0) {
+    groups.push({
+      id: 'other',
+      title: '其他配置',
+      description: '暂未归类的系统配置项。',
+      keys: otherKeys,
+    })
+  }
+  return groups
+})
+const activeSettingGroupInfo = computed(() => visibleSettingGroups.value.find((group) => group.id === activeSettingGroup.value) || visibleSettingGroups.value[0])
+const activeSettingKeys = computed(() => activeSettingGroupInfo.value?.keys || [])
 const overviewCards = computed(() => [
   { label: '今日生成', value: monitor.value?.generation_count ?? 0, hint: `${monitor.value?.completed_count ?? 0} 成功 / ${monitor.value?.failed_count ?? 0} 失败` },
   { label: '新增用户', value: monitor.value?.new_users ?? 0, hint: `当前用户 ${users.value.total}` },
@@ -150,6 +213,18 @@ async function loadUsers() {
     const response = await api.get('/admin/users', { params: { keyword: userKeyword.value, pageSize: 20 } })
     users.value = response.data
   })
+}
+
+function resetUserForm() {
+  userForm.value = { email: '', username: '', password: '', role: 1, status: 1, credits: 0 }
+}
+
+async function createUser() {
+  await guarded(async () => {
+    await api.post('/admin/users', userForm.value)
+    resetUserForm()
+    await loadUsers()
+  }, '用户已创建')
 }
 
 async function loadUserGenerations(user: User) {
@@ -224,6 +299,9 @@ async function deleteTemplate(template: PromptTemplate) {
 async function loadSettings() {
   const response = await api.get('/admin/settings')
   settings.value = response.data.items
+  if (!visibleSettingGroups.value.some((group) => group.id === activeSettingGroup.value)) {
+    activeSettingGroup.value = visibleSettingGroups.value[0]?.id || 'account'
+  }
 }
 
 async function saveSettings() {
@@ -453,15 +531,15 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="admin-shell min-h-[calc(100vh-65px)] bg-slate-100 text-slate-950">
+  <section class="admin-shell min-h-[calc(100vh-65px)] bg-slate-50 text-slate-950">
     <div class="grid min-h-[calc(100vh-65px)] lg:grid-cols-[236px_1fr]">
-      <aside class="border-b border-slate-200 bg-white lg:border-b-0 lg:border-r">
-        <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 lg:block">
+      <aside class="border-b border-slate-200 bg-slate-950 text-white lg:border-b-0 lg:border-r lg:border-slate-900">
+        <div class="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-5 lg:block">
           <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Admin</p>
-            <h1 class="mt-1 text-lg font-semibold text-slate-950">管理后台</h1>
+            <p class="text-xs font-semibold uppercase tracking-wide text-teal-300">Console</p>
+            <h1 class="mt-1 text-lg font-semibold text-white">来看看巴后台</h1>
           </div>
-          <span class="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-500 lg:mt-4 lg:inline-block">{{ userStore.user?.email }}</span>
+          <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 lg:mt-4 lg:inline-block">{{ userStore.user?.email }}</span>
         </div>
         <nav class="flex gap-1 overflow-x-auto px-3 py-3 lg:block lg:space-y-1 lg:overflow-visible">
           <button
@@ -469,12 +547,12 @@ onMounted(async () => {
             :key="tab.id"
             type="button"
             class="min-w-24 rounded-md px-3 py-2 text-left text-sm transition lg:w-full"
-            :class="activeTab === tab.id ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'"
+            :class="activeTab === tab.id ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-300 hover:bg-white/8 hover:text-white'"
             @click="activeTab = tab.id"
           >
             <span class="flex items-center justify-between gap-3">
               <span class="font-medium">{{ tab.label }}</span>
-              <span v-if="tabCounts[tab.id]" class="rounded-full px-2 py-0.5 text-xs" :class="activeTab === tab.id ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'">
+              <span v-if="tabCounts[tab.id]" class="rounded-full px-2 py-0.5 text-xs" :class="activeTab === tab.id ? 'bg-slate-100 text-slate-600' : 'bg-white/10 text-slate-300'">
                 {{ tabCounts[tab.id] }}
               </span>
             </span>
@@ -483,9 +561,9 @@ onMounted(async () => {
       </aside>
 
       <main class="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
-        <header class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <header class="admin-topbar mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 class="text-2xl font-semibold text-slate-950">{{ currentTab.label }}</h2>
+            <h2 class="text-2xl font-semibold tracking-tight text-slate-950">{{ currentTab.label }}</h2>
             <p class="mt-1 text-sm text-slate-500">{{ currentTab.description }}</p>
           </div>
           <div class="flex items-center gap-2">
@@ -538,53 +616,98 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div v-if="activeTab === 'users'" class="space-y-4">
-          <div class="admin-panel p-3">
-            <div class="flex flex-col gap-2 sm:flex-row">
-              <input v-model="userKeyword" class="admin-input min-w-0 flex-1" placeholder="搜索邮箱或用户名" @keydown.enter.prevent="loadUsers" />
-              <button class="admin-primary" type="button" @click="loadUsers">搜索</button>
+        <div v-if="activeTab === 'users'" class="grid gap-4 xl:grid-cols-[1fr_360px]">
+          <div class="space-y-4">
+            <div class="admin-panel p-3">
+              <div class="flex flex-col gap-2 sm:flex-row">
+                <input v-model="userKeyword" class="admin-input min-w-0 flex-1" placeholder="搜索邮箱或用户名" @keydown.enter.prevent="loadUsers" />
+                <button class="admin-primary" type="button" @click="loadUsers">搜索</button>
+              </div>
+            </div>
+
+            <div class="admin-panel overflow-x-auto">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>用户</th>
+                    <th>角色</th>
+                    <th>状态</th>
+                    <th>积分</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="user in users.items" :key="user.id" :class="selectedUser?.id === user.id ? 'bg-teal/5' : ''">
+                    <td>
+                      <div class="font-medium text-slate-900">{{ user.email }}</div>
+                      <div class="text-xs text-slate-500">ID {{ user.id }} · {{ user.username || '未设置用户名' }}</div>
+                    </td>
+                    <td><span class="admin-badge" :class="user.role >= 10 ? 'admin-badge-info' : 'admin-badge-muted'">{{ user.role >= 10 ? '管理员' : '用户' }}</span></td>
+                    <td><span class="admin-badge" :class="user.status === 1 ? 'admin-badge-ok' : 'admin-badge-danger'">{{ user.status === 1 ? '正常' : '封禁' }}</span></td>
+                    <td class="font-medium">{{ user.credits }}</td>
+                    <td class="text-slate-500">{{ fmtTime(user.created_at) }}</td>
+                    <td>
+                      <div class="flex flex-wrap gap-1.5">
+                        <button class="admin-btn" type="button" @click="loadUserGenerations(user)">记录</button>
+                        <button class="admin-btn" type="button" @click="selectedUser = user">充值</button>
+                        <button class="admin-btn" type="button" @click="updateUserStatus(user, user.status === 1 ? 2 : 1)">{{ user.status === 1 ? '封禁' : '解封' }}</button>
+                        <button class="admin-btn" type="button" @click="updateUserRole(user, user.role >= 10 ? 1 : 10)">{{ user.role >= 10 ? '设为用户' : '设为管理员' }}</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="!users.items.length">
+                    <td class="py-12 text-center text-slate-500" colspan="6">没有匹配的用户</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-if="selectedUser" class="admin-panel p-4">
+              <h3 class="admin-section-title">最近生成记录</h3>
+              <div v-for="item in userGenerations.items" :key="item.id" class="border-t border-slate-100 py-3 text-sm first:mt-3">
+                <div class="font-medium">#{{ item.id }} · {{ item.quality }} · {{ generationStatus(item.status) }}</div>
+                <p class="mt-1 line-clamp-2 text-slate-500">{{ item.prompt }}</p>
+              </div>
+              <p v-if="!userGenerations.items.length" class="py-8 text-center text-sm text-slate-500">暂无记录</p>
             </div>
           </div>
-          <div class="admin-panel overflow-x-auto">
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>用户</th>
-                  <th>角色</th>
-                  <th>状态</th>
-                  <th>积分</th>
-                  <th>创建时间</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="user in users.items" :key="user.id" :class="selectedUser?.id === user.id ? 'bg-teal/5' : ''">
-                  <td>
-                    <div class="font-medium text-slate-900">{{ user.email }}</div>
-                    <div class="text-xs text-slate-500">ID {{ user.id }} · {{ user.username || '未设置用户名' }}</div>
-                  </td>
-                  <td><span class="admin-badge" :class="user.role >= 10 ? 'admin-badge-info' : 'admin-badge-muted'">{{ user.role >= 10 ? '管理员' : '用户' }}</span></td>
-                  <td><span class="admin-badge" :class="user.status === 1 ? 'admin-badge-ok' : 'admin-badge-danger'">{{ user.status === 1 ? '正常' : '封禁' }}</span></td>
-                  <td class="font-medium">{{ user.credits }}</td>
-                  <td class="text-slate-500">{{ fmtTime(user.created_at) }}</td>
-                  <td>
-                    <div class="flex flex-wrap gap-1.5">
-                      <button class="admin-btn" type="button" @click="loadUserGenerations(user)">记录</button>
-                      <button class="admin-btn" type="button" @click="selectedUser = user">充值</button>
-                      <button class="admin-btn" type="button" @click="updateUserStatus(user, user.status === 1 ? 2 : 1)">{{ user.status === 1 ? '封禁' : '解封' }}</button>
-                      <button class="admin-btn" type="button" @click="updateUserRole(user, user.role >= 10 ? 1 : 10)">{{ user.role >= 10 ? '设为用户' : '设为管理员' }}</button>
-                    </div>
-                  </td>
-                </tr>
-                <tr v-if="!users.items.length">
-                  <td class="py-12 text-center text-slate-500" colspan="6">没有匹配的用户</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
 
-          <div v-if="selectedUser" class="grid gap-4 xl:grid-cols-[360px_1fr]">
-            <form class="admin-panel p-4" @submit.prevent="topupCredits(selectedUser)">
+          <div class="space-y-4 xl:sticky xl:top-4 xl:self-start">
+            <form class="admin-panel p-4" @submit.prevent="createUser">
+              <h3 class="admin-section-title">新增用户</h3>
+              <p class="mt-1 text-sm text-slate-500">用于后台手动开通邮箱账号。</p>
+              <label class="admin-label mt-4">邮箱</label>
+              <input v-model="userForm.email" class="admin-input mt-2 w-full" type="email" required />
+              <label class="admin-label mt-3">用户名</label>
+              <input v-model="userForm.username" class="admin-input mt-2 w-full" placeholder="可选" />
+              <label class="admin-label mt-3">初始密码</label>
+              <input v-model="userForm.password" class="admin-input mt-2 w-full" minlength="8" type="password" required />
+              <div class="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <label class="admin-label">角色</label>
+                  <select v-model.number="userForm.role" class="admin-input mt-2 w-full">
+                    <option :value="1">用户</option>
+                    <option :value="10">管理员</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="admin-label">状态</label>
+                  <select v-model.number="userForm.status" class="admin-input mt-2 w-full">
+                    <option :value="1">正常</option>
+                    <option :value="2">封禁</option>
+                  </select>
+                </div>
+              </div>
+              <label class="admin-label mt-3">初始积分</label>
+              <input v-model.number="userForm.credits" class="admin-input mt-2 w-full" min="0" step="0.01" type="number" />
+              <div class="mt-4 flex gap-2">
+                <button class="admin-primary flex-1" type="submit">创建用户</button>
+                <button class="admin-btn" type="button" @click="resetUserForm">清空</button>
+              </div>
+            </form>
+
+            <form v-if="selectedUser" class="admin-panel p-4" @submit.prevent="topupCredits(selectedUser)">
               <div class="flex items-start justify-between gap-3">
                 <div>
                   <h3 class="admin-section-title">用户充值</h3>
@@ -598,14 +721,6 @@ onMounted(async () => {
               <input v-model="creditForm.remark" class="admin-input mt-2 w-full" placeholder="备注" />
               <button class="admin-primary mt-4 w-full" type="submit">确认充值</button>
             </form>
-            <div class="admin-panel p-4">
-              <h3 class="admin-section-title">最近生成记录</h3>
-              <div v-for="item in userGenerations.items" :key="item.id" class="border-t border-slate-100 py-3 text-sm first:mt-3">
-                <div class="font-medium">#{{ item.id }} · {{ item.quality }} · {{ generationStatus(item.status) }}</div>
-                <p class="mt-1 line-clamp-2 text-slate-500">{{ item.prompt }}</p>
-              </div>
-              <p v-if="!userGenerations.items.length" class="py-8 text-center text-sm text-slate-500">暂无记录</p>
-            </div>
           </div>
         </div>
 
@@ -726,29 +841,66 @@ onMounted(async () => {
           </form>
         </div>
 
-        <form v-if="activeTab === 'settings'" class="admin-panel p-4" @submit.prevent="saveSettings">
-          <div class="grid gap-4 md:grid-cols-2">
-            <label v-for="key in settingEntries" :key="key" class="block text-sm">
-              <span class="admin-label">{{ settingLabel(key) }}</span>
-              <textarea v-if="isTextareaSetting(key)" v-model="settings[key]" class="admin-textarea mt-2 w-full" />
-              <select v-else-if="isBooleanSetting(key)" v-model="settings[key]" class="admin-input mt-2 w-full">
-                <option value="true">开启</option>
-                <option value="false">关闭</option>
-              </select>
-              <div v-else-if="isImageSetting(key)" class="mt-2 space-y-2">
-                <input v-model="settings[key]" type="text" class="admin-input w-full" placeholder="图片 URL，或点击下方选择本地图片" />
-                <div class="flex flex-wrap gap-2">
-                  <button class="admin-btn" type="button" @click="chooseSettingImage(key)">选择图片</button>
-                  <button v-if="settings[key]" class="admin-btn-danger" type="button" @click="clearSettingImage(key)">清除图片</button>
-                </div>
-                <input :ref="(el) => setSettingFileInput(key, el)" class="hidden" type="file" accept="image/png,image/jpeg,image/webp" @change="handleSettingImageChange(key, $event)" />
-                <img v-if="settings[key]" class="size-28 rounded-lg border border-slate-200 bg-white object-contain p-1" :src="settings[key]" alt="二维码预览" />
-              </div>
-              <input v-else v-model="settings[key]" :type="settingInputType(key)" class="admin-input mt-2 w-full" />
-              <span v-if="settingHelp(key)" class="mt-1 block text-xs leading-5 text-slate-500">{{ settingHelp(key) }}</span>
-            </label>
+        <form v-if="activeTab === 'settings'" class="space-y-4" @submit.prevent="saveSettings">
+          <div class="admin-hero">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-teal">Settings</p>
+              <h3 class="mt-2 text-xl font-semibold text-slate-950">配置按使用场景整理</h3>
+              <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">左侧选择配置类型，右侧只显示相关字段。保存按钮会一次性保存全部设置，敏感凭证只在管理员后台可见。</p>
+            </div>
+            <button class="admin-primary shrink-0" type="submit" :disabled="loading">保存全部设置</button>
           </div>
-          <button class="admin-primary mt-5" type="submit">保存设置</button>
+
+          <div class="grid gap-4 xl:grid-cols-[260px_1fr]">
+            <aside class="admin-panel p-2 xl:sticky xl:top-4 xl:self-start">
+              <button
+                v-for="group in visibleSettingGroups"
+                :key="group.id"
+                type="button"
+                class="w-full rounded-md px-3 py-3 text-left transition"
+                :class="activeSettingGroup === group.id ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'"
+                @click="activeSettingGroup = group.id"
+              >
+                <span class="flex items-center justify-between gap-3">
+                  <span class="font-medium">{{ group.title }}</span>
+                  <span class="rounded-full px-2 py-0.5 text-xs" :class="activeSettingGroup === group.id ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'">{{ group.keys.length }}</span>
+                </span>
+                <span class="mt-1 block text-xs leading-5" :class="activeSettingGroup === group.id ? 'text-white/65' : 'text-slate-400'">{{ group.description }}</span>
+              </button>
+            </aside>
+
+            <section class="admin-panel overflow-hidden">
+              <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+                <h3 class="text-base font-semibold text-slate-950">{{ activeSettingGroupInfo?.title }}</h3>
+                <p class="mt-1 text-sm text-slate-500">{{ activeSettingGroupInfo?.description }}</p>
+              </div>
+              <div class="grid gap-0 divide-y divide-slate-100">
+                <label v-for="key in activeSettingKeys" :key="key" class="grid gap-3 p-5 text-sm lg:grid-cols-[220px_1fr] lg:items-start">
+                  <span>
+                    <span class="block font-medium text-slate-900">{{ settingLabel(key) }}</span>
+                    <span v-if="settingHelp(key)" class="mt-1 block text-xs leading-5 text-slate-500">{{ settingHelp(key) }}</span>
+                  </span>
+                  <span class="min-w-0">
+                    <textarea v-if="isTextareaSetting(key)" v-model="settings[key]" class="admin-textarea w-full" />
+                    <select v-else-if="isBooleanSetting(key)" v-model="settings[key]" class="admin-input w-full">
+                      <option value="true">开启</option>
+                      <option value="false">关闭</option>
+                    </select>
+                    <span v-else-if="isImageSetting(key)" class="block space-y-2">
+                      <input v-model="settings[key]" type="text" class="admin-input w-full" placeholder="图片 URL，或点击下方选择本地图片" />
+                      <span class="flex flex-wrap gap-2">
+                        <button class="admin-btn" type="button" @click="chooseSettingImage(key)">选择图片</button>
+                        <button v-if="settings[key]" class="admin-btn-danger" type="button" @click="clearSettingImage(key)">清除图片</button>
+                      </span>
+                      <input :ref="(el) => setSettingFileInput(key, el)" class="hidden" type="file" accept="image/png,image/jpeg,image/webp" @change="handleSettingImageChange(key, $event)" />
+                      <img v-if="settings[key]" class="size-28 rounded-lg border border-slate-200 bg-white object-contain p-1" :src="settings[key]" alt="二维码预览" />
+                    </span>
+                    <input v-else v-model="settings[key]" :type="settingInputType(key)" class="admin-input w-full" />
+                  </span>
+                </label>
+              </div>
+            </section>
+          </div>
         </form>
 
         <div v-if="activeTab === 'credits'" class="admin-panel overflow-x-auto">
@@ -807,7 +959,15 @@ onMounted(async () => {
 
 <style scoped>
 .admin-panel {
-  @apply rounded-lg border border-slate-200 bg-white shadow-sm;
+  @apply rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/[0.03];
+}
+
+.admin-topbar {
+  @apply rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm shadow-slate-900/[0.03];
+}
+
+.admin-hero {
+  @apply flex flex-col gap-4 rounded-2xl border border-teal/20 bg-white px-5 py-5 shadow-sm shadow-slate-900/[0.03] sm:flex-row sm:items-center sm:justify-between;
 }
 
 .admin-section-title {
@@ -827,7 +987,7 @@ onMounted(async () => {
 }
 
 .admin-primary {
-  @apply min-h-10 rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60;
+  @apply min-h-10 rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-slate-900/10 transition hover:bg-slate-800 disabled:opacity-60;
 }
 
 .admin-btn {

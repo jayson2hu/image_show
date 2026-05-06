@@ -138,7 +138,7 @@ function pulseCanvas() {
     >
       <div class="relative z-10 flex w-full max-w-xl flex-col items-center rounded-2xl border border-slate-200 bg-white/88 px-6 py-8 text-center shadow-xl shadow-slate-200/70 backdrop-blur sm:px-10 sm:py-12">
         <div class="mb-6 flex size-28 items-center justify-center rounded-full bg-slate-100 sm:size-32">
-          <div class="size-16 animate-spin rounded-full border-[5px] border-slate-200 border-t-violet-600 sm:size-20"></div>
+          <div class="generation-spinner size-16 rounded-full border-[5px] border-slate-200 border-t-violet-600 sm:size-20"></div>
         </div>
         <p class="text-2xl font-medium tracking-tight sm:text-3xl">{{ currentCopy.title }}</p>
         <p class="mt-3 max-w-md text-sm leading-6 text-slate-500">{{ currentCopy.detail }}</p>
@@ -231,6 +231,10 @@ function pulseCanvas() {
     transform 180ms ease;
 }
 
+.generation-spinner {
+  animation: generation-spin 2.8s linear infinite;
+}
+
 :global(.dark) .generation-canvas {
   background:
     radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(167, 139, 250, 0.14), transparent 28%),
@@ -239,6 +243,12 @@ function pulseCanvas() {
 
 :global(.dark) .generation-canvas::before {
   opacity: 0.36;
+}
+
+@keyframes generation-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes click-pulse {
