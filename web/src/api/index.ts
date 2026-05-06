@@ -20,8 +20,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       window.dispatchEvent(new CustomEvent('auth:unauthorized'))
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
+      const loginPath = window.location.pathname.startsWith('/console/admin') ? '/console/admin/login' : '/login'
+      if (window.location.pathname !== loginPath) {
+        window.location.href = loginPath
       }
     }
     return Promise.reject(error)

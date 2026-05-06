@@ -9,6 +9,7 @@ const router = useRouter()
 const route = useRoute()
 const isHome = computed(() => route.name === 'home' || route.path === '/')
 const isAdmin = computed(() => (userStore.user?.role || 0) >= 10)
+const isAdminArea = computed(() => route.path.startsWith('/console/admin'))
 const roleLabel = computed(() => (isAdmin.value ? '管理员' : userStore.user ? '普通用户' : '未登录'))
 
 function handleUnauthorized() {
@@ -16,8 +17,9 @@ function handleUnauthorized() {
 }
 
 async function logout() {
+  const target = isAdminArea.value ? '/console/admin/login' : '/login'
   userStore.logout()
-  await router.push('/login')
+  await router.push(target)
 }
 
 onMounted(() => {
@@ -67,9 +69,9 @@ onUnmounted(() => {
           <RouterLink
             v-else
             class="min-h-10 rounded-full bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-2.5 text-white shadow-lg shadow-violet-500/20 hover:from-violet-700 hover:to-blue-700"
-            to="/login"
+            :to="isAdminArea ? '/console/admin/login' : '/login'"
           >
-            登录 / 注册
+            {{ isAdminArea ? '管理员登录' : '登录 / 注册' }}
           </RouterLink>
         </div>
       </nav>
