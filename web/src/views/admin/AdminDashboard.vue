@@ -84,6 +84,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const activeTab = ref('overview')
 const activeSettingGroup = ref('account')
+const isCreateUserOpen = ref(false)
 const loading = ref(false)
 const message = ref('')
 const userKeyword = ref('')
@@ -219,10 +220,20 @@ function resetUserForm() {
   userForm.value = { email: '', username: '', password: '', role: 1, status: 1, credits: 0 }
 }
 
+function openCreateUserModal() {
+  resetUserForm()
+  isCreateUserOpen.value = true
+}
+
+function closeCreateUserModal() {
+  isCreateUserOpen.value = false
+  resetUserForm()
+}
+
 async function createUser() {
   await guarded(async () => {
     await api.post('/admin/users', userForm.value)
-    resetUserForm()
+    closeCreateUserModal()
     await loadUsers()
   }, '用户已创建')
 }
@@ -616,12 +627,13 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div v-if="activeTab === 'users'" class="grid gap-4 xl:grid-cols-[1fr_360px]">
+        <div v-if="activeTab === 'users'" class="space-y-4">
           <div class="space-y-4">
             <div class="admin-panel p-3">
               <div class="flex flex-col gap-2 sm:flex-row">
                 <input v-model="userKeyword" class="admin-input min-w-0 flex-1" placeholder="搜索邮箱或用户名" @keydown.enter.prevent="loadUsers" />
                 <button class="admin-primary" type="button" @click="loadUsers">搜索</button>
+                <button class="admin-btn" type="button" @click="openCreateUserModal">新建用户</button>
               </div>
             </div>
 
@@ -673,41 +685,8 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="space-y-4 xl:sticky xl:top-4 xl:self-start">
-            <form class="admin-panel p-4" @submit.prevent="createUser">
-              <h3 class="admin-section-title">新增用户</h3>
-              <p class="mt-1 text-sm text-slate-500">用于后台手动开通邮箱账号。</p>
-              <label class="admin-label mt-4">邮箱</label>
-              <input v-model="userForm.email" class="admin-input mt-2 w-full" type="email" required />
-              <label class="admin-label mt-3">用户名</label>
-              <input v-model="userForm.username" class="admin-input mt-2 w-full" placeholder="可选" />
-              <label class="admin-label mt-3">初始密码</label>
-              <input v-model="userForm.password" class="admin-input mt-2 w-full" minlength="8" type="password" required />
-              <div class="mt-3 grid grid-cols-2 gap-3">
-                <div>
-                  <label class="admin-label">角色</label>
-                  <select v-model.number="userForm.role" class="admin-input mt-2 w-full">
-                    <option :value="1">用户</option>
-                    <option :value="10">管理员</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="admin-label">状态</label>
-                  <select v-model.number="userForm.status" class="admin-input mt-2 w-full">
-                    <option :value="1">正常</option>
-                    <option :value="2">封禁</option>
-                  </select>
-                </div>
-              </div>
-              <label class="admin-label mt-3">初始积分</label>
-              <input v-model.number="userForm.credits" class="admin-input mt-2 w-full" min="0" step="0.01" type="number" />
-              <div class="mt-4 flex gap-2">
-                <button class="admin-primary flex-1" type="submit">创建用户</button>
-                <button class="admin-btn" type="button" @click="resetUserForm">清空</button>
-              </div>
-            </form>
-
-            <form v-if="selectedUser" class="admin-panel p-4" @submit.prevent="topupCredits(selectedUser)">
+          <div v-if="selectedUser" class="grid gap-4 xl:grid-cols-[360px_1fr]">
+            <form class="admin-panel p-4" @submit.prevent="topupCredits(selectedUser)">
               <div class="flex items-start justify-between gap-3">
                 <div>
                   <h3 class="admin-section-title">用户充值</h3>
@@ -952,6 +931,57 @@ onMounted(async () => {
         <p v-else-if="activeTab === 'monitor'" class="admin-panel p-8 text-center text-sm text-slate-500">监控数据加载中</p>
 
         <div v-if="loading" class="fixed bottom-4 right-4 rounded-md bg-slate-950 px-4 py-3 text-sm text-white shadow-lg">处理中...</div>
+
+        <div v-if="isCreateUserOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4" role="dialog" aria-modal="true" aria-labelledby="create-user-title" @click.self="closeCreateUserModal">
+          <form class="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl shadow-slate-950/20" @submit.prevent="createUser">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-teal">User</p>
+                <h3 id="create-user-title" class="mt-1 text-xl font-semibold text-slate-950">新建用户</h3>
+                <p class="mt-1 text-sm text-slate-500">用于后台手动开通邮箱账号，创建后可继续充值或调整角色。</p>
+              </div>
+              <button class="admin-btn" type="button" @click="closeCreateUserModal">关闭</button>
+            </div>
+
+            <div class="mt-5 grid gap-4 sm:grid-cols-2">
+              <label class="block sm:col-span-2">
+                <span class="admin-label">邮箱</span>
+                <input v-model="userForm.email" class="admin-input mt-2 w-full" type="email" autocomplete="email" required />
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="admin-label">用户名</span>
+                <input v-model="userForm.username" class="admin-input mt-2 w-full" autocomplete="username" placeholder="可选" />
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="admin-label">初始密码</span>
+                <input v-model="userForm.password" class="admin-input mt-2 w-full" minlength="8" type="password" autocomplete="new-password" required />
+              </label>
+              <label class="block">
+                <span class="admin-label">角色</span>
+                <select v-model.number="userForm.role" class="admin-input mt-2 w-full">
+                  <option :value="1">用户</option>
+                  <option :value="10">管理员</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="admin-label">状态</span>
+                <select v-model.number="userForm.status" class="admin-input mt-2 w-full">
+                  <option :value="1">正常</option>
+                  <option :value="2">封禁</option>
+                </select>
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="admin-label">初始积分</span>
+                <input v-model.number="userForm.credits" class="admin-input mt-2 w-full" min="0" step="0.01" type="number" />
+              </label>
+            </div>
+
+            <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button class="admin-btn" type="button" @click="closeCreateUserModal">取消</button>
+              <button class="admin-primary" type="submit" :disabled="loading">创建用户</button>
+            </div>
+          </form>
+        </div>
       </main>
     </div>
   </section>
