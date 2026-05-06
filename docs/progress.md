@@ -1,5 +1,18 @@
 # 开发进度记录
 
+## 2026-05-06 WeChat Server 敏感配置不暴露
+
+- 需求：
+  - WeChat Server 的访问凭证等敏感信息不能发送到普通前端显示。
+- 核对结论：
+  - 普通接口 `/api/auth/wechat/qrcode` 只返回 `enabled`、`qrcode_url`、`mode`，不返回 `wechat_server_address` 和 `wechat_server_token`。
+  - `wechat_server_address` 和 `wechat_server_token` 仅通过管理员接口 `/api/admin/settings` 返回，该接口需要登录且需要管理员权限。
+- 完成：
+  - 为微信二维码公开接口补充回归测试，断言响应中不包含 `wechat_server_token`、`wechat_server_address`、实际 token 或实际服务地址。
+- 自测记录：
+  - `go test ./controller -run "TestWeChatQRCodeAndLoginCreatesUser|TestWeChatInvalidCodeFromServer|TestWeChatBindAndUnbind|TestWeChatDisabled" -v`：通过。
+  - `go test ./...`：通过。
+
 ## 2026-05-06 微信公众号验证码登录验收
 
 - 需求：

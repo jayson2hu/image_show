@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/jayson2hu/image-show/config"
@@ -28,6 +29,9 @@ func TestWeChatQRCodeAndLoginCreatesUser(t *testing.T) {
 	}
 	if !qrResp.Enabled || qrResp.QRCodeURL == "" {
 		t.Fatalf("unexpected qrcode response: %+v", qrResp)
+	}
+	if qrcodeBody := qrcode.Body.String(); containsAny(qrcodeBody, []string{"wechat-token", "wechat_server_token", "wechat_server_address", config.AppConfig.WeChatServer}) {
+		t.Fatalf("qrcode response leaked sensitive wechat server config: %s", qrcodeBody)
 	}
 
 	rec := adminRequest(engine, http.MethodGet, "/api/auth/wechat/callback?code=new-user", "")
@@ -146,4 +150,13 @@ func tokenUserID(t *testing.T, token string) int64 {
 		t.Fatalf("parse token: %v", err)
 	}
 	return claims.UserID
+}
+
+func containsAny(value string, needles []string) bool {
+	for _, needle := range needles {
+		if needle != "" && strings.Contains(value, needle) {
+			return true
+		}
+	}
+	return false
 }
