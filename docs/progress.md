@@ -1,5 +1,38 @@
 # 开发进度记录
 
+## 2026-05-07 管理后台开阔版重设计
+
+- 需求：
+  - 管理后台看起来不够大气，页面里有太多小框，要求按 UI 设计专家思路重新设计。
+- 完成：
+  - 后台主背景、侧边栏、顶部区域重做为更开阔的控制台视觉。
+  - 概览指标从多个小卡片改为连续指标带。
+  - 用户、渠道、模板的顶部操作区统一为工具栏。
+  - 渠道和模板列表改为统一列表行，减少小卡片堆叠。
+  - 设置页保留分类逻辑，但改为更开阔的导航区和内容区。
+  - 保留用户、渠道、模板的弹窗新增/编辑交互。
+- 自测记录：
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `go test ./controller -run "TestAdminUserManagementAndCredits|TestAdminChannelCRUDAndTest|TestAdminPromptTemplateCRUDAndSettings" -v`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次因 esbuild `spawn EPERM` 失败，提升权限后重跑通过。
+
+## 2026-05-07 后台操作弹窗格式统一
+
+- 需求：
+  - 新增用户已经改为弹窗后，其他新增/编辑功能也需要统一格式。
+- 完成：
+  - 渠道页移除右侧常驻新增/编辑表单，改为顶部“新增渠道”按钮和弹窗表单。
+  - 渠道列表中的“编辑”改为打开同一弹窗。
+  - 模板页移除右侧常驻新增/编辑表单，改为顶部“新增模板”按钮和弹窗表单。
+  - 模板列表中的“编辑”改为打开同一弹窗。
+  - 用户、渠道、模板的创建/编辑交互统一为按钮触发弹窗。
+- 自测记录：
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `go test ./controller -run "TestAdminUserManagementAndCredits|TestAdminChannelCRUDAndTest|TestAdminPromptTemplateCRUDAndSettings" -v`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd build`：通过。沙箱内首次因 esbuild `spawn EPERM` 失败，提升权限后重跑通过。
+
 ## 2026-05-06 新增用户弹窗优化
 
 - 需求：

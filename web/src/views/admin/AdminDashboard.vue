@@ -85,6 +85,8 @@ const userStore = useUserStore()
 const activeTab = ref('overview')
 const activeSettingGroup = ref('account')
 const isCreateUserOpen = ref(false)
+const isChannelModalOpen = ref(false)
+const isTemplateModalOpen = ref(false)
 const loading = ref(false)
 const message = ref('')
 const userKeyword = ref('')
@@ -278,10 +280,21 @@ async function loadTemplates() {
 
 function editTemplate(template: PromptTemplate) {
   templateForm.value = { ...template }
+  isTemplateModalOpen.value = true
 }
 
 function resetTemplate() {
   templateForm.value = { id: 0, category: 'style', label: '', prompt: '', sort_order: 0, status: 1 }
+}
+
+function openCreateTemplateModal() {
+  resetTemplate()
+  isTemplateModalOpen.value = true
+}
+
+function closeTemplateModal() {
+  isTemplateModalOpen.value = false
+  resetTemplate()
 }
 
 async function saveTemplate() {
@@ -292,7 +305,7 @@ async function saveTemplate() {
     } else {
       await api.post('/admin/prompt-templates', payload)
     }
-    resetTemplate()
+    closeTemplateModal()
     await loadTemplates()
   }, '模板已保存')
 }
@@ -328,10 +341,21 @@ async function loadChannels() {
 
 function editChannel(channel: Channel) {
   channelForm.value = { ...channel }
+  isChannelModalOpen.value = true
 }
 
 function resetChannel() {
   channelForm.value = { id: 0, name: '', base_url: '', api_key: '', headers: '', status: 1, weight: 1, remark: '' }
+}
+
+function openCreateChannelModal() {
+  resetChannel()
+  isChannelModalOpen.value = true
+}
+
+function closeChannelModal() {
+  isChannelModalOpen.value = false
+  resetChannel()
 }
 
 async function saveChannel() {
@@ -342,7 +366,7 @@ async function saveChannel() {
     } else {
       await api.post('/admin/channels', payload)
     }
-    resetChannel()
+    closeChannelModal()
     await loadChannels()
   }, '渠道已保存')
 }
@@ -542,17 +566,17 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="admin-shell min-h-[calc(100vh-65px)] bg-slate-50 text-slate-950">
-    <div class="grid min-h-[calc(100vh-65px)] lg:grid-cols-[236px_1fr]">
-      <aside class="border-b border-slate-200 bg-slate-950 text-white lg:border-b-0 lg:border-r lg:border-slate-900">
-        <div class="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-5 lg:block">
+  <section class="admin-shell min-h-[calc(100vh-65px)] bg-[#f6f7f9] text-slate-950">
+    <div class="grid min-h-[calc(100vh-65px)] lg:grid-cols-[248px_1fr]">
+      <aside class="bg-slate-950 text-white">
+        <div class="flex items-center justify-between gap-3 px-6 py-6 lg:block">
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-teal-300">Console</p>
             <h1 class="mt-1 text-lg font-semibold text-white">来看看巴后台</h1>
           </div>
           <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 lg:mt-4 lg:inline-block">{{ userStore.user?.email }}</span>
         </div>
-        <nav class="flex gap-1 overflow-x-auto px-3 py-3 lg:block lg:space-y-1 lg:overflow-visible">
+        <nav class="flex gap-1 overflow-x-auto px-3 pb-4 lg:block lg:space-y-1 lg:overflow-visible">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -571,8 +595,8 @@ onMounted(async () => {
         </nav>
       </aside>
 
-      <main class="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
-        <header class="admin-topbar mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <main class="min-w-0 px-4 py-5 sm:px-7 lg:px-10">
+        <header class="admin-topbar mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-2xl font-semibold tracking-tight text-slate-950">{{ currentTab.label }}</h2>
             <p class="mt-1 text-sm text-slate-500">{{ currentTab.description }}</p>
@@ -588,8 +612,8 @@ onMounted(async () => {
         </p>
 
         <div v-if="activeTab === 'overview'" class="space-y-5">
-          <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div v-for="card in overviewCards" :key="card.label" class="admin-panel p-4">
+          <div class="admin-metric-grid">
+            <div v-for="card in overviewCards" :key="card.label" class="admin-metric">
               <div class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ card.label }}</div>
               <div class="mt-2 text-2xl font-semibold text-slate-950">{{ fmtNumber(Number(card.value)) }}</div>
               <div class="mt-1 text-sm text-slate-500">{{ card.hint }}</div>
@@ -629,10 +653,10 @@ onMounted(async () => {
 
         <div v-if="activeTab === 'users'" class="space-y-4">
           <div class="space-y-4">
-            <div class="admin-panel p-3">
-              <div class="flex flex-col gap-2 sm:flex-row">
-                <input v-model="userKeyword" class="admin-input min-w-0 flex-1" placeholder="搜索邮箱或用户名" @keydown.enter.prevent="loadUsers" />
-                <button class="admin-primary" type="button" @click="loadUsers">搜索</button>
+          <div class="admin-toolbar">
+            <div class="flex flex-col gap-2 sm:flex-row">
+              <input v-model="userKeyword" class="admin-input min-w-0 flex-1" placeholder="搜索邮箱或用户名" @keydown.enter.prevent="loadUsers" />
+              <button class="admin-primary" type="button" @click="loadUsers">搜索</button>
                 <button class="admin-btn" type="button" @click="openCreateUserModal">新建用户</button>
               </div>
             </div>
@@ -703,9 +727,15 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div v-if="activeTab === 'channels'" class="grid gap-4 xl:grid-cols-[1fr_400px]">
-          <div class="space-y-3">
-            <div v-for="channel in channels" :key="channel.id" class="admin-panel p-4">
+        <div v-if="activeTab === 'channels'" class="space-y-4">
+          <div class="admin-toolbar">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-sm text-slate-500">管理 Sub2API 渠道，支持权重、状态和连通性测试。</p>
+              <button class="admin-primary" type="button" @click="openCreateChannelModal">新增渠道</button>
+            </div>
+          </div>
+          <div class="admin-list">
+            <div v-for="channel in channels" :key="channel.id" class="admin-list-row">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
@@ -727,48 +757,20 @@ onMounted(async () => {
                 <span v-if="channelTestResult[channel.id]" class="rounded bg-slate-100 px-2 py-1">{{ channelTestResult[channel.id] }}</span>
               </div>
             </div>
-            <p v-if="!channels.length" class="admin-panel border-dashed p-8 text-center text-sm text-slate-500">暂无渠道。没有启用渠道时，后端会使用 SUB2API_BASE_URL 环境变量作为兜底。</p>
+            <p v-if="!channels.length" class="admin-empty">暂无渠道。没有启用渠道时，后端会使用 SUB2API_BASE_URL 环境变量作为兜底。</p>
           </div>
-
-          <form class="admin-panel p-4 xl:sticky xl:top-4 xl:self-start" @submit.prevent="saveChannel">
-            <div class="flex items-center justify-between gap-3">
-              <h3 class="admin-section-title">{{ channelForm.id ? '编辑渠道' : '新增渠道' }}</h3>
-              <span v-if="channelForm.id" class="admin-badge admin-badge-info">ID {{ channelForm.id }}</span>
-            </div>
-            <label class="admin-label mt-4">名称</label>
-            <input v-model="channelForm.name" class="admin-input mt-2 w-full" required />
-            <label class="admin-label mt-3">Base URL</label>
-            <input v-model="channelForm.base_url" class="admin-input mt-2 w-full" placeholder="http://sub2api:8080" required />
-            <label class="admin-label mt-3">API Key</label>
-            <input v-model="channelForm.api_key" class="admin-input mt-2 w-full" />
-            <label class="admin-label mt-3">Headers JSON</label>
-            <textarea v-model="channelForm.headers" class="admin-textarea mt-2 w-full" placeholder='{"X-Custom":"value"}' />
-            <div class="mt-3 grid grid-cols-2 gap-3">
-              <div>
-                <label class="admin-label">权重</label>
-                <input v-model.number="channelForm.weight" class="admin-input mt-2 w-full" min="1" type="number" />
-              </div>
-              <div>
-                <label class="admin-label">状态</label>
-                <select v-model.number="channelForm.status" class="admin-input mt-2 w-full">
-                  <option :value="1">启用</option>
-                  <option :value="2">禁用</option>
-                </select>
-              </div>
-            </div>
-            <label class="admin-label mt-3">备注</label>
-            <input v-model="channelForm.remark" class="admin-input mt-2 w-full" />
-            <div class="mt-4 flex gap-2">
-              <button class="admin-primary flex-1" type="submit">保存</button>
-              <button class="admin-btn" type="button" @click="resetChannel">清空</button>
-            </div>
-          </form>
         </div>
 
-        <div v-if="activeTab === 'templates'" class="grid gap-4 xl:grid-cols-[1fr_400px]">
-          <div class="admin-panel overflow-hidden">
-            <div class="border-b border-slate-100 px-4 py-3 text-sm text-slate-500">启用状态会展示到前台，排序越小越靠前。</div>
-            <div v-for="template in templates" :key="template.id" class="flex gap-3 border-b border-slate-100 p-4 text-sm last:border-b-0">
+        <div v-if="activeTab === 'templates'" class="space-y-4">
+          <div class="admin-toolbar">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-sm text-slate-500">维护首页风格预设和推荐样例，启用后会展示到前台。</p>
+              <button class="admin-primary" type="button" @click="openCreateTemplateModal">新增模板</button>
+            </div>
+          </div>
+          <div class="admin-list">
+            <div class="px-5 py-4 text-sm text-slate-500">启用状态会展示到前台，排序越小越靠前。</div>
+            <div v-for="template in templates" :key="template.id" class="admin-list-row text-sm">
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="font-medium text-slate-900">{{ template.label }}</span>
@@ -782,42 +784,8 @@ onMounted(async () => {
                 <button class="admin-btn-danger" type="button" @click="deleteTemplate(template)">删除</button>
               </div>
             </div>
-            <p v-if="!templates.length" class="p-8 text-center text-sm text-slate-500">暂无提示词模板</p>
+            <p v-if="!templates.length" class="admin-empty">暂无提示词模板</p>
           </div>
-          <form class="admin-panel p-4 xl:sticky xl:top-4 xl:self-start" @submit.prevent="saveTemplate">
-            <div class="flex items-center justify-between gap-3">
-              <h3 class="admin-section-title">{{ templateForm.id ? '编辑模板' : '新增模板' }}</h3>
-              <span v-if="templateForm.id" class="admin-badge admin-badge-info">ID {{ templateForm.id }}</span>
-            </div>
-            <label class="admin-label mt-4">名称</label>
-            <input v-model="templateForm.label" class="admin-input mt-2 w-full" placeholder="名称" />
-            <label class="admin-label mt-3">分类</label>
-            <select v-model="templateForm.category" class="admin-input mt-2 w-full">
-              <option value="style">首页风格预设</option>
-              <option value="sample">首页推荐样例</option>
-              <option value="default">默认标签</option>
-              <option value="repair">修复标签</option>
-            </select>
-            <label class="admin-label mt-3">Prompt</label>
-            <textarea v-model="templateForm.prompt" class="admin-textarea mt-2 w-full" placeholder="Prompt" />
-            <div class="mt-3 grid grid-cols-2 gap-3">
-              <div>
-                <label class="admin-label">排序</label>
-                <input v-model.number="templateForm.sort_order" class="admin-input mt-2 w-full" type="number" />
-              </div>
-              <div>
-                <label class="admin-label">状态</label>
-                <select v-model.number="templateForm.status" class="admin-input mt-2 w-full">
-                  <option :value="1">启用</option>
-                  <option :value="2">禁用</option>
-                </select>
-              </div>
-            </div>
-            <div class="mt-4 flex gap-2">
-              <button class="admin-primary flex-1" type="submit">保存</button>
-              <button class="admin-btn" type="button" @click="resetTemplate">清空</button>
-            </div>
-          </form>
         </div>
 
         <form v-if="activeTab === 'settings'" class="space-y-4" @submit.prevent="saveSettings">
@@ -831,7 +799,7 @@ onMounted(async () => {
           </div>
 
           <div class="grid gap-4 xl:grid-cols-[260px_1fr]">
-            <aside class="admin-panel p-2 xl:sticky xl:top-4 xl:self-start">
+            <aside class="admin-settings-nav xl:sticky xl:top-4 xl:self-start">
               <button
                 v-for="group in visibleSettingGroups"
                 :key="group.id"
@@ -848,13 +816,13 @@ onMounted(async () => {
               </button>
             </aside>
 
-            <section class="admin-panel overflow-hidden">
-              <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+            <section class="admin-settings-content">
+              <div class="border-b border-slate-200/70 px-6 py-5">
                 <h3 class="text-base font-semibold text-slate-950">{{ activeSettingGroupInfo?.title }}</h3>
                 <p class="mt-1 text-sm text-slate-500">{{ activeSettingGroupInfo?.description }}</p>
               </div>
-              <div class="grid gap-0 divide-y divide-slate-100">
-                <label v-for="key in activeSettingKeys" :key="key" class="grid gap-3 p-5 text-sm lg:grid-cols-[220px_1fr] lg:items-start">
+              <div class="grid gap-0 divide-y divide-slate-200/70">
+                <label v-for="key in activeSettingKeys" :key="key" class="grid gap-3 px-6 py-5 text-sm lg:grid-cols-[240px_1fr] lg:items-start">
                   <span>
                     <span class="block font-medium text-slate-900">{{ settingLabel(key) }}</span>
                     <span v-if="settingHelp(key)" class="mt-1 block text-xs leading-5 text-slate-500">{{ settingHelp(key) }}</span>
@@ -982,6 +950,107 @@ onMounted(async () => {
             </div>
           </form>
         </div>
+
+        <div v-if="isChannelModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4" role="dialog" aria-modal="true" aria-labelledby="channel-modal-title" @click.self="closeChannelModal">
+          <form class="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl shadow-slate-950/20" @submit.prevent="saveChannel">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-teal">Channel</p>
+                <h3 id="channel-modal-title" class="mt-1 text-xl font-semibold text-slate-950">{{ channelForm.id ? '编辑渠道' : '新增渠道' }}</h3>
+                <p class="mt-1 text-sm text-slate-500">配置 Sub2API 渠道地址、密钥、请求头和调度权重。</p>
+              </div>
+              <button class="admin-btn" type="button" @click="closeChannelModal">关闭</button>
+            </div>
+
+            <div class="mt-5 grid gap-4 sm:grid-cols-2">
+              <label class="block">
+                <span class="admin-label">名称</span>
+                <input v-model="channelForm.name" class="admin-input mt-2 w-full" required />
+              </label>
+              <label class="block">
+                <span class="admin-label">权重</span>
+                <input v-model.number="channelForm.weight" class="admin-input mt-2 w-full" min="1" type="number" />
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="admin-label">Base URL</span>
+                <input v-model="channelForm.base_url" class="admin-input mt-2 w-full" placeholder="http://sub2api:8080" required />
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="admin-label">API Key</span>
+                <input v-model="channelForm.api_key" class="admin-input mt-2 w-full" />
+              </label>
+              <label class="block">
+                <span class="admin-label">状态</span>
+                <select v-model.number="channelForm.status" class="admin-input mt-2 w-full">
+                  <option :value="1">启用</option>
+                  <option :value="2">禁用</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="admin-label">备注</span>
+                <input v-model="channelForm.remark" class="admin-input mt-2 w-full" />
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="admin-label">Headers JSON</span>
+                <textarea v-model="channelForm.headers" class="admin-textarea mt-2 w-full" placeholder='{"X-Custom":"value"}' />
+              </label>
+            </div>
+
+            <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button class="admin-btn" type="button" @click="closeChannelModal">取消</button>
+              <button class="admin-primary" type="submit" :disabled="loading">保存渠道</button>
+            </div>
+          </form>
+        </div>
+
+        <div v-if="isTemplateModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4" role="dialog" aria-modal="true" aria-labelledby="template-modal-title" @click.self="closeTemplateModal">
+          <form class="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl shadow-slate-950/20" @submit.prevent="saveTemplate">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-teal">Prompt</p>
+                <h3 id="template-modal-title" class="mt-1 text-xl font-semibold text-slate-950">{{ templateForm.id ? '编辑模板' : '新增模板' }}</h3>
+                <p class="mt-1 text-sm text-slate-500">用于前台风格预设、推荐样例和默认标签。</p>
+              </div>
+              <button class="admin-btn" type="button" @click="closeTemplateModal">关闭</button>
+            </div>
+
+            <div class="mt-5 grid gap-4 sm:grid-cols-2">
+              <label class="block">
+                <span class="admin-label">名称</span>
+                <input v-model="templateForm.label" class="admin-input mt-2 w-full" placeholder="名称" required />
+              </label>
+              <label class="block">
+                <span class="admin-label">分类</span>
+                <select v-model="templateForm.category" class="admin-input mt-2 w-full">
+                  <option value="style">首页风格预设</option>
+                  <option value="sample">首页推荐样例</option>
+                  <option value="default">默认标签</option>
+                  <option value="repair">修复标签</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="admin-label">排序</span>
+                <input v-model.number="templateForm.sort_order" class="admin-input mt-2 w-full" type="number" />
+              </label>
+              <label class="block">
+                <span class="admin-label">状态</span>
+                <select v-model.number="templateForm.status" class="admin-input mt-2 w-full">
+                  <option :value="1">启用</option>
+                  <option :value="2">禁用</option>
+                </select>
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="admin-label">Prompt</span>
+                <textarea v-model="templateForm.prompt" class="admin-textarea mt-2 w-full" placeholder="Prompt" required />
+              </label>
+            </div>
+
+            <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button class="admin-btn" type="button" @click="closeTemplateModal">取消</button>
+              <button class="admin-primary" type="submit" :disabled="loading">保存模板</button>
+            </div>
+          </form>
+        </div>
       </main>
     </div>
   </section>
@@ -989,15 +1058,47 @@ onMounted(async () => {
 
 <style scoped>
 .admin-panel {
-  @apply rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/[0.03];
+  @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.03];
 }
 
 .admin-topbar {
-  @apply rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm shadow-slate-900/[0.03];
+  @apply border-b border-slate-200/80 pb-6;
 }
 
 .admin-hero {
-  @apply flex flex-col gap-4 rounded-2xl border border-teal/20 bg-white px-5 py-5 shadow-sm shadow-slate-900/[0.03] sm:flex-row sm:items-center sm:justify-between;
+  @apply flex flex-col gap-4 rounded-3xl bg-white px-7 py-6 shadow-sm shadow-slate-900/[0.04] ring-1 ring-slate-200/70 sm:flex-row sm:items-center sm:justify-between;
+}
+
+.admin-metric-grid {
+  @apply grid overflow-hidden rounded-3xl bg-white shadow-sm shadow-slate-900/[0.04] ring-1 ring-slate-200/70 md:grid-cols-2 xl:grid-cols-4;
+}
+
+.admin-metric {
+  @apply border-b border-slate-200/70 p-6 md:border-r xl:border-b-0;
+}
+
+.admin-toolbar {
+  @apply rounded-2xl bg-white px-4 py-4 shadow-sm shadow-slate-900/[0.03] ring-1 ring-slate-200/70;
+}
+
+.admin-list {
+  @apply overflow-hidden rounded-3xl bg-white shadow-sm shadow-slate-900/[0.04] ring-1 ring-slate-200/70;
+}
+
+.admin-list-row {
+  @apply border-t border-slate-200/70 p-5 first:border-t-0;
+}
+
+.admin-empty {
+  @apply border-t border-slate-200/70 p-10 text-center text-sm text-slate-500;
+}
+
+.admin-settings-nav {
+  @apply overflow-hidden rounded-3xl bg-white p-2 shadow-sm shadow-slate-900/[0.04] ring-1 ring-slate-200/70;
+}
+
+.admin-settings-content {
+  @apply overflow-hidden rounded-3xl bg-white shadow-sm shadow-slate-900/[0.04] ring-1 ring-slate-200/70;
 }
 
 .admin-section-title {
