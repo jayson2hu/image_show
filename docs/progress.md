@@ -1,5 +1,20 @@
 # 开发进度记录
 
+## 2026-05-06 旧尺寸配置升级补漏
+
+- 问题：
+  - 页面没有显示五个宽高比，原因是本地数据库 `enabled_image_sizes` 仍是更早的旧配置：`1024x1024,1536x1024,1024x1536`。
+  - 后端上一版只自动升级旧 5 尺寸和旧 8 尺寸配置，漏掉了旧 3 尺寸配置。
+- 完成：
+  - 后端新增旧 3 尺寸配置自动升级，统一返回：`square`、`portrait_3_4`、`story`、`landscape_4_3`、`widescreen`。
+  - 后台设置接口读取 `enabled_image_sizes` 时也返回升级后的比例 key，避免旧数据库值覆盖前端展示。
+  - 补充测试覆盖旧 3/5/8 尺寸配置升级。
+- 自测记录：
+  - `go test ./controller -run "TestGenerationOptions" -v`：通过。
+  - `go test ./controller -run "TestCreateGenerationAcceptsAspectRatioKey|TestCreateGenerationStillAcceptsMappedPixelSize" -v`：通过。
+  - `go test ./...`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+
 ## 2026-05-06 宽高比产品化展示
 
 - 来源：

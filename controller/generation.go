@@ -286,6 +286,7 @@ func CreateImageEdit(c *gin.Context) {
 }
 
 const defaultEnabledImageSizes = "square,portrait_3_4,story,landscape_4_3,widescreen"
+const legacyCompactEnabledImageSizes = "1024x1024,1536x1024,1024x1536"
 const legacyDefaultEnabledImageSizes = "1280x720,720x1280,1024x1024,1536x1024,1024x1536"
 const legacyHDDefaultEnabledImageSizes = "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048"
 
@@ -307,10 +308,7 @@ var aspectRatioSizeMap = func() map[string]aspectRatioOption {
 
 func enabledImageSizes() []string {
 	value := model.GetSettingValue("enabled_image_sizes", defaultEnabledImageSizes)
-	normalized := normalizeImageSizesValue(value)
-	if normalized == legacyDefaultEnabledImageSizes || normalized == legacyHDDefaultEnabledImageSizes {
-		value = defaultEnabledImageSizes
-	}
+	value = normalizeEnabledImageSizesSetting(value)
 	parts := strings.Split(value, ",")
 	sizes := make([]string, 0, len(parts))
 	for _, part := range parts {
@@ -323,6 +321,20 @@ func enabledImageSizes() []string {
 		return []string{"1024x1024"}
 	}
 	return sizes
+}
+
+func enabledImageSizesSettingValue() string {
+	return normalizeEnabledImageSizesSetting(model.GetSettingValue("enabled_image_sizes", defaultEnabledImageSizes))
+}
+
+func normalizeEnabledImageSizesSetting(value string) string {
+	normalized := normalizeImageSizesValue(value)
+	switch normalized {
+	case legacyCompactEnabledImageSizes, legacyDefaultEnabledImageSizes, legacyHDDefaultEnabledImageSizes:
+		return defaultEnabledImageSizes
+	default:
+		return value
+	}
 }
 
 func normalizeImageSizesValue(value string) string {

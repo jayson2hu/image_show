@@ -92,7 +92,7 @@ func AdminSettings(c *gin.Context) {
 		"monitor_daily_credit_threshold": model.GetSettingValue("monitor_daily_credit_threshold", "0"),
 		"monitor_alert_last_date":        model.GetSettingValue("monitor_alert_last_date", ""),
 		"image_model":                    model.GetSettingValue("image_model", "gpt-image-2"),
-		"enabled_image_sizes":            model.GetSettingValue("enabled_image_sizes", defaultEnabledImageSizes),
+		"enabled_image_sizes":            enabledImageSizesSettingValue(),
 		"r2_endpoint":                    model.GetSettingValue("r2_endpoint", ""),
 		"r2_access_key":                  model.GetSettingValue("r2_access_key", ""),
 		"r2_secret_key":                  model.GetSettingValue("r2_secret_key", ""),
@@ -100,6 +100,10 @@ func AdminSettings(c *gin.Context) {
 		"r2_public_url":                  model.GetSettingValue("r2_public_url", ""),
 	}
 	for _, item := range items {
+		if item.Key == "enabled_image_sizes" {
+			values[item.Key] = normalizeEnabledImageSizesSetting(item.Value)
+			continue
+		}
 		values[item.Key] = item.Value
 	}
 	c.JSON(http.StatusOK, gin.H{"items": values})

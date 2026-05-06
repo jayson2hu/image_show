@@ -202,26 +202,37 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 
 func TestGenerationOptionsUpgradesLegacyDefaultSizeSetting(t *testing.T) {
 	engine := setupAuthTest(t)
-	if err := model.DB.Create(&model.Setting{
-		Key:   "enabled_image_sizes",
-		Value: "1280x720,720x1280,1024x1024,1536x1024,1024x1536",
-	}).Error; err != nil {
-		t.Fatalf("create legacy size setting: %v", err)
-	}
+	for _, legacyValue := range []string{
+		"1024x1024,1536x1024,1024x1536",
+		"1280x720,720x1280,1024x1024,1536x1024,1024x1536",
+		"1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048",
+	} {
+		t.Run(legacyValue, func(t *testing.T) {
+			if err := model.DB.Where("key = ?", "enabled_image_sizes").Delete(&model.Setting{}).Error; err != nil {
+				t.Fatalf("clear legacy size setting: %v", err)
+			}
+			if err := model.DB.Create(&model.Setting{
+				Key:   "enabled_image_sizes",
+				Value: legacyValue,
+			}).Error; err != nil {
+				t.Fatalf("create legacy size setting: %v", err)
+			}
 
-	rec := adminRequest(engine, http.MethodGet, "/api/generation/options", "")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("options status=%d body=%s", rec.Code, rec.Body.String())
-	}
-	var resp struct {
-		Sizes []string `json:"sizes"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode options: %v", err)
-	}
-	want := "square,portrait_3_4,story,landscape_4_3,widescreen"
-	if got := strings.Join(resp.Sizes, ","); got != want {
-		t.Fatalf("unexpected upgraded sizes: got %s want %s", got, want)
+			rec := adminRequest(engine, http.MethodGet, "/api/generation/options", "")
+			if rec.Code != http.StatusOK {
+				t.Fatalf("options status=%d body=%s", rec.Code, rec.Body.String())
+			}
+			var resp struct {
+				Sizes []string `json:"sizes"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("decode options: %v", err)
+			}
+			want := "square,portrait_3_4,story,landscape_4_3,widescreen"
+			if got := strings.Join(resp.Sizes, ","); got != want {
+				t.Fatalf("unexpected upgraded sizes: got %s want %s", got, want)
+			}
+		})
 	}
 }
 
