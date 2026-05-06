@@ -1,5 +1,20 @@
 # 开发进度记录
 
+## 2026-05-06 隐藏输出格式和背景选择
+
+- 需求：
+  - 输出格式和背景暂时不需要提供给用户选择。
+  - 尺寸比例选择仍然需要保留。
+- 完成：
+  - 首页参数面板移除“输出格式”和“背景”两个选择区块。
+  - 前端创建文生图和图片编辑任务时不再主动发送 `output_format`、`background`。
+  - 后端仍保留这些参数的兼容能力和校验，方便后续需要时恢复 UI。
+  - 尺寸比例选择、积分展示和 8 个尺寸逻辑保持不变。
+- 自测记录：
+  - `rg "outputFormat|backgroundOptions|outputFormatOptions|output_format|background:" web/src/views/Home.vue`：无匹配。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `go test ./controller -run TestCreateGenerationValidatesOutputOptions -v`：通过。
+
 ## 2026-05-06 高清尺寸前端不可见排查
 
 - 问题：

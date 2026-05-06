@@ -16,8 +16,6 @@ interface GenerationPayload {
   quality: Quality
   size: string
   mode: GenerationMode
-  outputFormat?: string
-  background?: string
   sourceImage?: File | null
 }
 
@@ -56,8 +54,6 @@ const sourceImagePreview = ref('')
 const selectedStyle = ref('')
 const quality: Quality = 'medium'
 const size = ref('1024x1024')
-const outputFormat = ref('')
-const background = ref('')
 const defaultSizeValues = ['1280x720', '720x1280', '1024x1024', '1536x1024', '1024x1536', '1920x1080', '1080x1920', '2048x2048']
 const sizeOptions = ref<SizeOption[]>([
   ...defaultSizeValues.map(makeSizeOption),
@@ -95,15 +91,6 @@ const defaultSamplePrompts: SamplePrompt[] = [
 ]
 const stylePresets = ref<StylePreset[]>([...defaultStylePresets])
 const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
-const outputFormatOptions = [
-  { value: '', label: 'PNG', desc: '默认无损' },
-  { value: 'jpeg', label: 'JPEG', desc: '较小体积' },
-  { value: 'webp', label: 'WebP', desc: '高效压缩' },
-]
-const backgroundOptions = [
-  { value: '', label: '不透明', desc: '默认白底' },
-  { value: 'transparent', label: '透明背景', desc: '设计素材' },
-]
 
 const selectedStylePrompt = computed(() => stylePresets.value.find((item) => item.id === selectedStyle.value)?.prompt || '')
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
@@ -168,12 +155,6 @@ watch(isPromptPanelCollapsed, (collapsed) => {
   window.setTimeout(() => {
     toggleNudge.value = false
   }, 3000)
-})
-
-watch(outputFormat, (value) => {
-  if (value === 'jpeg') {
-    background.value = ''
-  }
 })
 
 async function loadPromptTemplates() {
@@ -276,8 +257,6 @@ async function generate() {
     quality,
     size: size.value,
     mode: generationMode.value,
-    outputFormat: outputFormat.value,
-    background: background.value,
     sourceImage: sourceImageFile.value,
   })
 }
@@ -310,8 +289,6 @@ async function createGeneration(payload: GenerationPayload) {
             quality: payload.quality,
             size: payload.size,
             captcha_token: captchaToken.value,
-            output_format: payload.outputFormat || undefined,
-            background: payload.background || undefined,
           })
     generationId.value = response.data.id
   } catch (err: any) {
@@ -361,12 +338,6 @@ function createImageEditRequest(payload: GenerationPayload) {
   form.append('quality', payload.quality)
   form.append('size', payload.size)
   form.append('captcha_token', captchaToken.value)
-  if (payload.outputFormat) {
-    form.append('output_format', payload.outputFormat)
-  }
-  if (payload.background) {
-    form.append('background', payload.background)
-  }
   form.append('image', payload.sourceImage)
   return api.post('/generations/edit', form)
 }
@@ -771,40 +742,6 @@ function resetCaptcha() {
                   <span class="mt-1 block text-[11px] font-semibold opacity-90">{{ item.credit_cost ?? creditCostForSize(item.value) }} 积分</span>
                 </button>
               </div>
-            </div>
-          </div>
-
-          <div>
-            <label class="mb-2 block text-gray-900">输出格式</label>
-            <div class="grid grid-cols-3 gap-2">
-              <button
-                v-for="format in outputFormatOptions"
-                :key="format.label"
-                type="button"
-                class="home-button min-h-12 rounded-xl border px-3 py-2 text-sm transition"
-                :class="outputFormat === format.value ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-500/20' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
-                @click="outputFormat = format.value"
-              >
-                <span class="block font-medium">{{ format.label }}</span>
-                <span class="mt-0.5 block text-[11px] opacity-75">{{ format.desc }}</span>
-              </button>
-            </div>
-          </div>
-
-          <div v-if="outputFormat !== 'jpeg'">
-            <label class="mb-2 block text-gray-900">背景</label>
-            <div class="grid grid-cols-2 gap-2">
-              <button
-                v-for="item in backgroundOptions"
-                :key="item.label"
-                type="button"
-                class="home-button min-h-12 rounded-xl border px-3 py-2 text-sm transition"
-                :class="background === item.value ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-500/20' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
-                @click="background = item.value"
-              >
-                <span class="block font-medium">{{ item.label }}</span>
-                <span class="mt-0.5 block text-[11px] opacity-75">{{ item.desc }}</span>
-              </button>
             </div>
           </div>
 
