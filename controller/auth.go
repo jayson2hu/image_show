@@ -10,60 +10,17 @@ import (
 	"github.com/jayson2hu/image-show/service"
 )
 
-type sendCodeRequest struct {
-	Email string `json:"email" binding:"required,email"`
-}
-
-type registerRequest struct {
-	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required,min=8"`
-	Code        string `json:"code" binding:"required,len=6"`
-	AnonymousID string `json:"anonymous_id"`
-}
-
 type loginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
 
 func SendCode(c *gin.Context) {
-	var req sendCodeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
-		return
-	}
-	if err := service.SendVerificationCode(req.Email); err != nil {
-		if errors.Is(err, service.ErrVerificationTooFrequent) {
-			c.JSON(http.StatusTooManyRequests, gin.H{"error": "please wait before requesting another code"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send verification code"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	c.JSON(http.StatusForbidden, gin.H{"error": "email registration is disabled"})
 }
 
 func Register(c *gin.Context) {
-	var req registerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
-		return
-	}
-	result, err := service.Register(req.Email, req.Password, req.Code, common.GetRealIP(c), req.AnonymousID)
-	if err != nil {
-		switch {
-		case errors.Is(err, service.ErrRegisterDisabled):
-			c.JSON(http.StatusForbidden, gin.H{"error": "registration is disabled"})
-		case errors.Is(err, service.ErrInvalidVerificationCode):
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid verification code"})
-		case errors.Is(err, service.ErrEmailExists):
-			c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "registration failed"})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusForbidden, gin.H{"error": "email registration is disabled"})
 }
 
 func Login(c *gin.Context) {

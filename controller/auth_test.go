@@ -15,49 +15,23 @@ import (
 	"github.com/jayson2hu/image-show/model"
 	"github.com/jayson2hu/image-show/router"
 	"github.com/jayson2hu/image-show/service"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestAuthFlow(t *testing.T) {
 	engine := setupAuthTest(t)
 	email := "user@example.com"
 
-	rec := postJSON(engine, "/api/auth/send-code", map[string]string{"email": email})
-	if rec.Code != http.StatusOK {
-		t.Fatalf("send-code status = %d body = %s", rec.Code, rec.Body.String())
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	user := model.User{Email: email, Username: "user", PasswordHash: string(passwordHash), Role: 1, Status: 1}
+	if err := model.DB.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
 	}
 
-	code := service.PeekVerificationCode(email)
-	rec = postJSON(engine, "/api/auth/register", map[string]string{
-		"email":    email,
-		"password": "password123",
-		"code":     code,
-	})
-	if rec.Code != http.StatusOK {
-		t.Fatalf("register status = %d body = %s", rec.Code, rec.Body.String())
-	}
-	var registerResp struct {
-		Token string `json:"token"`
-		User  struct {
-			ID      int64   `json:"id"`
-			Email   string  `json:"email"`
-			Credits float64 `json:"credits"`
-		} `json:"user"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &registerResp); err != nil {
-		t.Fatalf("decode register response: %v", err)
-	}
-	if registerResp.Token == "" || registerResp.User.Credits != 3 {
-		t.Fatalf("unexpected register response: %+v", registerResp)
-	}
-	var createdUser model.User
-	if err := model.DB.First(&createdUser, registerResp.User.ID).Error; err != nil {
-		t.Fatalf("load created user: %v", err)
-	}
-	if createdUser.CreditsExpiry == nil {
-		t.Fatal("expected credits expiry")
-	}
-
-	rec = postJSON(engine, "/api/auth/login", map[string]string{
+	rec := postJSON(engine, "/api/auth/login", map[string]string{
 		"email":    email,
 		"password": "password123",
 	})
@@ -74,7 +48,7 @@ func TestAuthFlow(t *testing.T) {
 		t.Fatal("expected login token")
 	}
 	var loginLog model.LoginLog
-	if err := model.DB.Where("user_id = ? AND success = ?", registerResp.User.ID, true).First(&loginLog).Error; err != nil {
+	if err := model.DB.Where("user_id = ? AND success = ?", user.ID, true).First(&loginLog).Error; err != nil {
 		t.Fatalf("expected successful login log: %v", err)
 	}
 	if loginLog.IP != "1.2.3.4" || loginLog.UserAgent != "auth-test" || loginLog.Method != "email" {
@@ -97,38 +71,21 @@ func TestAuthFlow(t *testing.T) {
 	}
 }
 
-func TestSendCodeRateLimit(t *testing.T) {
+func TestEmailRegistrationDisabled(t *testing.T) {
 	engine := setupAuthTest(t)
-	email := "limit@example.com"
 
-	first := postJSON(engine, "/api/auth/send-code", map[string]string{"email": email})
-	second := postJSON(engine, "/api/auth/send-code", map[string]string{"email": email})
-
-	if first.Code != http.StatusOK {
-		t.Fatalf("first send-code status = %d", first.Code)
-	}
-	if second.Code != http.StatusTooManyRequests {
-		t.Fatalf("second send-code status = %d", second.Code)
-	}
-}
-
-func TestRegisterDisabled(t *testing.T) {
-	engine := setupAuthTest(t)
-	email := "disabled@example.com"
-	if err := model.DB.Create(&model.Setting{Key: "register_enabled", Value: "false"}).Error; err != nil {
-		t.Fatalf("create setting: %v", err)
-	}
-	if err := service.SendVerificationCode(email); err != nil {
-		t.Fatalf("send code: %v", err)
+	rec := postJSON(engine, "/api/auth/send-code", map[string]string{"email": "user@example.com"})
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("send-code status = %d body = %s", rec.Code, rec.Body.String())
 	}
 
-	rec := postJSON(engine, "/api/auth/register", map[string]string{
-		"email":    email,
+	rec = postJSON(engine, "/api/auth/register", map[string]string{
+		"email":    "user@example.com",
 		"password": "password123",
-		"code":     service.PeekVerificationCode(email),
+		"code":     "123456",
 	})
 	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected 403, got %d body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("register status = %d body = %s", rec.Code, rec.Body.String())
 	}
 }
 
