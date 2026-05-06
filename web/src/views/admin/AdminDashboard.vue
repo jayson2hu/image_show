@@ -99,6 +99,8 @@ const isCreateUserOpen = ref(false)
 const isChannelModalOpen = ref(false)
 const isTemplateModalOpen = ref(false)
 const isAnnouncementModalOpen = ref(false)
+const isUserRecordsOpen = ref(false)
+const isCreditModalOpen = ref(false)
 const loading = ref(false)
 const message = ref('')
 const userKeyword = ref('')
@@ -210,6 +212,7 @@ const tabCounts = computed<Record<string, number | string>>(() => ({
   credits: creditLogs.value.total,
   monitor: monitor.value?.alert_triggered ? '!' : '',
 }))
+const creditPreviewBalance = computed(() => Number(selectedUser.value?.credits || 0) + Number(creditForm.value.amount || 0))
 
 async function guarded<T>(fn: () => Promise<T>, successMessage = '') {
   loading.value = true
@@ -259,8 +262,31 @@ async function createUser() {
 
 async function loadUserGenerations(user: User) {
   selectedUser.value = user
+  isUserRecordsOpen.value = true
   const response = await api.get(`/admin/users/${user.id}/generations`, { params: { pageSize: 10 } })
   userGenerations.value = response.data
+}
+
+function openCreditModal(user: User) {
+  selectedUser.value = user
+  creditForm.value = { amount: 1, remark: '' }
+  isCreditModalOpen.value = true
+}
+
+function closeUserRecordsModal() {
+  isUserRecordsOpen.value = false
+  userGenerations.value = emptyGenerationPage()
+  if (!isCreditModalOpen.value) {
+    selectedUser.value = null
+  }
+}
+
+function closeCreditModal() {
+  isCreditModalOpen.value = false
+  creditForm.value = { amount: 1, remark: '' }
+  if (!isUserRecordsOpen.value) {
+    selectedUser.value = null
+  }
 }
 
 async function updateUserStatus(user: User, status: number) {
@@ -280,7 +306,7 @@ async function updateUserRole(user: User, role: number) {
 async function topupCredits(user: User) {
   await guarded(async () => {
     await api.post(`/admin/users/${user.id}/credits`, creditForm.value)
-    creditForm.value = { amount: 1, remark: '' }
+    closeCreditModal()
     await Promise.all([loadUsers(), loadCreditLogs()])
   }, '充值完成')
 }
@@ -478,6 +504,10 @@ function fmtNumber(value: number | undefined) {
   return Number(value ?? 0).toLocaleString()
 }
 
+function userInitial(user: User) {
+  return (user.email || user.username || 'U').charAt(0).toUpperCase()
+}
+
 function statusText(status: number) {
   return status === 1 ? '启用' : '禁用'
 }
@@ -489,6 +519,8 @@ function creditTypeText(type: number) {
 
 function clearSelectedUser() {
   selectedUser.value = null
+  isUserRecordsOpen.value = false
+  isCreditModalOpen.value = false
   userGenerations.value = emptyGenerationPage()
   creditForm.value = { amount: 1, remark: '' }
 }
@@ -738,16 +770,33 @@ onMounted(async () => {
         </div>
 
         <div v-if="activeTab === 'users'" class="space-y-4">
-          <div class="space-y-4">
           <div class="admin-toolbar">
-            <div class="flex flex-col gap-2 sm:flex-row">
-              <input v-model="userKeyword" class="admin-input min-w-0 flex-1" placeholder="搜索邮箱或用户名" @keydown.enter.prevent="loadUsers" />
-              <button class="admin-primary" type="button" @click="loadUsers">搜索</button>
-                <button class="admin-btn" type="button" @click="openCreateUserModal">新建用户</button>
+            <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div class="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+                <div class="relative min-w-0 flex-1 sm:max-w-sm">
+                  <svg class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                  </svg>
+                  <input v-model="userKeyword" class="admin-input w-full pl-9" placeholder="搜索邮箱或用户名" @keydown.enter.prevent="loadUsers" />
+                </div>
+                <button class="admin-btn" type="button" @click="loadUsers">刷新 / 搜索</button>
+              </div>
+              <button class="admin-primary" type="button" @click="openCreateUserModal">新建用户</button>
+            </div>
+          </div>
+
+          <div class="admin-panel overflow-hidden">
+            <div class="border-b border-slate-100 px-5 py-4">
+              <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h3 class="text-base font-semibold text-slate-950">用户列表</h3>
+                  <p class="mt-1 text-sm text-slate-500">管理账号状态、角色、积分和最近使用情况。</p>
+                </div>
+                <p class="text-sm text-slate-500">共 {{ users.total }} 个用户</p>
               </div>
             </div>
 
-            <div class="admin-panel overflow-x-auto">
+            <div class="admin-table-scroll">
               <table class="admin-table">
                 <thead>
                   <tr>
@@ -763,8 +812,15 @@ onMounted(async () => {
                 <tbody>
                   <tr v-for="user in users.items" :key="user.id" :class="selectedUser?.id === user.id ? 'bg-teal/5' : ''">
                     <td>
-                      <div class="font-medium text-slate-900">{{ user.email }}</div>
-                      <div class="text-xs text-slate-500">ID {{ user.id }} · {{ user.username || '未设置用户名' }}</div>
+                      <div class="flex items-center gap-3">
+                        <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+                          {{ userInitial(user) }}
+                        </div>
+                        <div class="min-w-0">
+                          <div class="truncate font-medium text-slate-900">{{ user.email }}</div>
+                          <div class="truncate text-xs text-slate-500">ID {{ user.id }} · {{ user.username || '未设置用户名' }}</div>
+                        </div>
+                      </div>
                     </td>
                     <td><span class="admin-badge" :class="user.role >= 10 ? 'admin-badge-info' : 'admin-badge-muted'">{{ user.role >= 10 ? '管理员' : '用户' }}</span></td>
                     <td><span class="admin-badge" :class="user.status === 1 ? 'admin-badge-ok' : 'admin-badge-danger'">{{ user.status === 1 ? '正常' : '封禁' }}</span></td>
@@ -772,9 +828,9 @@ onMounted(async () => {
                     <td class="text-slate-500">{{ fmtTime(user.last_login_at) }}</td>
                     <td class="text-slate-500">{{ fmtTime(user.created_at) }}</td>
                     <td>
-                      <div class="flex flex-wrap gap-1.5">
+                      <div class="flex flex-nowrap gap-1.5">
                         <button class="admin-btn" type="button" @click="loadUserGenerations(user)">记录</button>
-                        <button class="admin-btn" type="button" @click="selectedUser = user">充值</button>
+                        <button class="admin-btn" type="button" @click="openCreditModal(user)">充值</button>
                         <button class="admin-btn" type="button" @click="updateUserStatus(user, user.status === 1 ? 2 : 1)">{{ user.status === 1 ? '封禁' : '解封' }}</button>
                         <button class="admin-btn" type="button" @click="updateUserRole(user, user.role >= 10 ? 1 : 10)">{{ user.role >= 10 ? '设为用户' : '设为管理员' }}</button>
                       </div>
@@ -786,32 +842,6 @@ onMounted(async () => {
                 </tbody>
               </table>
             </div>
-
-            <div v-if="selectedUser" class="admin-panel p-4">
-              <h3 class="admin-section-title">最近生成记录</h3>
-              <div v-for="item in userGenerations.items" :key="item.id" class="border-t border-slate-100 py-3 text-sm first:mt-3">
-                <div class="font-medium">#{{ item.id }} · {{ item.quality }} · {{ generationStatus(item.status) }}</div>
-                <p class="mt-1 line-clamp-2 text-slate-500">{{ item.prompt }}</p>
-              </div>
-              <p v-if="!userGenerations.items.length" class="py-8 text-center text-sm text-slate-500">暂无记录</p>
-            </div>
-          </div>
-
-          <div v-if="selectedUser" class="grid gap-4 xl:grid-cols-[360px_1fr]">
-            <form class="admin-panel p-4" @submit.prevent="topupCredits(selectedUser)">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <h3 class="admin-section-title">用户充值</h3>
-                  <p class="mt-1 break-all text-sm text-slate-500">{{ selectedUser.email }}</p>
-                </div>
-                <button class="admin-btn" type="button" @click="clearSelectedUser">关闭</button>
-              </div>
-              <label class="admin-label mt-4">金额</label>
-              <input v-model.number="creditForm.amount" class="admin-input mt-2 w-full" min="0.01" step="0.01" type="number" />
-              <label class="admin-label mt-3">备注</label>
-              <input v-model="creditForm.remark" class="admin-input mt-2 w-full" placeholder="备注" />
-              <button class="admin-primary mt-4 w-full" type="submit">确认充值</button>
-            </form>
           </div>
         </div>
 
@@ -1081,6 +1111,76 @@ onMounted(async () => {
           </form>
         </div>
 
+        <div v-if="isUserRecordsOpen && selectedUser" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4" role="dialog" aria-modal="true" aria-labelledby="user-records-title" @click.self="closeUserRecordsModal">
+          <section class="flex max-h-[86vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl shadow-slate-950/20">
+            <div class="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
+              <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase tracking-wide text-teal">Records</p>
+                <h3 id="user-records-title" class="mt-1 text-xl font-semibold text-slate-950">生成记录</h3>
+                <p class="mt-1 break-all text-sm text-slate-500">{{ selectedUser.email }}</p>
+              </div>
+              <button class="admin-btn" type="button" @click="closeUserRecordsModal">关闭</button>
+            </div>
+            <div class="min-h-0 overflow-y-auto px-5 py-2">
+              <div v-for="item in userGenerations.items" :key="item.id" class="border-b border-slate-100 py-4 text-sm last:border-b-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="font-semibold text-slate-900">#{{ item.id }}</span>
+                  <span class="admin-badge admin-badge-muted">{{ item.quality }}</span>
+                  <span class="admin-badge" :class="item.status === 3 ? 'admin-badge-ok' : item.status === 4 ? 'admin-badge-danger' : 'admin-badge-info'">{{ generationStatus(item.status) }}</span>
+                  <span class="text-xs text-slate-400">{{ fmtTime(item.created_at) }}</span>
+                </div>
+                <p class="mt-2 line-clamp-3 leading-6 text-slate-600">{{ item.prompt }}</p>
+                <a v-if="item.image_url" class="mt-2 inline-flex text-sm font-medium text-blue-700 hover:text-blue-900" :href="item.image_url" target="_blank" rel="noreferrer">查看图片</a>
+              </div>
+              <p v-if="!userGenerations.items.length" class="py-12 text-center text-sm text-slate-500">暂无生成记录</p>
+            </div>
+          </section>
+        </div>
+
+        <div v-if="isCreditModalOpen && selectedUser" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4" role="dialog" aria-modal="true" aria-labelledby="credit-modal-title" @click.self="closeCreditModal">
+          <form class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl shadow-slate-950/20" @submit.prevent="topupCredits(selectedUser)">
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase tracking-wide text-teal">Credits</p>
+                <h3 id="credit-modal-title" class="mt-1 text-xl font-semibold text-slate-950">用户充值</h3>
+                <p class="mt-1 break-all text-sm text-slate-500">{{ selectedUser.email }}</p>
+              </div>
+              <button class="admin-btn" type="button" @click="closeCreditModal">关闭</button>
+            </div>
+
+            <div class="mt-5 rounded-2xl bg-slate-50 px-4 py-3">
+              <div class="flex items-center gap-3">
+                <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-base font-semibold text-slate-700">{{ userInitial(selectedUser) }}</div>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate font-medium text-slate-900">{{ selectedUser.email }}</p>
+                  <p class="text-sm text-slate-500">当前积分：{{ selectedUser.credits }}</p>
+                </div>
+              </div>
+            </div>
+
+            <label class="block mt-5">
+              <span class="admin-label">充值积分</span>
+              <input v-model.number="creditForm.amount" class="admin-input mt-2 w-full" min="0.01" step="0.01" type="number" />
+            </label>
+            <label class="block mt-4">
+              <span class="admin-label">备注</span>
+              <input v-model="creditForm.remark" class="admin-input mt-2 w-full" placeholder="例如：后台手动补偿" />
+            </label>
+
+            <div v-if="creditForm.amount > 0" class="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm">
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-slate-600">充值后积分</span>
+                <span class="font-semibold text-slate-950">{{ creditPreviewBalance }}</span>
+              </div>
+            </div>
+
+            <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button class="admin-btn" type="button" @click="closeCreditModal">取消</button>
+              <button class="admin-primary" type="submit" :disabled="loading">确认充值</button>
+            </div>
+          </form>
+        </div>
+
         <div v-if="isChannelModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4" role="dialog" aria-modal="true" aria-labelledby="channel-modal-title" @click.self="closeChannelModal">
           <form class="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl shadow-slate-950/20" @submit.prevent="saveChannel">
             <div class="flex items-start justify-between gap-4">
@@ -1327,8 +1427,12 @@ onMounted(async () => {
   @apply min-w-full text-sm;
 }
 
+.admin-table-scroll {
+  @apply overflow-x-auto;
+}
+
 .admin-table thead {
-  @apply bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500;
+  @apply bg-slate-50/80 text-left text-xs font-medium uppercase tracking-wide text-slate-500;
 }
 
 .admin-table th {
@@ -1336,7 +1440,7 @@ onMounted(async () => {
 }
 
 .admin-table td {
-  @apply whitespace-nowrap border-t border-slate-100 px-4 py-3 align-middle;
+  @apply whitespace-nowrap border-t border-slate-100 px-4 py-4 align-middle;
 }
 
 .admin-table tbody tr {
