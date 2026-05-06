@@ -20,24 +20,27 @@ type User struct {
 }
 
 type Generation struct {
-	ID             int64     `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID         *int64    `gorm:"index" json:"user_id"`
-	AnonymousID    string    `gorm:"size:128;index" json:"anonymous_id"`
-	Mode           string    `gorm:"size:16;default:generate;index" json:"mode"`
-	Prompt         string    `gorm:"type:text" json:"prompt"`
-	Quality        string    `gorm:"size:16" json:"quality"`
-	Size           string    `gorm:"size:16" json:"size"`
-	CreditsCost    float64   `gorm:"type:numeric" json:"credits_cost"`
-	Status         int       `gorm:"default:0;index" json:"status"`
-	R2Key          string    `gorm:"size:256" json:"r2_key"`
-	ImageURL       string    `gorm:"size:512" json:"image_url"`
-	SourceR2Key    string    `gorm:"size:256" json:"source_r2_key"`
-	SourceImageURL string    `gorm:"size:512" json:"source_image_url"`
-	ErrorMsg       string    `gorm:"size:512" json:"error_msg"`
-	IP             string    `gorm:"size:64" json:"ip"`
-	IsDeleted      bool      `gorm:"default:false;index" json:"is_deleted"`
-	CreatedAt      time.Time `gorm:"index" json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID            *int64    `gorm:"index" json:"user_id"`
+	AnonymousID       string    `gorm:"size:128;index" json:"anonymous_id"`
+	Mode              string    `gorm:"size:16;default:generate;index" json:"mode"`
+	Prompt            string    `gorm:"type:text" json:"prompt"`
+	Quality           string    `gorm:"size:16" json:"quality"`
+	Size              string    `gorm:"size:16" json:"size"`
+	OutputFormat      string    `gorm:"size:16" json:"output_format"`
+	OutputCompression *int      `json:"output_compression"`
+	Background        string    `gorm:"size:16" json:"background"`
+	CreditsCost       float64   `gorm:"type:numeric" json:"credits_cost"`
+	Status            int       `gorm:"default:0;index" json:"status"`
+	R2Key             string    `gorm:"size:256" json:"r2_key"`
+	ImageURL          string    `gorm:"size:512" json:"image_url"`
+	SourceR2Key       string    `gorm:"size:256" json:"source_r2_key"`
+	SourceImageURL    string    `gorm:"size:512" json:"source_image_url"`
+	ErrorMsg          string    `gorm:"size:512" json:"error_msg"`
+	IP                string    `gorm:"size:64" json:"ip"`
+	IsDeleted         bool      `gorm:"default:false;index" json:"is_deleted"`
+	CreatedAt         time.Time `gorm:"index" json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type CreditLog struct {

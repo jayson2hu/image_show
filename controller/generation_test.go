@@ -17,6 +17,18 @@ import (
 	"github.com/jayson2hu/image-show/service"
 )
 
+var testPNGBytes = []byte{
+	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+	0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+	0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+	0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+	0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+	0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+	0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
+	0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+	0x42, 0x60, 0x82,
+}
+
 func TestGenerationStreamCompletesInMockMode(t *testing.T) {
 	engine := setupAuthTest(t)
 	config.AppConfig.MockSub2API = true
@@ -108,7 +120,7 @@ func TestGenerationOptionsDefaultSizesIncludeStableRatios(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode options: %v", err)
 	}
-	want := "1280x720,720x1280,1024x1024,1536x1024,1024x1536"
+	want := "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048"
 	if got := strings.Join(resp.Sizes, ","); got != want {
 		t.Fatalf("unexpected default sizes: got %s want %s", got, want)
 	}
@@ -118,7 +130,7 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 	engine := setupAuthTest(t)
 	if err := model.DB.Create(&model.Setting{
 		Key:   "enabled_image_sizes",
-		Value: "1280x720,720x1280,1024x1024,1536x1024,1024x1536",
+		Value: "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048",
 	}).Error; err != nil {
 		t.Fatalf("create size setting: %v", err)
 	}
@@ -140,12 +152,12 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 		t.Fatalf("decode anonymous options: %v", err)
 	}
 	anonymousSizes := strings.Join(anonymousResp.Sizes, ",")
-	for _, expected := range []string{"1280x720", "720x1280", "1024x1024", "1536x1024", "1024x1536"} {
+	for _, expected := range []string{"1280x720", "720x1280", "1024x1024", "1536x1024", "1024x1536", "1920x1080", "1080x1920", "2048x2048"} {
 		if !strings.Contains(anonymousSizes, expected) {
 			t.Fatalf("expected size %s, got %#v", expected, anonymousResp.Sizes)
 		}
 	}
-	if len(anonymousResp.SizeOptions) != 5 {
+	if len(anonymousResp.SizeOptions) != 8 {
 		t.Fatalf("unexpected anonymous sizes: %#v", anonymousResp.Sizes)
 	}
 	if len(anonymousResp.SizeOptions) == 0 || anonymousResp.SizeOptions[0].Label == "" || anonymousResp.SizeOptions[0].Ratio == "" {
@@ -160,6 +172,9 @@ func TestGenerationOptionsReturnsSameSizesForAnonymousAndLoggedIn(t *testing.T) 
 		"1024x1024": {ratio: "1:1", cost: 1},
 		"1536x1024": {ratio: "3:2", cost: 2},
 		"1024x1536": {ratio: "2:3", cost: 2},
+		"1920x1080": {ratio: "16:9", cost: 2},
+		"1080x1920": {ratio: "9:16", cost: 2},
+		"2048x2048": {ratio: "1:1", cost: 4},
 	}
 	for _, item := range anonymousResp.SizeOptions {
 		expected, ok := expectedOptions[item.Value]
@@ -237,6 +252,60 @@ func TestCreateGenerationAcceptsValidCaptcha(t *testing.T) {
 	waitGenerationStatus(t, createResp.ID, 3)
 }
 
+func TestCreateGenerationValidatesOutputOptions(t *testing.T) {
+	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
+	token := createGenerationUser(t, 3)
+	rec := postJSONWithToken(engine, "/api/generations", map[string]interface{}{
+		"prompt":        "a small house",
+		"quality":       "medium",
+		"size":          "1024x1024",
+		"output_format": "gif",
+	}, token)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid format 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	rec = postJSONWithToken(engine, "/api/generations", map[string]interface{}{
+		"prompt":             "a small house",
+		"quality":            "medium",
+		"size":               "1024x1024",
+		"output_format":      "jpeg",
+		"background":         "transparent",
+		"output_compression": 101,
+	}, token)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid compression 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	compression := 80
+	rec = postJSONWithToken(engine, "/api/generations", map[string]interface{}{
+		"prompt":             "a small house",
+		"quality":            "medium",
+		"size":               "1024x1024",
+		"output_format":      "webp",
+		"background":         "transparent",
+		"output_compression": compression,
+	}, token)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected valid output options 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	var generation model.Generation
+	if err := model.DB.First(&generation, resp.ID).Error; err != nil {
+		t.Fatalf("load generation: %v", err)
+	}
+	if generation.OutputFormat != "webp" || generation.Background != "transparent" || generation.OutputCompression == nil || *generation.OutputCompression != compression {
+		t.Fatalf("unexpected output options saved: %+v", generation)
+	}
+	waitGenerationStatus(t, resp.ID, 3)
+}
+
 func TestCreateImageEditCompletesInMockMode(t *testing.T) {
 	engine := setupAuthTest(t)
 	config.AppConfig.MockSub2API = true
@@ -246,17 +315,7 @@ func TestCreateImageEditCompletesInMockMode(t *testing.T) {
 		"prompt":  "make it brighter",
 		"quality": "low",
 		"size":    "1024x1024",
-	}, "image", "source.png", "image/png", []byte{
-		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-		0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
-		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-		0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
-		0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
-		0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
-		0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
-		0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
-		0x42, 0x60, 0x82,
-	})
+	}, "image", "source.png", "image/png", testPNGBytes)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("create edit status=%d body=%s", rec.Code, rec.Body.String())
 	}
@@ -297,17 +356,7 @@ func TestCreateImageEditRequiresLogin(t *testing.T) {
 		"prompt":  "make it brighter",
 		"quality": "low",
 		"size":    "1024x1024",
-	}, "image", "source.png", "image/png", []byte{
-		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-		0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
-		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-		0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
-		0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
-		0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
-		0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
-		0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
-		0x42, 0x60, 0x82,
-	})
+	}, "image", "source.png", "image/png", testPNGBytes)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d body=%s", rec.Code, rec.Body.String())
 	}
@@ -346,9 +395,10 @@ func TestAnonymousTrialOnceUsesStandardQuality(t *testing.T) {
 		"quality": "low",
 		"size":    "1024x1024",
 	}, "fp-1")
-	if second.Code != http.StatusForbidden {
+	if second.Code != http.StatusPaymentRequired {
 		t.Fatalf("second trial status=%d body=%s", second.Code, second.Body.String())
 	}
+	assertJSONError(t, second, "free_trial_exhausted")
 
 	third := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
 		"prompt":  "trial image",
@@ -378,6 +428,7 @@ func TestCreateGenerationInsufficientCredits(t *testing.T) {
 	if rec.Code != http.StatusPaymentRequired {
 		t.Fatalf("expected 402, got %d body=%s", rec.Code, rec.Body.String())
 	}
+	assertJSONError(t, rec, "insufficient_credits")
 	var count int64
 	if err := model.DB.Model(&model.Generation{}).Count(&count).Error; err != nil {
 		t.Fatalf("count generations: %v", err)
@@ -385,6 +436,42 @@ func TestCreateGenerationInsufficientCredits(t *testing.T) {
 	if count != 0 {
 		t.Fatalf("expected no generation created, got %d", count)
 	}
+}
+
+func TestCreateGenerationCreditsExpired(t *testing.T) {
+	engine := setupAuthTest(t)
+	expiry := time.Now().Add(-time.Hour)
+	user := model.User{Email: "expired@example.com", Role: 1, Status: 1, Credits: 3, CreditsExpiry: &expiry}
+	if err := model.DB.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	token, err := service.GenerateToken(user.ID, user.Role)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	rec := postJSONWithToken(engine, "/api/generations", map[string]string{
+		"prompt":  "a small house",
+		"quality": "medium",
+		"size":    "1024x1024",
+	}, token)
+	if rec.Code != http.StatusPaymentRequired {
+		t.Fatalf("expected 402, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	assertJSONError(t, rec, "credits_expired")
+}
+
+func TestCreateImageEditInsufficientCredits(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createGenerationUser(t, 0)
+	rec := postMultipartEditWithToken(engine, token, map[string]string{
+		"prompt":  "make it brighter",
+		"quality": "low",
+		"size":    "1024x1024",
+	}, "image", "source.png", "image/png", testPNGBytes)
+	if rec.Code != http.StatusPaymentRequired {
+		t.Fatalf("expected 402, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	assertJSONError(t, rec, "insufficient_credits")
 }
 
 func TestGenerationFailureRefundsCredits(t *testing.T) {
@@ -577,6 +664,20 @@ func postMultipartEditWithToken(engine http.Handler, token string, fields map[st
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, req)
 	return rec
+}
+
+func assertJSONError(t *testing.T, rec *httptest.ResponseRecorder, expected string) {
+	t.Helper()
+	var resp struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode error response: %v body=%s", err, rec.Body.String())
+	}
+	if resp.Error != expected || resp.Message == "" {
+		t.Fatalf("unexpected error response: got error=%q message=%q want error=%q", resp.Error, resp.Message, expected)
+	}
 }
 
 func waitGenerationStatus(t *testing.T, id int64, status int) {

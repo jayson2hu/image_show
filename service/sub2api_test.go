@@ -30,7 +30,7 @@ func TestSub2APIClientGenerateImagePassesHeaders(t *testing.T) {
 	defer server.Close()
 
 	client := NewSub2APIClient(server.URL, "key", map[string]string{"X-Test": "ok"})
-	result, err := client.GenerateImage("prompt", "medium", "1024x1024", "1.2.3.4")
+	result, err := client.GenerateImage("prompt", "medium", "1024x1024", "1.2.3.4", ImageOptions{})
 	if err != nil {
 		t.Fatalf("GenerateImage: %v", err)
 	}
@@ -39,6 +39,36 @@ func TestSub2APIClientGenerateImagePassesHeaders(t *testing.T) {
 	}
 	if gotRequest.Model != "gpt-image-2" || gotRequest.Size != "1024x1024" {
 		t.Fatalf("unexpected request: %+v", gotRequest)
+	}
+	if gotRequest.OutputFormat != "" || gotRequest.OutputCompression != nil || gotRequest.Background != "" {
+		t.Fatalf("expected empty output options, got %+v", gotRequest)
+	}
+}
+
+func TestSub2APIClientGenerateImagePassesOutputOptions(t *testing.T) {
+	compression := 82
+	var gotRequest imageGenerationRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&gotRequest); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": []map[string]string{{"b64_json": "abc"}},
+		})
+	}))
+	defer server.Close()
+
+	client := NewSub2APIClient(server.URL, "", nil)
+	_, err := client.GenerateImage("prompt", "medium", "1024x1024", "", ImageOptions{
+		OutputFormat:      "webp",
+		OutputCompression: &compression,
+		Background:        "transparent",
+	})
+	if err != nil {
+		t.Fatalf("GenerateImage: %v", err)
+	}
+	if gotRequest.OutputFormat != "webp" || gotRequest.OutputCompression == nil || *gotRequest.OutputCompression != 82 || gotRequest.Background != "transparent" {
+		t.Fatalf("unexpected output options: %+v", gotRequest)
 	}
 }
 
@@ -58,7 +88,7 @@ func TestSub2APIClientGenerateImageUsesConfiguredModel(t *testing.T) {
 	defer server.Close()
 
 	client := NewSub2APIClient(server.URL, "", nil)
-	if _, err := client.GenerateImage("prompt", "medium", "1024x1024", ""); err != nil {
+	if _, err := client.GenerateImage("prompt", "medium", "1024x1024", "", ImageOptions{}); err != nil {
 		t.Fatalf("GenerateImage: %v", err)
 	}
 	if gotRequest.Model != "gpt-image-1.5" {
@@ -71,6 +101,9 @@ func TestSub2APIClientEditImageUsesMultipartEditsEndpoint(t *testing.T) {
 	var gotModel string
 	var gotPrompt string
 	var gotSize string
+	var gotOutputFormat string
+	var gotBackground string
+	var gotOutputCompression string
 	var gotFileContentType string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
@@ -80,6 +113,9 @@ func TestSub2APIClientEditImageUsesMultipartEditsEndpoint(t *testing.T) {
 		gotModel = r.FormValue("model")
 		gotPrompt = r.FormValue("prompt")
 		gotSize = r.FormValue("size")
+		gotOutputFormat = r.FormValue("output_format")
+		gotBackground = r.FormValue("background")
+		gotOutputCompression = r.FormValue("output_compression")
 		file, header, err := r.FormFile("image")
 		if err != nil {
 			t.Fatalf("read image: %v", err)
@@ -93,12 +129,20 @@ func TestSub2APIClientEditImageUsesMultipartEditsEndpoint(t *testing.T) {
 	defer server.Close()
 
 	client := NewSub2APIClient(server.URL, "", nil)
-	result, err := client.EditImage("change it", "medium", "1536x1024", "1.2.3.4", []byte("image-bytes"), "source.png", "image/png")
+	compression := 76
+	result, err := client.EditImage("change it", "medium", "1536x1024", "1.2.3.4", []byte("image-bytes"), "source.png", "image/png", ImageOptions{
+		OutputFormat:      "webp",
+		OutputCompression: &compression,
+		Background:        "transparent",
+	})
 	if err != nil {
 		t.Fatalf("EditImage: %v", err)
 	}
 	if result.Base64Data != "edit-ok" || gotPath != "/v1/images/edits" || gotModel != "gpt-image-2" || gotPrompt != "change it" || gotSize != "1536x1024" || gotFileContentType != "image/png" {
 		t.Fatalf("unexpected edit request result=%+v path=%s model=%s prompt=%s size=%s contentType=%s", result, gotPath, gotModel, gotPrompt, gotSize, gotFileContentType)
+	}
+	if gotOutputFormat != "webp" || gotBackground != "transparent" || gotOutputCompression != "76" {
+		t.Fatalf("unexpected edit output options format=%s background=%s compression=%s", gotOutputFormat, gotBackground, gotOutputCompression)
 	}
 }
 
@@ -116,7 +160,7 @@ func TestSub2APIClientGenerateImageRetriesTransientDecodeFailure(t *testing.T) {
 	defer server.Close()
 
 	client := NewSub2APIClient(server.URL, "", nil)
-	result, err := client.GenerateImage("prompt", "medium", "1024x1024", "")
+	result, err := client.GenerateImage("prompt", "medium", "1024x1024", "", ImageOptions{})
 	if err != nil {
 		t.Fatalf("GenerateImage: %v", err)
 	}
@@ -140,7 +184,7 @@ func TestSub2APIClientGenerateImageRetriesCloudflareTimeout(t *testing.T) {
 	defer server.Close()
 
 	client := NewSub2APIClient(server.URL, "", nil)
-	result, err := client.GenerateImage("prompt", "medium", "1024x1024", "")
+	result, err := client.GenerateImage("prompt", "medium", "1024x1024", "", ImageOptions{})
 	if err != nil {
 		t.Fatalf("GenerateImage: %v", err)
 	}
@@ -157,7 +201,7 @@ func TestSub2APIClientGenerateImageMapsCloudflareTimeoutError(t *testing.T) {
 	defer server.Close()
 
 	client := NewSub2APIClient(server.URL, "", nil)
-	_, err := client.GenerateImage("prompt", "medium", "1024x1024", "")
+	_, err := client.GenerateImage("prompt", "medium", "1024x1024", "", ImageOptions{})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -186,7 +230,7 @@ func TestGenerateImageViaChannelsFallsBack(t *testing.T) {
 		t.Fatalf("create ok channel: %v", err)
 	}
 
-	result, err := GenerateImageViaChannels("prompt", "medium", "1024x1024", "1.2.3.4")
+	result, err := GenerateImageViaChannels("prompt", "medium", "1024x1024", "1.2.3.4", ImageOptions{})
 	if err != nil {
 		t.Fatalf("GenerateImageViaChannels: %v", err)
 	}
@@ -199,7 +243,7 @@ func TestGenerateImageMockMode(t *testing.T) {
 	config.AppConfig = &config.Config{MockSub2API: true}
 	t.Cleanup(func() { config.AppConfig = nil })
 
-	result, err := NewSub2APIClient("http://unused", "", nil).GenerateImage("prompt", "low", "1024x1024", "")
+	result, err := NewSub2APIClient("http://unused", "", nil).GenerateImage("prompt", "low", "1024x1024", "", ImageOptions{})
 	if err != nil {
 		t.Fatalf("mock GenerateImage: %v", err)
 	}

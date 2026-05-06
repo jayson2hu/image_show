@@ -17,11 +17,14 @@ import (
 )
 
 type createGenerationRequest struct {
-	Prompt       string `json:"prompt" binding:"required,max=4000"`
-	Quality      string `json:"quality" binding:"omitempty,oneof=low medium high"`
-	Size         string `json:"size" binding:"required"`
-	AnonymousID  string `json:"anonymous_id"`
-	CaptchaToken string `json:"captcha_token"`
+	Prompt            string `json:"prompt" binding:"required,max=4000"`
+	Quality           string `json:"quality" binding:"omitempty,oneof=low medium high"`
+	Size              string `json:"size" binding:"required"`
+	AnonymousID       string `json:"anonymous_id"`
+	CaptchaToken      string `json:"captcha_token"`
+	OutputFormat      string `json:"output_format"`
+	Background        string `json:"background"`
+	OutputCompression *int   `json:"output_compression"`
 }
 
 const standardImageQuality = "medium"
@@ -130,6 +133,10 @@ func CreateGeneration(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported image size"})
 		return
 	}
+	if !validateImageOutputOptions(c, req.OutputFormat, req.Background, req.OutputCompression) {
+		return
+	}
+	options := service.ImageOptions{OutputFormat: req.OutputFormat, Background: req.Background, OutputCompression: req.OutputCompression}
 
 	var userID *int64
 	if value, exists := c.Get("userID"); exists {
@@ -145,11 +152,14 @@ func CreateGeneration(c *gin.Context) {
 		}
 		anonymousID, ok := service.CheckTrialEligible(common.GetRealIP(c), fingerprint)
 		if !ok {
-			c.JSON(http.StatusForbidden, gin.H{"error": "free trial used, please register"})
+			c.JSON(http.StatusPaymentRequired, gin.H{
+				"error":   "free_trial_exhausted",
+				"message": "免费试用次数已用完，注册登录后可获得更多积分",
+			})
 			return
 		}
 		req.AnonymousID = anonymousID
-		generation, err := service.CreateGeneration(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), nil, req.AnonymousID)
+		generation, err := service.CreateGeneration(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), nil, req.AnonymousID, options)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create generation"})
 			return
@@ -159,10 +169,14 @@ func CreateGeneration(c *gin.Context) {
 		return
 	}
 
-	generation, err := service.CreateGeneration(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), userID, req.AnonymousID)
+	generation, err := service.CreateGeneration(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), userID, req.AnonymousID, options)
 	if err != nil {
-		if errors.Is(err, service.ErrInsufficientCredits) || errors.Is(err, service.ErrCreditsExpired) {
-			c.JSON(http.StatusPaymentRequired, gin.H{"error": "insufficient credits"})
+		if errors.Is(err, service.ErrInsufficientCredits) {
+			c.JSON(http.StatusPaymentRequired, gin.H{"error": "insufficient_credits", "message": "积分不足，请充值后继续"})
+			return
+		}
+		if errors.Is(err, service.ErrCreditsExpired) {
+			c.JSON(http.StatusPaymentRequired, gin.H{"error": "credits_expired", "message": "积分已过期，请重新购买"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create generation"})
@@ -182,6 +196,16 @@ func CreateImageEdit(c *gin.Context) {
 		Size:         c.PostForm("size"),
 		AnonymousID:  c.PostForm("anonymous_id"),
 		CaptchaToken: c.PostForm("captcha_token"),
+		OutputFormat: c.PostForm("output_format"),
+		Background:   c.PostForm("background"),
+	}
+	if compression := strings.TrimSpace(c.PostForm("output_compression")); compression != "" {
+		value, err := strconv.Atoi(compression)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "output_compression must be between 0 and 100"})
+			return
+		}
+		req.OutputCompression = &value
 	}
 	if req.Prompt == "" || len(req.Prompt) > 4000 || !isValidQuality(req.Quality) || req.Size == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
@@ -195,6 +219,10 @@ func CreateImageEdit(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported image size"})
 		return
 	}
+	if !validateImageOutputOptions(c, req.OutputFormat, req.Background, req.OutputCompression) {
+		return
+	}
+	options := service.ImageOptions{OutputFormat: req.OutputFormat, Background: req.Background, OutputCompression: req.OutputCompression}
 	file, header, err := c.Request.FormFile("image")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "image file required"})
@@ -230,10 +258,14 @@ func CreateImageEdit(c *gin.Context) {
 		return
 	}
 
-	generation, err := service.CreateImageEdit(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), userID, req.AnonymousID, imageData, header.Filename, contentType)
+	generation, err := service.CreateImageEdit(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), userID, req.AnonymousID, imageData, header.Filename, contentType, options)
 	if err != nil {
-		if errors.Is(err, service.ErrInsufficientCredits) || errors.Is(err, service.ErrCreditsExpired) {
-			c.JSON(http.StatusPaymentRequired, gin.H{"error": "insufficient credits"})
+		if errors.Is(err, service.ErrInsufficientCredits) {
+			c.JSON(http.StatusPaymentRequired, gin.H{"error": "insufficient_credits", "message": "积分不足，请充值后继续"})
+			return
+		}
+		if errors.Is(err, service.ErrCreditsExpired) {
+			c.JSON(http.StatusPaymentRequired, gin.H{"error": "credits_expired", "message": "积分已过期，请重新购买"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create image edit"})
@@ -242,7 +274,7 @@ func CreateImageEdit(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status})
 }
 
-const defaultEnabledImageSizes = "1280x720,720x1280,1024x1024,1536x1024,1024x1536"
+const defaultEnabledImageSizes = "1280x720,720x1280,1024x1024,1536x1024,1024x1536,1920x1080,1080x1920,2048x2048"
 
 func enabledImageSizes() []string {
 	value := model.GetSettingValue("enabled_image_sizes", defaultEnabledImageSizes)
@@ -267,6 +299,38 @@ func isValidQuality(quality string) bool {
 func isSupportedEditImageType(contentType string) bool {
 	contentType = strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
 	return contentType == "image/png" || contentType == "image/jpeg" || contentType == "image/webp"
+}
+
+func validateImageOutputOptions(c *gin.Context, outputFormat, background string, outputCompression *int) bool {
+	if !isValidOutputFormat(outputFormat) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid output_format, must be png, jpeg, or webp"})
+		return false
+	}
+	if !isValidBackground(background) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid background, must be opaque or transparent"})
+		return false
+	}
+	if !isValidOutputCompression(outputCompression) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "output_compression must be between 0 and 100"})
+		return false
+	}
+	if background == "transparent" && outputFormat == "jpeg" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "transparent background is not supported with jpeg format"})
+		return false
+	}
+	return true
+}
+
+func isValidOutputFormat(format string) bool {
+	return format == "" || format == "png" || format == "jpeg" || format == "webp"
+}
+
+func isValidBackground(background string) bool {
+	return background == "" || background == "opaque" || background == "transparent"
+}
+
+func isValidOutputCompression(compression *int) bool {
+	return compression == nil || (*compression >= 0 && *compression <= 100)
 }
 
 func buildImageSizeOptions(sizes []string) []imageSizeOption {

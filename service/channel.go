@@ -31,9 +31,9 @@ func SelectChannels() ([]model.Channel, error) {
 	return weightedShuffle(channels), nil
 }
 
-func GenerateImageViaChannels(prompt, quality, size, userIP string) (*ImageGenerationResult, error) {
+func GenerateImageViaChannels(prompt, quality, size, userIP string, options ImageOptions) (*ImageGenerationResult, error) {
 	if config.AppConfig != nil && config.AppConfig.MockSub2API {
-		return NewSub2APIClient("http://mock", "", nil).GenerateImage(prompt, quality, size, userIP)
+		return NewSub2APIClient("http://mock", "", nil).GenerateImage(prompt, quality, size, userIP, options)
 	}
 
 	channels, err := SelectChannels()
@@ -47,7 +47,7 @@ func GenerateImageViaChannels(prompt, quality, size, userIP string) (*ImageGener
 			_ = json.Unmarshal([]byte(channel.Headers), &headers)
 		}
 		client := NewSub2APIClient(channel.BaseURL, channel.APIKey, headers)
-		result, err := client.GenerateImage(prompt, quality, size, userIP)
+		result, err := client.GenerateImage(prompt, quality, size, userIP, options)
 		if err == nil {
 			return result, nil
 		}
@@ -56,9 +56,9 @@ func GenerateImageViaChannels(prompt, quality, size, userIP string) (*ImageGener
 	return nil, lastErr
 }
 
-func EditImageViaChannels(prompt, quality, size, userIP string, imageData []byte, filename, contentType string) (*ImageGenerationResult, error) {
+func EditImageViaChannels(prompt, quality, size, userIP string, imageData []byte, filename, contentType string, options ImageOptions) (*ImageGenerationResult, error) {
 	if config.AppConfig != nil && config.AppConfig.MockSub2API {
-		return NewSub2APIClient("http://mock", "", nil).EditImage(prompt, quality, size, userIP, imageData, filename, contentType)
+		return NewSub2APIClient("http://mock", "", nil).EditImage(prompt, quality, size, userIP, imageData, filename, contentType, options)
 	}
 
 	channels, err := SelectChannels()
@@ -72,7 +72,7 @@ func EditImageViaChannels(prompt, quality, size, userIP string, imageData []byte
 			_ = json.Unmarshal([]byte(channel.Headers), &headers)
 		}
 		client := NewSub2APIClient(channel.BaseURL, channel.APIKey, headers)
-		result, err := client.EditImage(prompt, quality, size, userIP, imageData, filename, contentType)
+		result, err := client.EditImage(prompt, quality, size, userIP, imageData, filename, contentType, options)
 		if err == nil {
 			return result, nil
 		}

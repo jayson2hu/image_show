@@ -220,23 +220,11 @@ func downloadImage(sourceURL string) ([]byte, string, error) {
 }
 
 func ProviderImageSize(requested string) string {
-	width, height, ok := ParseImageSize(requested)
+	_, _, ok := ParseImageSize(requested)
 	if !ok {
 		return "1024x1024"
 	}
-	if width == 1536 && height == 1024 {
-		return "1536x1024"
-	}
-	if width == 1024 && height == 1536 {
-		return "1024x1536"
-	}
-	if height > width {
-		return "1024x1536"
-	}
-	if width > height {
-		return "1536x1024"
-	}
-	return "1024x1024"
+	return requested
 }
 
 func ShouldResizeImage(targetSize string) bool {

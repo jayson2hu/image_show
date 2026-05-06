@@ -59,27 +59,26 @@ func (n *GenerationNotifier) Publish(id int64, event GenerationEvent) {
 	}
 }
 
-func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymousID string) (*model.Generation, error) {
+func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymousID string, options ImageOptions) (*model.Generation, error) {
 	cost := CostForSize(size)
 	if userID != nil {
-		balance, err := GetBalance(*userID)
-		if err != nil {
+		if err := ensureEnoughGenerationCredits(*userID, cost); err != nil {
 			return nil, err
-		}
-		if balance < cost {
-			return nil, ErrInsufficientCredits
 		}
 	}
 	generation := &model.Generation{
-		UserID:      userID,
-		AnonymousID: anonymousID,
-		Mode:        GenerationModeGenerate,
-		Prompt:      prompt,
-		Quality:     quality,
-		Size:        size,
-		CreditsCost: cost,
-		Status:      0,
-		IP:          ip,
+		UserID:            userID,
+		AnonymousID:       anonymousID,
+		Mode:              GenerationModeGenerate,
+		Prompt:            prompt,
+		Quality:           quality,
+		Size:              size,
+		OutputFormat:      options.OutputFormat,
+		OutputCompression: options.OutputCompression,
+		Background:        options.Background,
+		CreditsCost:       cost,
+		Status:            0,
+		IP:                ip,
 	}
 	if err := model.DB.Create(generation).Error; err != nil {
 		return nil, err
@@ -92,32 +91,31 @@ func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymous
 	}
 	go func() {
 		time.Sleep(generationStartDelay)
-		runGeneration(generation.ID, prompt, quality, size, ip)
+		runGeneration(generation.ID, prompt, quality, size, ip, options)
 	}()
 	return generation, nil
 }
 
-func CreateImageEdit(prompt, quality, size, ip string, userID *int64, anonymousID string, imageData []byte, filename, contentType string) (*model.Generation, error) {
+func CreateImageEdit(prompt, quality, size, ip string, userID *int64, anonymousID string, imageData []byte, filename, contentType string, options ImageOptions) (*model.Generation, error) {
 	cost := CostForSize(size)
 	if userID != nil {
-		balance, err := GetBalance(*userID)
-		if err != nil {
+		if err := ensureEnoughGenerationCredits(*userID, cost); err != nil {
 			return nil, err
-		}
-		if balance < cost {
-			return nil, ErrInsufficientCredits
 		}
 	}
 	generation := &model.Generation{
-		UserID:      userID,
-		AnonymousID: anonymousID,
-		Mode:        GenerationModeEdit,
-		Prompt:      prompt,
-		Quality:     quality,
-		Size:        size,
-		CreditsCost: cost,
-		Status:      0,
-		IP:          ip,
+		UserID:            userID,
+		AnonymousID:       anonymousID,
+		Mode:              GenerationModeEdit,
+		Prompt:            prompt,
+		Quality:           quality,
+		Size:              size,
+		OutputFormat:      options.OutputFormat,
+		OutputCompression: options.OutputCompression,
+		Background:        options.Background,
+		CreditsCost:       cost,
+		Status:            0,
+		IP:                ip,
 	}
 	if err := model.DB.Create(generation).Error; err != nil {
 		return nil, err
@@ -144,18 +142,32 @@ func CreateImageEdit(prompt, quality, size, ip string, userID *int64, anonymousI
 	}
 	go func() {
 		time.Sleep(generationStartDelay)
-		runImageEdit(generation.ID, prompt, quality, size, ip, imageData, filename, contentType)
+		runImageEdit(generation.ID, prompt, quality, size, ip, imageData, filename, contentType, options)
 	}()
 	return generation, nil
 }
 
-func runGeneration(id int64, prompt, quality, size, ip string) {
+func ensureEnoughGenerationCredits(userID int64, cost float64) error {
+	var user model.User
+	if err := model.DB.First(&user, userID).Error; err != nil {
+		return err
+	}
+	if user.CreditsExpiry != nil && time.Now().After(*user.CreditsExpiry) {
+		return ErrCreditsExpired
+	}
+	if user.Credits < cost {
+		return ErrInsufficientCredits
+	}
+	return nil
+}
+
+func runGeneration(id int64, prompt, quality, size, ip string, options ImageOptions) {
 	if isGenerationCancelled(id) {
 		return
 	}
 	updateGenerationStatus(id, 1, "正在生成图片...", "", "")
 	providerSize := ProviderImageSize(size)
-	result, err := GenerateImageViaChannels(prompt, quality, providerSize, ip)
+	result, err := GenerateImageViaChannels(prompt, quality, providerSize, ip, options)
 	if isGenerationCancelled(id) {
 		return
 	}
@@ -181,13 +193,13 @@ func runGeneration(id int64, prompt, quality, size, ip string) {
 	}
 }
 
-func runImageEdit(id int64, prompt, quality, size, ip string, imageData []byte, filename, contentType string) {
+func runImageEdit(id int64, prompt, quality, size, ip string, imageData []byte, filename, contentType string, options ImageOptions) {
 	if isGenerationCancelled(id) {
 		return
 	}
 	updateGenerationStatus(id, 1, "正在编辑图片...", "", "")
 	providerSize := ProviderImageSize(size)
-	result, err := EditImageViaChannels(prompt, quality, providerSize, ip, imageData, filename, contentType)
+	result, err := EditImageViaChannels(prompt, quality, providerSize, ip, imageData, filename, contentType, options)
 	if isGenerationCancelled(id) {
 		return
 	}

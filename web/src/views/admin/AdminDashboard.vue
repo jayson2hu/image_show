@@ -321,7 +321,7 @@ function settingHelp(key: string) {
     r2_bucket: 'R2 bucket 名称，例如 image-show',
     r2_public_url: '可选。绑定自定义域名或 CDN 后填写，例如 https://cdn.example.com；为空时使用 1 小时签名链接。',
     image_model: '默认 gpt-image-2。如果 sub2api 要求其他模型名，可在这里切换。',
-    enabled_image_sizes: '逗号分隔，默认开放 16:9=1280x720、9:16=720x1280、1:1=1024x1024、3:2=1536x1024、2:3=1024x1536；积分按像素相对 1024x1024 向上取整。',
+    enabled_image_sizes: '逗号分隔，默认开放 8 个尺寸：1280x720、720x1280、1024x1024、1536x1024、1024x1536、1920x1080、1080x1920、2048x2048；积分按像素相对 1024x1024 向上取整。',
   }
   return map[key] || ''
 }

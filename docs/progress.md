@@ -1,5 +1,47 @@
 # 开发进度记录
 
+## 2026-05-06 GPT Image 2 输出参数和 8 个尺寸
+
+- 来源：
+  - 按 `feature-spec-v2-generation-ux-optimization.md` 执行需求三 Task 3.1-3.6。
+- 完成：
+  - 后端生成和图片编辑请求支持 `output_format`、`background`、`output_compression`，空值保持向后兼容不传给上游。
+  - 后端新增参数校验：格式仅允许 `png/jpeg/webp`，背景仅允许 `opaque/transparent`，压缩率限制 `0-100`，并拒绝 `jpeg + transparent`。
+  - `Generation` 模型保存输出格式、背景和压缩率，历史记录可返回对应字段。
+  - 默认可用尺寸扩展为 8 个：`1280x720`、`720x1280`、`1024x1024`、`1536x1024`、`1024x1536`、`1920x1080`、`1080x1920`、`2048x2048`。
+  - 上游尺寸改为对合法请求尺寸透传，避免高清尺寸被映射回低尺寸。
+  - 首页参数面板新增输出格式和背景选择；选择 JPEG 时自动隐藏并清空透明背景。
+  - 后台设置页的尺寸说明同步更新为 8 个默认尺寸。
+- 自测记录：
+  - `go test ./controller -run TestCreateGenerationValidatesOutputOptions -v`：通过。
+  - `go test ./controller ./service`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+
+## 2026-05-06 积分用尽引导卡片
+
+- 来源：
+  - 按 `feature-spec-v2-generation-ux-optimization.md` 执行需求一 Task 1.1-1.3。
+- 完成：
+  - 后端免费试用用尽改为 HTTP 402，并返回 `free_trial_exhausted` 和中文 `message`。
+  - 登录用户积分不足和积分过期拆分为 `insufficient_credits`、`credits_expired`。
+  - 新增 `CreditExhaustedGuide.vue`，根据错误类型展示注册/登录/充值引导。
+  - 首页创建任务时识别 402 积分错误码，主预览区展示引导卡片，其他错误仍走普通错误提示。
+  - 生成服务创建前改为先判断积分过期再判断余额，避免过期积分被误报为余额不足。
+- 自测记录：
+  - `go test ./controller ./service`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `pnpm.cmd build`：沙箱内因 esbuild `spawn EPERM` 失败，授权后重新执行通过。
+## 2026-05-06 生成页参数面板折叠按钮优化
+
+- 来源：
+  - 按 `feature-spec-v2-generation-ux-optimization.md` 执行需求二 Task 2.1-2.3。
+- 完成：
+  - 右侧参数面板折叠按钮从竖线和字符箭头改为 SVG 方向箭头。
+  - 提升收起状态按钮可见度和点击宽度，hover 时增加更明确的反馈。
+  - 面板收起后增加 3 秒轻微提示动画，提示可再次展开。
+- 自测记录：
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `pnpm.cmd build`：沙箱内因 esbuild `spawn EPERM` 失败，授权后重新执行通过。
 ## 2026-05-04 gpt-image-2 比例尺寸补齐
 
 - 需求：

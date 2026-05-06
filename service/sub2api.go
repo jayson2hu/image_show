@@ -30,10 +30,13 @@ type ImageGenerationResult struct {
 }
 
 type imageGenerationRequest struct {
-	Model   string `json:"model"`
-	Prompt  string `json:"prompt"`
-	Quality string `json:"quality"`
-	Size    string `json:"size"`
+	Model             string `json:"model"`
+	Prompt            string `json:"prompt"`
+	Quality           string `json:"quality"`
+	Size              string `json:"size"`
+	OutputFormat      string `json:"output_format,omitempty"`
+	OutputCompression *int   `json:"output_compression,omitempty"`
+	Background        string `json:"background,omitempty"`
 }
 
 type imageGenerationResponse struct {
@@ -59,13 +62,13 @@ func NewSub2APIClient(baseURL, apiKey string, headers map[string]string) *Sub2AP
 	}
 }
 
-func (c *Sub2APIClient) GenerateImage(prompt, quality, size, userIP string) (*ImageGenerationResult, error) {
+func (c *Sub2APIClient) GenerateImage(prompt, quality, size, userIP string, options ImageOptions) (*ImageGenerationResult, error) {
 	if config.AppConfig != nil && config.AppConfig.MockSub2API {
 		return mockImageResult(), nil
 	}
 	var lastErr error
 	for attempt := 1; attempt <= 3; attempt++ {
-		result, err := c.generateImageOnce(prompt, quality, size, userIP)
+		result, err := c.generateImageOnce(prompt, quality, size, userIP, options)
 		if err == nil {
 			return result, nil
 		}
@@ -78,13 +81,13 @@ func (c *Sub2APIClient) GenerateImage(prompt, quality, size, userIP string) (*Im
 	return nil, userFacingSub2APIError(lastErr)
 }
 
-func (c *Sub2APIClient) EditImage(prompt, quality, size, userIP string, imageData []byte, filename, contentType string) (*ImageGenerationResult, error) {
+func (c *Sub2APIClient) EditImage(prompt, quality, size, userIP string, imageData []byte, filename, contentType string, options ImageOptions) (*ImageGenerationResult, error) {
 	if config.AppConfig != nil && config.AppConfig.MockSub2API {
 		return mockImageResult(), nil
 	}
 	var lastErr error
 	for attempt := 1; attempt <= 3; attempt++ {
-		result, err := c.editImageOnce(prompt, quality, size, userIP, imageData, filename, contentType)
+		result, err := c.editImageOnce(prompt, quality, size, userIP, imageData, filename, contentType, options)
 		if err == nil {
 			return result, nil
 		}
@@ -112,12 +115,15 @@ func userFacingSub2APIError(err error) error {
 	return err
 }
 
-func (c *Sub2APIClient) generateImageOnce(prompt, quality, size, userIP string) (*ImageGenerationResult, error) {
+func (c *Sub2APIClient) generateImageOnce(prompt, quality, size, userIP string, options ImageOptions) (*ImageGenerationResult, error) {
 	body, err := json.Marshal(imageGenerationRequest{
-		Model:   imageModel(),
-		Prompt:  prompt,
-		Quality: quality,
-		Size:    size,
+		Model:             imageModel(),
+		Prompt:            prompt,
+		Quality:           quality,
+		Size:              size,
+		OutputFormat:      options.OutputFormat,
+		OutputCompression: options.OutputCompression,
+		Background:        options.Background,
 	})
 	if err != nil {
 		return nil, err
@@ -162,7 +168,7 @@ func (c *Sub2APIClient) generateImageOnce(prompt, quality, size, userIP string) 
 	}, nil
 }
 
-func (c *Sub2APIClient) editImageOnce(prompt, quality, size, userIP string, imageData []byte, filename, contentType string) (*ImageGenerationResult, error) {
+func (c *Sub2APIClient) editImageOnce(prompt, quality, size, userIP string, imageData []byte, filename, contentType string, options ImageOptions) (*ImageGenerationResult, error) {
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 	if err := writer.WriteField("model", imageModel()); err != nil {
@@ -176,6 +182,21 @@ func (c *Sub2APIClient) editImageOnce(prompt, quality, size, userIP string, imag
 	}
 	if err := writer.WriteField("size", size); err != nil {
 		return nil, err
+	}
+	if options.OutputFormat != "" {
+		if err := writer.WriteField("output_format", options.OutputFormat); err != nil {
+			return nil, err
+		}
+	}
+	if options.Background != "" {
+		if err := writer.WriteField("background", options.Background); err != nil {
+			return nil, err
+		}
+	}
+	if options.OutputCompression != nil {
+		if err := writer.WriteField("output_compression", fmt.Sprintf("%d", *options.OutputCompression)); err != nil {
+			return nil, err
+		}
 	}
 	partHeader := make(textproto.MIMEHeader)
 	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image"; filename="%s"`, escapeMultipartFilename(filename)))

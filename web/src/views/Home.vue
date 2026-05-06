@@ -2,18 +2,22 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import api from '@/api'
+import CreditExhaustedGuide from '@/components/CreditExhaustedGuide.vue'
 import GenerationProgress from '@/components/GenerationProgress.vue'
 import { useUserStore } from '@/stores/user'
 import { downloadImage } from '@/utils/download'
 
 type Quality = 'low' | 'medium' | 'high'
 type GenerationMode = 'generate' | 'edit'
+type CreditErrorType = 'free_trial_exhausted' | 'insufficient_credits' | 'credits_expired'
 
 interface GenerationPayload {
   prompt: string
   quality: Quality
   size: string
   mode: GenerationMode
+  outputFormat?: string
+  background?: string
   sourceImage?: File | null
 }
 
@@ -52,7 +56,9 @@ const sourceImagePreview = ref('')
 const selectedStyle = ref('')
 const quality: Quality = 'medium'
 const size = ref('1024x1024')
-const defaultSizeValues = ['1280x720', '720x1280', '1024x1024', '1536x1024', '1024x1536']
+const outputFormat = ref('')
+const background = ref('')
+const defaultSizeValues = ['1280x720', '720x1280', '1024x1024', '1536x1024', '1024x1536', '1920x1080', '1080x1920', '2048x2048']
 const sizeOptions = ref<SizeOption[]>([
   ...defaultSizeValues.map(makeSizeOption),
 ])
@@ -60,6 +66,7 @@ const isSamplesExpanded = ref(false)
 const generationId = ref<number | null>(null)
 const imageURL = ref('')
 const error = ref('')
+const creditError = ref<CreditErrorType | null>(null)
 const loading = ref(false)
 const lastRequest = ref<GenerationPayload | null>(null)
 const captchaEnabled = ref(false)
@@ -68,6 +75,7 @@ const captchaToken = ref('')
 const captchaEl = ref<HTMLElement | null>(null)
 const captchaWidgetId = ref<string | null>(null)
 const isPromptPanelCollapsed = ref(false)
+const toggleNudge = ref(false)
 const isFullscreenOpen = ref(false)
 const fullscreenEl = ref<HTMLElement | null>(null)
 
@@ -87,6 +95,15 @@ const defaultSamplePrompts: SamplePrompt[] = [
 ]
 const stylePresets = ref<StylePreset[]>([...defaultStylePresets])
 const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
+const outputFormatOptions = [
+  { value: '', label: 'PNG', desc: '默认无损' },
+  { value: 'jpeg', label: 'JPEG', desc: '较小体积' },
+  { value: 'webp', label: 'WebP', desc: '高效压缩' },
+]
+const backgroundOptions = [
+  { value: '', label: '不透明', desc: '默认白底' },
+  { value: 'transparent', label: '透明背景', desc: '设计素材' },
+]
 
 const selectedStylePrompt = computed(() => stylePresets.value.find((item) => item.id === selectedStyle.value)?.prompt || '')
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
@@ -141,6 +158,23 @@ watch(
     loadGenerationOptions()
   },
 )
+
+watch(isPromptPanelCollapsed, (collapsed) => {
+  if (!collapsed) {
+    toggleNudge.value = false
+    return
+  }
+  toggleNudge.value = true
+  window.setTimeout(() => {
+    toggleNudge.value = false
+  }, 3000)
+})
+
+watch(outputFormat, (value) => {
+  if (value === 'jpeg') {
+    background.value = ''
+  }
+})
 
 async function loadPromptTemplates() {
   try {
@@ -242,6 +276,8 @@ async function generate() {
     quality,
     size: size.value,
     mode: generationMode.value,
+    outputFormat: outputFormat.value,
+    background: background.value,
     sourceImage: sourceImageFile.value,
   })
 }
@@ -255,6 +291,7 @@ async function retry() {
 
 async function createGeneration(payload: GenerationPayload) {
   error.value = ''
+  creditError.value = null
   if (captchaEnabled.value && !captchaToken.value) {
     error.value = '请先完成人机验证'
     return
@@ -268,13 +305,30 @@ async function createGeneration(payload: GenerationPayload) {
     const response =
       payload.mode === 'edit'
         ? await createImageEditRequest(payload)
-        : await api.post('/generations', { prompt: payload.prompt, quality: payload.quality, size: payload.size, captcha_token: captchaToken.value })
+        : await api.post('/generations', {
+            prompt: payload.prompt,
+            quality: payload.quality,
+            size: payload.size,
+            captcha_token: captchaToken.value,
+            output_format: payload.outputFormat || undefined,
+            background: payload.background || undefined,
+          })
     generationId.value = response.data.id
   } catch (err: any) {
-    error.value = err.response?.data?.error || '创建生成任务失败'
+    const errCode = err.response?.data?.error
+    if (err.response?.status === 402 && isCreditError(errCode)) {
+      creditError.value = errCode
+      error.value = ''
+    } else {
+      error.value = err.response?.data?.message || err.response?.data?.error || err.message || '创建生成任务失败'
+    }
     loading.value = false
     resetCaptcha()
   }
+}
+
+function isCreditError(value: unknown): value is CreditErrorType {
+  return value === 'free_trial_exhausted' || value === 'insufficient_credits' || value === 'credits_expired'
 }
 
 function createImageEditRequest(payload: GenerationPayload) {
@@ -289,6 +343,12 @@ function createImageEditRequest(payload: GenerationPayload) {
   form.append('quality', payload.quality)
   form.append('size', payload.size)
   form.append('captcha_token', captchaToken.value)
+  if (payload.outputFormat) {
+    form.append('output_format', payload.outputFormat)
+  }
+  if (payload.background) {
+    form.append('background', payload.background)
+  }
   form.append('image', payload.sourceImage)
   return api.post('/generations/edit', form)
 }
@@ -532,6 +592,10 @@ function resetCaptcha() {
           </div>
         </div>
 
+        <div v-else-if="creditError" class="flex h-[calc(100vh-200px)] min-h-[460px] items-center justify-center p-6">
+          <CreditExhaustedGuide :type="creditError" @dismiss="creditError = null" />
+        </div>
+
         <div v-else class="flex h-[calc(100vh-200px)] min-h-[460px] items-center justify-center">
           <div class="text-center">
             <div class="mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-gray-200 transition-colors dark:bg-slate-800">
@@ -550,19 +614,27 @@ function resetCaptcha() {
         :class="isPromptPanelCollapsed ? 'lg:w-0 lg:border-l-0' : 'lg:w-[420px]'"
       >
         <button
-          class="absolute top-1/2 z-30 hidden min-h-20 -translate-y-1/2 flex-col items-center justify-center gap-2 border border-slate-200 bg-white/90 px-2 text-slate-500 shadow-xl shadow-slate-900/15 backdrop-blur transition-all duration-200 hover:bg-white hover:text-violet-700 hover:opacity-100 hover:shadow-violet-900/20 dark:border-slate-700 dark:bg-slate-900/82 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-violet-200 lg:flex"
-          :class="isPromptPanelCollapsed ? '-left-8 w-8 rounded-l-2xl rounded-r-none opacity-40 hover:-left-10 hover:w-10' : '-left-4 w-8 rounded-full opacity-80'"
+          class="absolute top-1/2 z-30 hidden min-h-14 -translate-y-1/2 flex-col items-center justify-center gap-2 border border-slate-200 bg-white/90 px-2 text-slate-500 shadow-xl shadow-slate-900/15 backdrop-blur transition-all duration-200 hover:bg-white hover:text-violet-700 hover:shadow-violet-900/20 dark:border-slate-700 dark:bg-slate-900/82 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-violet-200 lg:flex"
+          :class="[
+            isPromptPanelCollapsed ? '-left-10 w-10 rounded-l-xl rounded-r-none opacity-70 hover:-left-12 hover:w-12 hover:opacity-100 hover:shadow-2xl' : '-left-5 w-10 rounded-l-xl rounded-r-none opacity-80 hover:opacity-100',
+            toggleNudge ? 'panel-toggle-nudge' : '',
+          ]"
           type="button"
           :aria-label="isPromptPanelCollapsed ? '展开参数面板' : '收起参数面板'"
           :title="isPromptPanelCollapsed ? '展开参数面板' : '收起参数面板'"
           @click="isPromptPanelCollapsed = !isPromptPanelCollapsed"
         >
-          <span class="flex flex-col gap-1" aria-hidden="true">
-            <span class="h-4 w-0.5 rounded-full bg-current opacity-35"></span>
-            <span class="h-4 w-0.5 rounded-full bg-current opacity-60"></span>
-            <span class="h-4 w-0.5 rounded-full bg-current opacity-35"></span>
-          </span>
-          <span class="text-sm leading-none">{{ isPromptPanelCollapsed ? '‹' : '›' }}</span>
+          <svg
+            class="size-5 transition-transform duration-200"
+            :class="isPromptPanelCollapsed ? 'rotate-180' : ''"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
         </button>
 
         <div v-show="!isPromptPanelCollapsed" class="h-full overflow-y-auto">
@@ -684,6 +756,40 @@ function resetCaptcha() {
             </div>
           </div>
 
+          <div>
+            <label class="mb-2 block text-gray-900">输出格式</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                v-for="format in outputFormatOptions"
+                :key="format.label"
+                type="button"
+                class="home-button min-h-12 rounded-xl border px-3 py-2 text-sm transition"
+                :class="outputFormat === format.value ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-500/20' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
+                @click="outputFormat = format.value"
+              >
+                <span class="block font-medium">{{ format.label }}</span>
+                <span class="mt-0.5 block text-[11px] opacity-75">{{ format.desc }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="outputFormat !== 'jpeg'">
+            <label class="mb-2 block text-gray-900">背景</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                v-for="item in backgroundOptions"
+                :key="item.label"
+                type="button"
+                class="home-button min-h-12 rounded-xl border px-3 py-2 text-sm transition"
+                :class="background === item.value ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-500/20' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-400'"
+                @click="background = item.value"
+              >
+                <span class="block font-medium">{{ item.label }}</span>
+                <span class="mt-0.5 block text-[11px] opacity-75">{{ item.desc }}</span>
+              </button>
+            </div>
+          </div>
+
           <section class="border-t border-gray-200 pt-4">
             <button class="mb-3 flex w-full items-center justify-between text-gray-900 transition hover:text-violet-700" type="button" @click="isSamplesExpanded = !isSamplesExpanded">
               <h3 class="text-lg font-medium">推荐样例</h3>
@@ -763,3 +869,19 @@ function resetCaptcha() {
     </div>
   </section>
 </template>
+
+<style scoped>
+@keyframes nudge-expand {
+  0%,
+  100% {
+    transform: translateY(-50%) translateX(0);
+  }
+  50% {
+    transform: translateY(-50%) translateX(-4px);
+  }
+}
+
+.panel-toggle-nudge {
+  animation: nudge-expand 1.5s ease-in-out 2;
+}
+</style>

@@ -85,20 +85,20 @@ func TestStoreGeneratedImageWithoutR2ReturnsDataURL(t *testing.T) {
 }
 
 func TestProviderSizeAndResizeForSmallImage(t *testing.T) {
-	if size := ProviderImageSize("512x512"); size != "1024x1024" {
-		t.Fatalf("expected provider size 1024x1024, got %s", size)
+	if size := ProviderImageSize("512x512"); size != "512x512" {
+		t.Fatalf("expected provider size passthrough, got %s", size)
 	}
 	if size := ProviderImageSize("1024x1536"); size != "1024x1536" {
 		t.Fatalf("expected provider portrait size unchanged, got %s", size)
 	}
-	if size := ProviderImageSize("512x768"); size != "1024x1536" {
-		t.Fatalf("expected provider portrait size 1024x1536, got %s", size)
+	if size := ProviderImageSize("512x768"); size != "512x768" {
+		t.Fatalf("expected provider portrait size passthrough, got %s", size)
 	}
-	if size := ProviderImageSize("768x512"); size != "1536x1024" {
-		t.Fatalf("expected provider landscape size 1536x1024, got %s", size)
+	if size := ProviderImageSize("768x512"); size != "768x512" {
+		t.Fatalf("expected provider landscape size passthrough, got %s", size)
 	}
-	if !ShouldResizeImage("512x512") {
-		t.Fatal("expected 512x512 to require resize")
+	if ShouldResizeImage("512x512") {
+		t.Fatal("expected 512x512 to pass through without resize")
 	}
 
 	data, err := base64.StdEncoding.DecodeString(mockImageResult().Base64Data)
