@@ -54,7 +54,6 @@ interface GenerationDraft {
 
 const generationDraftKey = 'image_show_generation_draft'
 const userStore = useUserStore()
-const health = ref('检查中')
 const prompt = ref('')
 const generationMode = ref<GenerationMode>('generate')
 const sourceImageFile = ref<File | null>(null)
@@ -122,7 +121,10 @@ const generateHint = computed(() => {
   return `${generationModeText.value} · ${selectedSizeOption.value?.label || size.value.replace('x', ' x ')} · 预计消耗 ${estimatedCreditCost.value} 积分`
 })
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
-const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '免费试用'))
+const creditBalanceText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '1 次免费试用'))
+const creditStatusText = computed(() => (userStore.user ? '当前可用额度' : '登录后可获得更多积分'))
+const canAffordCurrentGeneration = computed(() => !userStore.user || userStore.user.credits >= estimatedCreditCost.value)
+const creditCostTone = computed(() => (canAffordCurrentGeneration.value ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100'))
 
 declare global {
   interface Window {
@@ -135,12 +137,6 @@ declare global {
 
 onMounted(async () => {
   restoreGenerationDraft()
-  try {
-    const response = await api.get('/health')
-    health.value = response.data.status === 'ok' ? '后端已连接' : '后端响应异常'
-  } catch {
-    health.value = '后端未连接'
-  }
   await Promise.all([loadPromptTemplates(), loadGenerationOptions(), loadCaptcha()])
 })
 
@@ -669,16 +665,19 @@ function resetCaptcha() {
 
         <div v-show="!isPromptPanelCollapsed" class="h-full overflow-y-auto">
           <div class="space-y-6 p-6 pb-36">
-          <div class="home-card flex items-center justify-between rounded-xl bg-violet-50 px-4 py-3">
-            <div>
-              <p class="text-sm font-medium text-gray-900">{{ displayName }}</p>
-              <p class="home-muted text-xs text-gray-500">{{ health }}</p>
+          <div class="home-card rounded-2xl border border-violet-100 bg-violet-50 px-4 py-4 shadow-sm shadow-violet-900/5">
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-gray-900">{{ displayName }}</p>
+                <p class="mt-1 text-xs text-gray-500">{{ creditStatusText }}</p>
+              </div>
+              <div class="shrink-0 rounded-full border border-white/70 bg-white px-3 py-1 text-sm font-semibold text-violet-700 shadow-sm">
+                {{ creditBalanceText }}
+              </div>
             </div>
-            <div class="flex items-center gap-3">
-              <p class="text-sm font-medium text-violet-900">{{ creditText }}</p>
-              <button class="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100" type="button" @click="isPromptPanelCollapsed = true">
-                收起
-              </button>
+            <div class="mt-3 flex items-center justify-between gap-3">
+              <p class="text-xs text-violet-700">{{ userStore.user ? '生成会按所选尺寸扣除积分' : '免费试用用完后可登录继续创作' }}</p>
+              <button class="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100" type="button" @click="isPromptPanelCollapsed = true">收起</button>
             </div>
           </div>
 
@@ -822,12 +821,15 @@ function resetCaptcha() {
           <div class="home-panel sticky bottom-0 border-t border-gray-200 bg-white/95 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:shadow-black/30">
             <div class="mb-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm shadow-sm shadow-violet-900/5 dark:border-violet-400/20 dark:bg-violet-500/10 dark:shadow-none">
               <div class="flex items-center justify-between gap-3">
-                <span class="font-medium text-slate-700 dark:text-slate-200">本次预计消耗</span>
-                <span class="rounded-full bg-white px-3 py-1 text-sm font-semibold text-violet-700 shadow-sm dark:bg-slate-900 dark:text-violet-200">{{ estimatedCreditCost }} 积分</span>
+                <div>
+                  <p class="font-medium text-slate-700 dark:text-slate-200">本次预计消耗</p>
+                  <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ generationModeText }} · {{ selectedSizeOption?.value.replace('x', ' x ') }}</p>
+                </div>
+                <span class="rounded-full border px-3 py-1 text-sm font-semibold shadow-sm dark:border-violet-400/20 dark:bg-slate-900 dark:text-violet-200" :class="creditCostTone">{{ estimatedCreditCost }} 积分</span>
               </div>
-              <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span>{{ generationModeText }} · {{ selectedSizeOption?.value.replace('x', ' x ') }}</span>
-                <span>{{ userStore.user ? `余额 ${userStore.user.credits} 积分` : '未登录免费试用 1 次' }}</span>
+              <div class="mt-3 flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 text-xs text-slate-600 dark:bg-slate-950/40 dark:text-slate-300">
+                <span>{{ userStore.user ? '可用余额' : '当前额度' }}</span>
+                <span class="font-semibold" :class="canAffordCurrentGeneration ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'">{{ creditBalanceText }}</span>
               </div>
               <p v-if="generateHint" class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ generateHint }}</p>
             </div>

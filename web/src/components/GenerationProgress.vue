@@ -39,7 +39,6 @@ const phases = [
 ]
 
 const currentCopy = computed(() => statusCopy[currentStatus.value] || { title: '处理中', detail: backendMessage.value || '请稍候' })
-const currentBackendMessage = computed(() => backendMessage.value || currentCopy.value.title)
 const displayStage = computed(() => {
   if (currentStatus.value >= 3) {
     return 3
@@ -151,7 +150,6 @@ function pulseCanvas() {
       <div class="flex items-center justify-between gap-4">
         <div class="min-w-0">
           <p class="text-sm font-medium text-slate-900">当前阶段：{{ currentPhaseLabel }}</p>
-          <p class="mt-1 truncate text-xs text-slate-500">后端状态：{{ currentBackendMessage }}</p>
         </div>
         <button class="min-h-10 shrink-0 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-violet-300 hover:text-violet-700" type="button" @click="emit('cancel')">
           取消
