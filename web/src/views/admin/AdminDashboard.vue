@@ -128,6 +128,7 @@ const announcements = ref<Announcement[]>([])
 const announcementReads = ref<AnnouncementRead[]>([])
 const selectedAnnouncement = ref<Announcement | null>(null)
 const settings = ref<Record<string, string>>({})
+const originalSettings = ref<Record<string, string>>({})
 const revealedSettings = ref<Record<string, boolean>>({})
 const monitor = ref<MonitorSummary | null>(null)
 const creditForm = ref({ amount: 1, remark: '' })
@@ -382,6 +383,7 @@ async function deleteTemplate(template: PromptTemplate) {
 async function loadSettings() {
   const response = await api.get('/admin/settings')
   settings.value = response.data.items
+  originalSettings.value = { ...response.data.items }
   if (!visibleSettingGroups.value.some((group) => group.id === activeSettingGroup.value)) {
     activeSettingGroup.value = visibleSettingGroups.value[0]?.id || 'account'
   }
@@ -485,8 +487,22 @@ async function openAnnouncementReads(item: Announcement) {
 }
 
 async function saveSettings() {
+  const keysToSave = activeSettingKeys.value
+  const payload = keysToSave.reduce<Record<string, string>>((items, key) => {
+    items[key] = settings.value[key] || ''
+    return items
+  }, {})
+  const changedSecretKeys = keysToSave.filter((key) => isSecretSetting(key) && payload[key] !== originalSettings.value[key])
+  if (changedSecretKeys.length > 0) {
+    const labels = changedSecretKeys.map((key) => settingLabel(key)).join('、')
+    const confirmed = window.confirm(`你正在修改敏感配置：${labels}。\n这些配置可能影响微信登录、图片存储、人机验证或上游访问，请确认已经核对无误。是否继续保存？`)
+    if (!confirmed) {
+      return
+    }
+  }
   await guarded(async () => {
-    await api.put('/admin/settings', { items: settings.value })
+    await api.put('/admin/settings', { items: payload })
+    originalSettings.value = { ...originalSettings.value, ...payload }
   }, '设置已保存')
 }
 
