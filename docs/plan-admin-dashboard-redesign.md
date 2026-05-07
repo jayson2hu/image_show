@@ -1085,13 +1085,13 @@ const settingGroups = [
 
 | 阶段 | 任务 | 状态 | 完成日期 | 备注 |
 |------|------|------|----------|------|
-| A | A1 类型定义 | 待开发 | | |
-| A | A2 API 模块 | 待开发 | | |
-| A | A3 Toast 通知 | 待开发 | | |
-| A | A4 确认弹窗 | 待开发 | | |
-| A | A5 分页器 | 待开发 | | |
-| A | A6 空状态+骨架屏 | 待开发 | | |
-| A | **阶段提交** | 待提交 | | |
+| A | A1 类型定义 | 已完成 | 2026-05-07 | 新增 `web/src/types/admin.ts`，按当前后台实际字段补齐类型 |
+| A | A2 API 模块 | 已完成 | 2026-05-07 | 新增 `web/src/api/admin.ts`，封装现有 `/admin/*` API |
+| A | A3 Toast 通知 | 已完成 | 2026-05-07 | 新增 `useToast.ts` 和 `AppToast.vue`，已挂载到 `App.vue` |
+| A | A4 确认弹窗 | 已完成 | 2026-05-07 | 新增 `ConfirmDialog.vue` |
+| A | A5 分页器 | 已完成 | 2026-05-07 | 新增 `Pagination.vue`，支持 total=0 友好显示 |
+| A | A6 空状态+骨架屏 | 已完成 | 2026-05-07 | 新增 `EmptyState.vue` 和 `SkeletonCard.vue` |
+| A | **阶段提交** | 待提交 | 2026-05-07 | `vue-tsc` 通过，`pnpm build` 提升权限后通过 |
 | B | B1 AdminLayout | 待开发 | | |
 | B | B2 AdminSidebar | 待开发 | | |
 | B | B3 重写入口壳 | 待开发 | | |

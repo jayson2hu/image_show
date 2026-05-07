@@ -2129,3 +2129,18 @@
   - 大功能 3 自动验收通过，可以提交。
 - 问题记录：
   - 未做浏览器手动验收；后续可在 `/account` 验证有/无公告、有/无登录日志两种状态。
+## 2026-05-07 管理后台重设计阶段 A：基础设施层
+
+- 完成：
+  - 新增 `web/src/types/admin.ts`，抽取后台用户、积分流水、生成记录、渠道、模板、公告、监控等共享类型。
+  - 新增 `web/src/api/admin.ts`，封装后台用户、积分、模板、渠道、设置、监控、公告、生成记录等 API。
+  - 新增全局 Toast 基础设施：`useToast.ts` 和 `AppToast.vue`，并在 `App.vue` 挂载。
+  - 新增通用 UI 组件：`ConfirmDialog.vue`、`Pagination.vue`、`EmptyState.vue`、`SkeletonCard.vue`。
+  - 本阶段只新增共享基础设施，未重构现有 `AdminDashboard.vue` 业务逻辑。
+- 自测记录：
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+  - `pnpm.cmd build`：沙箱内因 esbuild `spawn EPERM` 失败；提升权限后通过。
+- 验收结论：
+  - 阶段 A 自动验收通过，可以提交。
+- 问题记录：
+  - 当前项目未配置 ESLint 脚本，因此未执行 `npm run lint`。

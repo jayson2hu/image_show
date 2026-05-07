@@ -3,6 +3,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import AnnouncementCenter from './components/AnnouncementCenter.vue'
+import AppToast from './components/ui/AppToast.vue'
+import { provideToast } from './composables/useToast'
 import { useUserStore } from './stores/user'
 
 const userStore = useUserStore()
@@ -15,6 +17,7 @@ const isAdminConsole = computed(() => route.name === 'admin')
 const isFullBleed = computed(() => isHome.value || isAdminConsole.value)
 const roleLabel = computed(() => (isAdmin.value ? '管理员' : userStore.user ? '普通用户' : '未登录'))
 const isAccountMenuOpen = ref(false)
+provideToast()
 
 function handleUnauthorized() {
   userStore.logout()
@@ -109,5 +112,6 @@ watch(() => route.fullPath, closeAccountMenu)
     <main :class="isFullBleed ? 'mx-auto max-w-none p-0' : 'mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8'">
       <RouterView />
     </main>
+    <AppToast />
   </div>
 </template>
