@@ -88,6 +88,7 @@ watch(() => route.fullPath, closeAccountMenu)
               role="menu"
               @keydown.escape.stop="closeAccountMenu"
             >
+              <RouterLink class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" role="menuitem" to="/account">个人中心</RouterLink>
               <RouterLink class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" role="menuitem" to="/history">历史记录</RouterLink>
               <RouterLink v-if="!isAdmin" class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" role="menuitem" to="/credits">积分流水</RouterLink>
               <RouterLink v-if="!isAdmin" class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" role="menuitem" to="/packages">积分套餐</RouterLink>

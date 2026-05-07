@@ -11,6 +11,7 @@ const router = createRouter({
     { path: '/register', name: 'register', component: () => import('@/views/Login.vue') },
     { path: '/console/admin/login', name: 'admin-login', component: () => import('@/views/admin/AdminLogin.vue') },
     { path: '/console/admin', name: 'admin', component: () => import('@/views/admin/AdminDashboard.vue') },
+    { path: '/account', name: 'account', component: () => import('@/views/Account.vue') },
     { path: '/history', name: 'history', component: () => import('@/views/History.vue') },
     { path: '/credits', name: 'credits', component: () => import('@/views/Credits.vue') },
     { path: '/packages', name: 'packages', component: () => import('@/views/Packages.vue') },
@@ -35,7 +36,7 @@ router.beforeEach(async (to) => {
       return { name: 'home' }
     }
   }
-  if (to.name === 'credits' && !userStore.token) {
+  if ((to.name === 'credits' || to.name === 'account') && !userStore.token) {
     return { name: 'login' }
   }
 })

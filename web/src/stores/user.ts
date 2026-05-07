@@ -4,10 +4,17 @@ import api from '@/api'
 
 interface User {
   id: number
+  username?: string
   email: string
+  avatar_url?: string
   credits: number
+  credits_expiry?: string | null
   role: number
   status: number
+  created_at?: string
+  updated_at?: string
+  last_login_at?: string | null
+  last_login_ip?: string
 }
 
 export const useUserStore = defineStore('user', {
