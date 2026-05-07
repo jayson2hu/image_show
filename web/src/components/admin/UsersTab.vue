@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import { fetchUserGenerations, fetchUsers, topupCredits, updateUserRole, updateUserStatus } from '@/api/admin'
+import { createUser, fetchUserGenerations, fetchUsers, topupCredits, updateUserRole, updateUserStatus } from '@/api/admin'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import Pagination from '@/components/ui/Pagination.vue'
@@ -17,8 +17,10 @@ const selectedUser = ref<AdminUser | null>(null)
 const userGenerations = ref<Page<Generation>>({ items: [], total: 0, page: 1, pageSize: 10 })
 const recordsOpen = ref(false)
 const creditOpen = ref(false)
+const createOpen = ref(false)
 const creditAmount = ref(1)
 const creditRemark = ref('')
+const userForm = ref({ email: '', username: '', password: '', role: 1, status: 1, credits: 0 })
 const confirmState = ref<{ open: boolean; user: AdminUser | null; action: 'status' | 'role' | null }>({ open: false, user: null, action: null })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(users.value.total / users.value.pageSize)))
@@ -66,6 +68,22 @@ async function submitCredit() {
     await loadUsers(users.value.page)
   } catch (error: any) {
     toast.error(error.response?.data?.error || '充值失败')
+  }
+}
+
+function openCreateUser() {
+  userForm.value = { email: '', username: '', password: '', role: 1, status: 1, credits: 0 }
+  createOpen.value = true
+}
+
+async function submitCreateUser() {
+  try {
+    await createUser(userForm.value)
+    toast.success('用户已创建')
+    createOpen.value = false
+    await loadUsers(1)
+  } catch (error: any) {
+    toast.error(error.response?.data?.error || '创建用户失败')
   }
 }
 
@@ -118,10 +136,13 @@ function formatTime(value?: string | null) {
         <h2 class="mt-1 text-2xl font-semibold text-slate-950">用户管理</h2>
         <p class="mt-2 text-sm text-slate-500">搜索用户、查看记录、调整角色和人工充值。</p>
       </div>
-      <form class="flex gap-2" @submit.prevent="loadUsers(1)">
-        <input v-model="keyword" class="min-h-11 w-64 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20" placeholder="搜索邮箱或用户名" />
-        <button class="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800" type="submit">搜索</button>
-      </form>
+      <div class="flex flex-col gap-2 sm:flex-row">
+        <form class="flex gap-2" @submit.prevent="loadUsers(1)">
+          <input v-model="keyword" class="min-h-11 w-64 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20" placeholder="搜索邮箱或用户名" />
+          <button class="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800" type="submit">搜索</button>
+        </form>
+        <button class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50" type="button" @click="openCreateUser">新建用户</button>
+      </div>
     </div>
 
     <div v-if="loading" class="grid gap-4 md:grid-cols-2">
@@ -230,6 +251,51 @@ function formatTime(value?: string | null) {
         <div class="mt-6 flex justify-end gap-2">
           <button class="rounded-xl border border-slate-200 px-4 py-2 text-sm" type="button" @click="creditOpen = false">取消</button>
           <button class="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white" type="submit">确认充值</button>
+        </div>
+      </form>
+    </div>
+
+    <div v-if="createOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="createOpen = false">
+      <form class="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5 shadow-2xl" @submit.prevent="submitCreateUser">
+        <h3 class="text-lg font-semibold text-slate-950">新建用户</h3>
+        <p class="mt-1 text-sm text-slate-500">创建用户后可在列表中调整角色、状态和积分。</p>
+        <div class="mt-5 grid gap-4">
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">邮箱</span>
+            <input v-model="userForm.email" class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/20" required type="email" />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">用户名</span>
+            <input v-model="userForm.username" class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/20" />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">密码</span>
+            <input v-model="userForm.password" class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/20" required minlength="8" type="password" />
+          </label>
+          <div class="grid gap-3 sm:grid-cols-3">
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">角色</span>
+              <select v-model.number="userForm.role" class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/20">
+                <option :value="1">普通用户</option>
+                <option :value="10">管理员</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">状态</span>
+              <select v-model.number="userForm.status" class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/20">
+                <option :value="1">正常</option>
+                <option :value="2">禁用</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">初始积分</span>
+              <input v-model.number="userForm.credits" class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/20" min="0" step="0.01" type="number" />
+            </label>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+          <button class="rounded-xl border border-slate-200 px-4 py-2 text-sm" type="button" @click="createOpen = false">取消</button>
+          <button class="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white" type="submit">创建用户</button>
         </div>
       </form>
     </div>
