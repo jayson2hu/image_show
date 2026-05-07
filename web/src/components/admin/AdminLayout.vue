@@ -8,6 +8,7 @@ import { useUserStore } from '@/stores/user'
 import AdminSidebar from './AdminSidebar.vue'
 import ChannelsTab from './ChannelsTab.vue'
 import OverviewTab from './OverviewTab.vue'
+import SettingsTab from './SettingsTab.vue'
 import TemplatesTab from './TemplatesTab.vue'
 import UsersTab from './UsersTab.vue'
 
@@ -50,6 +51,7 @@ onMounted(async () => {
         <UsersTab v-else-if="activeTab === 'users'" />
         <ChannelsTab v-else-if="activeTab === 'channels'" />
         <TemplatesTab v-else-if="activeTab === 'templates'" />
+        <SettingsTab v-else-if="activeTab === 'settings'" />
         <div v-else class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
           <p class="text-sm font-medium text-teal">Admin redesign preview</p>
           <h2 class="mt-2 text-2xl font-semibold text-slate-950">{{ tabTitles[activeTab] || '概览' }}</h2>
