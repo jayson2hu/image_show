@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { createAnnouncement, deleteAnnouncement, fetchAnnouncements, updateAnnouncement } from '@/api/admin'
+import { createAnnouncement, deleteAnnouncement, fetchAnnouncementReads, fetchAnnouncements, updateAnnouncement } from '@/api/admin'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonCard from '@/components/ui/SkeletonCard.vue'
 import { useToast } from '@/composables/useToast'
-import type { Announcement } from '@/types/admin'
+import type { Announcement, AnnouncementRead } from '@/types/admin'
 
 const toast = useToast()
 const loading = ref(false)
 const saving = ref(false)
 const announcements = ref<Announcement[]>([])
 const modalOpen = ref(false)
+const readsOpen = ref(false)
 const editing = ref<Announcement | null>(null)
+const selectedAnnouncement = ref<Announcement | null>(null)
+const reads = ref<AnnouncementRead[]>([])
 const deleteTarget = ref<Announcement | null>(null)
 const form = ref<Announcement>({ id: 0, title: '', content: '', notify_mode: 'silent', target: 'all', sort_order: 0, status: 1, starts_at: '', ends_at: '', created_at: '', updated_at: '' })
 
@@ -81,6 +84,17 @@ async function confirmDelete() {
   }
 }
 
+async function openReads(item: Announcement) {
+  selectedAnnouncement.value = item
+  readsOpen.value = true
+  try {
+    const response = await fetchAnnouncementReads(item.id)
+    reads.value = response.data.items || []
+  } catch (error: any) {
+    toast.error(error.response?.data?.error || '已读用户加载失败')
+  }
+}
+
 function toInputDate(value?: string | null) {
   if (!value) {
     return ''
@@ -138,6 +152,7 @@ function targetText(target: string) {
         </div>
         <div class="mt-5 flex gap-2">
           <button class="announcement-btn" type="button" @click="openEdit(item)">编辑</button>
+          <button class="announcement-btn" type="button" @click="openReads(item)">已读用户</button>
           <button class="announcement-btn text-rose-600" type="button" @click="deleteTarget = item">删除</button>
         </div>
       </article>
@@ -211,6 +226,28 @@ function targetText(target: string) {
       @cancel="deleteTarget = null"
       @confirm="confirmDelete"
     />
+
+    <div v-if="readsOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="readsOpen = false">
+      <div class="max-h-[85vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white p-5 shadow-2xl">
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-950">已读用户</h3>
+            <p class="text-sm text-slate-500">{{ selectedAnnouncement?.title }}</p>
+          </div>
+          <button class="rounded-xl border border-slate-200 px-3 py-2 text-sm" type="button" @click="readsOpen = false">关闭</button>
+        </div>
+        <div v-if="!reads.length" class="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">暂无已读用户</div>
+        <div v-else class="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+          <div v-for="item in reads" :key="`${item.user_id}-${item.read_at}`" class="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+            <div class="min-w-0">
+              <p class="truncate font-medium text-slate-900">{{ item.username || item.email }}</p>
+              <p class="truncate text-xs text-slate-500">{{ item.email }}</p>
+            </div>
+            <p class="shrink-0 text-xs text-slate-500">{{ new Date(item.read_at).toLocaleString() }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
