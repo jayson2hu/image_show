@@ -34,6 +34,14 @@ const aspectRatioFallbacks: Record<string, SizeOption> = {
   widescreen: { value: 'widescreen', label: '宽屏', ratio: '16:9', credit_cost: 2 },
 }
 
+const aspectRatioRealSizes: Record<string, string> = {
+  square: '1024x1024',
+  portrait_3_4: '1152x1536',
+  story: '1008x1792',
+  landscape_4_3: '1536x1152',
+  widescreen: '1792x1008',
+}
+
 interface StylePreset {
   id: string
   name: string
@@ -98,6 +106,7 @@ const isPromptPanelCollapsed = ref(false)
 const toggleNudge = ref(false)
 const isFullscreenOpen = ref(false)
 const fullscreenEl = ref<HTMLElement | null>(null)
+const isBillingGuideOpen = ref(false)
 
 const defaultStylePresets: StylePreset[] = [
   { id: 'style-realistic', name: '写实', prompt: '写实摄影风格，细节丰富，自然光影，真实材质，高质量商业摄影' },
@@ -311,11 +320,8 @@ function makeSizeOption(value: string): SizeOption {
 }
 
 function creditCostForSize(value: string) {
-  const fallback = aspectRatioFallbacks[value]
-  if (fallback?.credit_cost) {
-    return fallback.credit_cost
-  }
-  const [width, height] = value.toLowerCase().split('x').map((part) => Number.parseInt(part.trim(), 10))
+  const realSize = aspectRatioRealSizes[value] || value
+  const [width, height] = realSize.toLowerCase().split('x').map((part) => Number.parseInt(part.trim(), 10))
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     return 1
   }
@@ -937,7 +943,12 @@ function resetCaptcha() {
                 <span>{{ userStore.user ? '可用余额' : '当前额度' }}</span>
                 <span class="font-semibold" :class="canAffordCurrentGeneration ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'">{{ creditBalanceText }}</span>
               </div>
-              <p v-if="generateHint" class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ generateHint }}</p>
+              <div class="mt-2 flex items-center justify-between gap-3">
+                <p v-if="generateHint" class="text-xs text-slate-500 dark:text-slate-400">{{ generateHint }}</p>
+                <button class="shrink-0 text-xs font-medium text-violet-700 transition hover:text-violet-900 dark:text-violet-300 dark:hover:text-violet-100" type="button" @click="isBillingGuideOpen = true">
+                  查看计费规则
+                </button>
+              </div>
             </div>
             <button
               class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 py-4 text-white shadow-lg shadow-violet-500/30 transition hover:from-violet-700 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -969,6 +980,35 @@ function resetCaptcha() {
       </div>
       <div class="min-h-0 flex-1 p-3 sm:p-6">
         <img class="size-full object-contain" :src="imageURL" alt="生成的图片全屏预览" />
+      </div>
+    </div>
+
+    <div v-if="isBillingGuideOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4" role="dialog" aria-modal="true" aria-labelledby="billing-guide-title" @click.self="isBillingGuideOpen = false">
+      <div class="w-full max-w-md rounded-2xl bg-white p-5 text-slate-900 shadow-xl dark:bg-slate-900 dark:text-slate-100">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 id="billing-guide-title" class="text-lg font-semibold">积分怎么计算</h3>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">按最终图片像素计费，生成前会先展示预计消耗。</p>
+          </div>
+          <button class="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800" type="button" @click="isBillingGuideOpen = false">关闭</button>
+        </div>
+        <div class="mt-5 space-y-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
+            <p class="font-medium text-slate-900 dark:text-slate-100">标准图</p>
+            <p class="mt-1">1024 x 1024 记为 1 积分。</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
+            <p class="font-medium text-slate-900 dark:text-slate-100">更大尺寸</p>
+            <p class="mt-1">按像素量向上取整。例如 1536 x 1024 约为 1.5 张标准图，按 2 积分计算。</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
+            <p class="font-medium text-slate-900 dark:text-slate-100">失败任务</p>
+            <p class="mt-1">如果生成失败或你在开始前取消任务，系统会按当前后端规则退回已扣积分。</p>
+          </div>
+        </div>
+        <button class="mt-5 w-full rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-700" type="button" @click="isBillingGuideOpen = false">
+          我知道了
+        </button>
       </div>
     </div>
   </section>
