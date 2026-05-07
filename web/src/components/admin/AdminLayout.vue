@@ -7,6 +7,7 @@ import { useUserStore } from '@/stores/user'
 
 import AdminSidebar from './AdminSidebar.vue'
 import OverviewTab from './OverviewTab.vue'
+import UsersTab from './UsersTab.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -44,6 +45,7 @@ onMounted(async () => {
       <AdminSidebar v-model:active-tab="activeTab" />
       <main class="min-w-0 p-4 sm:p-6 lg:p-8">
         <OverviewTab v-if="activeTab === 'overview'" @change-tab="activeTab = $event" />
+        <UsersTab v-else-if="activeTab === 'users'" />
         <div v-else class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
           <p class="text-sm font-medium text-teal">Admin redesign preview</p>
           <h2 class="mt-2 text-2xl font-semibold text-slate-950">{{ tabTitles[activeTab] || '概览' }}</h2>
