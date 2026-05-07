@@ -93,12 +93,34 @@ func AdminTestChannel(c *gin.Context) {
 		req.Header.Set("Authorization", "Bearer "+channel.APIKey)
 	}
 	resp, err := client.Do(req)
+	testedAt := time.Now()
+	errorSummary := ""
 	if err != nil {
+		errorSummary = sanitizeChannelTestError(err.Error())
+		_ = model.DB.Model(&model.Channel{}).Where("id = ?", channel.ID).Updates(map[string]interface{}{
+			"last_test_at":      testedAt,
+			"last_test_success": false,
+			"last_test_status":  0,
+			"last_test_error":   errorSummary,
+		}).Error
 		c.JSON(http.StatusOK, gin.H{"ok": false, "error": err.Error()})
 		return
 	}
 	defer resp.Body.Close()
-	c.JSON(http.StatusOK, gin.H{"ok": resp.StatusCode >= 200 && resp.StatusCode < 300, "status": resp.StatusCode})
+	testOK := resp.StatusCode >= 200 && resp.StatusCode < 300
+	if !testOK {
+		errorSummary = "upstream status " + strconv.Itoa(resp.StatusCode)
+	}
+	if err := model.DB.Model(&model.Channel{}).Where("id = ?", channel.ID).Updates(map[string]interface{}{
+		"last_test_at":      testedAt,
+		"last_test_success": testOK,
+		"last_test_status":  resp.StatusCode,
+		"last_test_error":   errorSummary,
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to record channel test"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": testOK, "status": resp.StatusCode})
 }
 
 func channelFromRequest(req channelRequest) model.Channel {
@@ -119,6 +141,14 @@ func channelFromRequest(req channelRequest) model.Channel {
 		Weight:  weight,
 		Remark:  req.Remark,
 	}
+}
+
+func sanitizeChannelTestError(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) > 240 {
+		return value[:240]
+	}
+	return value
 }
 
 func parseIDParam(c *gin.Context) (int64, bool) {

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/smtp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jayson2hu/image-show/config"
@@ -18,6 +19,7 @@ type MonitorSummary struct {
 	GenerationCount  int64   `json:"generation_count"`
 	CompletedCount   int64   `json:"completed_count"`
 	FailedCount      int64   `json:"failed_count"`
+	FailureRate      float64 `json:"failure_rate"`
 	CreditsConsumed  float64 `json:"credits_consumed"`
 	NewUsers         int64   `json:"new_users"`
 	PaidOrderCount   int64   `json:"paid_order_count"`
@@ -25,12 +27,31 @@ type MonitorSummary struct {
 	AlertThreshold   float64 `json:"alert_threshold"`
 	AlertTriggered   bool    `json:"alert_triggered"`
 	AlertAlreadySent bool    `json:"alert_already_sent"`
+	FailureReasons   []FailureReasonSummary `json:"failure_reasons"`
+	RecentFailures   []RecentFailure        `json:"recent_failures"`
 }
 
 type MonitorAlertResult struct {
 	Triggered bool `json:"triggered"`
 	Sent      bool `json:"sent"`
 	Skipped   bool `json:"skipped"`
+}
+
+type FailureReasonSummary struct {
+	Category string `json:"category"`
+	Label    string `json:"label"`
+	Count    int64  `json:"count"`
+}
+
+type RecentFailure struct {
+	ID        int64     `json:"id"`
+	UserID    *int64    `json:"user_id"`
+	Prompt    string    `json:"prompt"`
+	Size      string    `json:"size"`
+	Error     string    `json:"error"`
+	Category  string    `json:"category"`
+	Label     string    `json:"label"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func GetMonitorSummary(day time.Time) (*MonitorSummary, error) {
@@ -46,6 +67,9 @@ func GetMonitorSummary(day time.Time) (*MonitorSummary, error) {
 	}
 	if err := countBetween(model.DB.Model(&model.Generation{}).Where("status = ?", 4), start, end, &summary.FailedCount); err != nil {
 		return nil, err
+	}
+	if summary.GenerationCount > 0 {
+		summary.FailureRate = float64(summary.FailedCount) / float64(summary.GenerationCount)
 	}
 	if err := countBetween(model.DB.Model(&model.User{}), start, end, &summary.NewUsers); err != nil {
 		return nil, err
@@ -69,6 +93,9 @@ func GetMonitorSummary(day time.Time) (*MonitorSummary, error) {
 	summary.AlertThreshold = monitorThreshold()
 	summary.AlertTriggered = summary.AlertThreshold > 0 && summary.CreditsConsumed >= summary.AlertThreshold
 	summary.AlertAlreadySent = model.GetSettingValue("monitor_alert_last_date", "") == summary.Date
+	if err := fillFailureDetails(summary, start, end); err != nil {
+		return nil, err
+	}
 	return summary, nil
 }
 
@@ -157,4 +184,67 @@ func upsertSetting(key, value string) error {
 func dayStart(day time.Time) time.Time {
 	y, m, d := day.Date()
 	return time.Date(y, m, d, 0, 0, 0, 0, day.Location())
+}
+
+func fillFailureDetails(summary *MonitorSummary, start, end time.Time) error {
+	var failures []model.Generation
+	if err := model.DB.Where("status = ? AND created_at >= ? AND created_at < ?", 4, start, end).
+		Order("created_at DESC").
+		Limit(50).
+		Find(&failures).Error; err != nil {
+		return err
+	}
+	counts := make(map[string]int64)
+	labels := make(map[string]string)
+	for index, generation := range failures {
+		category, label := classifyFailure(generation.ErrorMsg)
+		counts[category]++
+		labels[category] = label
+		if index < 10 {
+			summary.RecentFailures = append(summary.RecentFailures, RecentFailure{
+				ID:        generation.ID,
+				UserID:    generation.UserID,
+				Prompt:    truncateText(generation.Prompt, 80),
+				Size:      generation.Size,
+				Error:     truncateText(generation.ErrorMsg, 160),
+				Category:  category,
+				Label:     label,
+				CreatedAt: generation.CreatedAt,
+			})
+		}
+	}
+	order := []string{"upstream_timeout", "upstream_unavailable", "rate_limited", "storage_failed", "credits", "cancelled", "other"}
+	for _, category := range order {
+		if count := counts[category]; count > 0 {
+			summary.FailureReasons = append(summary.FailureReasons, FailureReasonSummary{Category: category, Label: labels[category], Count: count})
+		}
+	}
+	return nil
+}
+
+func classifyFailure(message string) (string, string) {
+	value := strings.ToLower(message)
+	switch {
+	case strings.Contains(value, "timeout") || strings.Contains(value, "524") || strings.Contains(value, "deadline"):
+		return "upstream_timeout", "上游超时"
+	case strings.Contains(value, "503") || strings.Contains(value, "502") || strings.Contains(value, "unavailable") || strings.Contains(value, "unexpected eof"):
+		return "upstream_unavailable", "上游不可用"
+	case strings.Contains(value, "429") || strings.Contains(value, "rate limit"):
+		return "rate_limited", "上游限流"
+	case strings.Contains(value, "r2") || strings.Contains(value, "save") || strings.Contains(value, "upload") || strings.Contains(value, "保存"):
+		return "storage_failed", "存储失败"
+	case strings.Contains(value, "credit") || strings.Contains(value, "积分"):
+		return "credits", "积分相关"
+	case strings.Contains(value, "cancel"):
+		return "cancelled", "用户取消"
+	default:
+		return "other", "其他失败"
+	}
+}
+
+func truncateText(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+	return value[:limit]
 }

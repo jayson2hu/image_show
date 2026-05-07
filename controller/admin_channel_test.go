@@ -72,6 +72,13 @@ func TestAdminChannelTestEndpoint(t *testing.T) {
 	if rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte(`"ok":true`)) {
 		t.Fatalf("test status=%d body=%s", rec.Code, rec.Body.String())
 	}
+	var tested model.Channel
+	if err := model.DB.First(&tested, channel.ID).Error; err != nil {
+		t.Fatalf("load tested channel: %v", err)
+	}
+	if tested.LastTestAt == nil || !tested.LastTestSuccess || tested.LastTestStatus != http.StatusOK || tested.LastTestError != "" {
+		t.Fatalf("unexpected channel test result: %+v", tested)
+	}
 }
 
 func adminJSON(engine http.Handler, method, path string, body interface{}, token string) *httptest.ResponseRecorder {

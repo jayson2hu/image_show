@@ -44,6 +44,23 @@ interface Generation {
   created_at: string
 }
 
+interface FailureReasonSummary {
+  category: string
+  label: string
+  count: number
+}
+
+interface RecentFailure {
+  id: number
+  user_id?: number | null
+  prompt: string
+  size: string
+  error: string
+  category: string
+  label: string
+  created_at: string
+}
+
 interface PromptTemplate {
   id: number
   category: string
@@ -62,6 +79,10 @@ interface Channel {
   status: number
   weight: number
   remark?: string
+  last_test_at?: string | null
+  last_test_success?: boolean
+  last_test_status?: number
+  last_test_error?: string
 }
 
 interface Announcement {
@@ -92,12 +113,15 @@ interface MonitorSummary {
   generation_count: number
   completed_count: number
   failed_count: number
+  failure_rate: number
   credits_consumed: number
   new_users: number
   paid_order_count: number
   paid_order_amount: number
   alert_threshold: number
   alert_triggered: boolean
+  failure_reasons?: FailureReasonSummary[]
+  recent_failures?: RecentFailure[]
 }
 
 const emptyUserPage = (): Page<User> => ({ items: [], total: 0, page: 1, pageSize: 20 })
@@ -216,6 +240,7 @@ const visibleSettingGroups = computed(() => {
 const activeSettingGroupInfo = computed(() => visibleSettingGroups.value.find((group) => group.id === activeSettingGroup.value) || visibleSettingGroups.value[0])
 const activeSettingKeys = computed(() => activeSettingGroupInfo.value?.keys || [])
 const overviewCards = computed(() => [
+  { label: '失败率', value: `${((monitor.value?.failure_rate ?? 0) * 100).toFixed(1)}%`, hint: '今日失败任务占比' },
   { label: '今日生成', value: monitor.value?.generation_count ?? 0, hint: `${monitor.value?.completed_count ?? 0} 成功 / ${monitor.value?.failed_count ?? 0} 失败` },
   { label: '新增用户', value: monitor.value?.new_users ?? 0, hint: `当前用户 ${users.value.total}` },
   { label: '积分消耗', value: monitor.value?.credits_consumed ?? 0, hint: `告警阈值 ${monitor.value?.alert_threshold ?? 0}` },
@@ -557,6 +582,7 @@ async function testChannel(channel: Channel) {
   channelTestResult.value[channel.id] = '测试中...'
   const response = await api.post(`/admin/channels/${channel.id}/test`)
   channelTestResult.value[channel.id] = response.data.ok ? `可用，状态码 ${response.data.status}` : response.data.error || `不可用，状态码 ${response.data.status}`
+  await loadChannels()
 }
 
 async function loadMonitor() {
@@ -961,6 +987,8 @@ onMounted(async () => {
               <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
                 <span class="rounded bg-slate-100 px-2 py-1">权重 {{ channel.weight }}</span>
                 <span class="rounded bg-slate-100 px-2 py-1">API Key {{ channel.api_key ? '已配置' : '未配置' }}</span>
+                <span v-if="channel.last_test_at" class="rounded bg-slate-100 px-2 py-1">最近测试 {{ fmtTime(channel.last_test_at) }}</span>
+                <span v-if="channel.last_test_at" class="rounded px-2 py-1" :class="channel.last_test_success ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'">{{ channel.last_test_success ? '测试可用' : (channel.last_test_error || `测试失败 ${channel.last_test_status || ''}`) }}</span>
                 <span v-if="channelTestResult[channel.id]" class="rounded bg-slate-100 px-2 py-1">{{ channelTestResult[channel.id] }}</span>
               </div>
             </div>
@@ -1135,7 +1163,7 @@ onMounted(async () => {
           <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div v-for="card in overviewCards" :key="card.label" class="admin-panel p-4">
               <div class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ card.label }}</div>
-              <div class="mt-2 text-2xl font-semibold">{{ fmtNumber(Number(card.value)) }}</div>
+              <div class="mt-2 text-2xl font-semibold">{{ typeof card.value === 'number' ? fmtNumber(card.value) : card.value }}</div>
               <div class="mt-1 text-sm text-slate-500">{{ card.hint }}</div>
             </div>
           </div>
@@ -1150,6 +1178,33 @@ onMounted(async () => {
           </div>
         </div>
         <p v-else-if="activeTab === 'monitor'" class="admin-panel p-8 text-center text-sm text-slate-500">监控数据加载中</p>
+
+        <div v-if="activeTab === 'monitor' && monitor" class="mt-4 grid gap-4 xl:grid-cols-[360px_1fr]">
+          <div class="admin-panel p-4">
+            <div class="font-medium text-slate-900">失败原因</div>
+            <div class="mt-3 space-y-2">
+              <div v-for="reason in monitor.failure_reasons || []" :key="reason.category" class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                <span class="text-slate-700">{{ reason.label }}</span>
+                <span class="font-semibold text-slate-950">{{ reason.count }}</span>
+              </div>
+              <p v-if="!(monitor.failure_reasons || []).length" class="rounded-lg bg-slate-50 px-3 py-6 text-center text-sm text-slate-500">今日暂无失败任务</p>
+            </div>
+          </div>
+          <div class="admin-panel overflow-hidden">
+            <div class="border-b border-slate-200/70 px-4 py-3 font-medium text-slate-900">最近失败任务</div>
+            <div class="divide-y divide-slate-200/70">
+              <div v-for="failure in monitor.recent_failures || []" :key="failure.id" class="grid gap-3 px-4 py-3 text-sm lg:grid-cols-[120px_120px_1fr]">
+                <div class="text-slate-500">{{ fmtTime(failure.created_at) }}</div>
+                <div><span class="admin-badge admin-badge-danger">{{ failure.label }}</span></div>
+                <div class="min-w-0">
+                  <div class="truncate font-medium text-slate-900">#{{ failure.id }} · {{ failure.size }}</div>
+                  <p class="mt-1 line-clamp-2 text-slate-500">{{ failure.error || failure.prompt || '暂无错误摘要' }}</p>
+                </div>
+              </div>
+              <p v-if="!(monitor.recent_failures || []).length" class="px-4 py-8 text-center text-sm text-slate-500">暂无失败记录</p>
+            </div>
+          </div>
+        </div>
 
         <div v-if="loading" class="fixed bottom-4 right-4 rounded-md bg-slate-950 px-4 py-3 text-sm text-white shadow-lg">处理中...</div>
 

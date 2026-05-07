@@ -66,16 +66,20 @@ type LoginLog struct {
 }
 
 type Channel struct {
-	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name      string    `gorm:"size:64" json:"name"`
-	BaseURL   string    `gorm:"size:256" json:"base_url"`
-	APIKey    string    `gorm:"size:256" json:"api_key"`
-	Headers   string    `gorm:"type:text" json:"headers"`
-	Status    int       `gorm:"default:1" json:"status"`
-	Weight    int       `gorm:"default:1" json:"weight"`
-	Remark    string    `gorm:"size:256" json:"remark"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID              int64      `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name            string     `gorm:"size:64" json:"name"`
+	BaseURL         string     `gorm:"size:256" json:"base_url"`
+	APIKey          string     `gorm:"size:256" json:"api_key"`
+	Headers         string     `gorm:"type:text" json:"headers"`
+	Status          int        `gorm:"default:1" json:"status"`
+	Weight          int        `gorm:"default:1" json:"weight"`
+	Remark          string     `gorm:"size:256" json:"remark"`
+	LastTestAt      *time.Time `json:"last_test_at"`
+	LastTestSuccess bool       `gorm:"default:false" json:"last_test_success"`
+	LastTestStatus  int        `gorm:"default:0" json:"last_test_status"`
+	LastTestError   string     `gorm:"size:256" json:"last_test_error"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 type Setting struct {

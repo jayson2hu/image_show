@@ -18,6 +18,9 @@ func TestAdminMonitorSummaryAndAlert(t *testing.T) {
 	if err := model.DB.Create(&model.Generation{UserID: &userID, Prompt: "p", Quality: "low", Size: "1024x1024", Status: 3, CreatedAt: now}).Error; err != nil {
 		t.Fatalf("create generation: %v", err)
 	}
+	if err := model.DB.Create(&model.Generation{UserID: &userID, Prompt: "bad", Quality: "low", Size: "1024x1024", Status: 4, ErrorMsg: "sub2api status 503: upstream unavailable", CreatedAt: now}).Error; err != nil {
+		t.Fatalf("create failed generation: %v", err)
+	}
 	if err := model.DB.Create(&model.CreditLog{UserID: userID, Type: 2, Amount: -2.5, Balance: 7.5, CreatedAt: now}).Error; err != nil {
 		t.Fatalf("create credit log: %v", err)
 	}
@@ -36,8 +39,11 @@ func TestAdminMonitorSummaryAndAlert(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &summary); err != nil {
 		t.Fatalf("decode summary: %v", err)
 	}
-	if summary.GenerationCount != 1 || summary.CreditsConsumed != 2.5 || !summary.AlertTriggered {
+	if summary.GenerationCount != 2 || summary.FailedCount != 1 || summary.FailureRate != 0.5 || summary.CreditsConsumed != 2.5 || !summary.AlertTriggered {
 		t.Fatalf("unexpected summary: %+v", summary)
+	}
+	if len(summary.FailureReasons) != 1 || summary.FailureReasons[0].Category != "upstream_unavailable" || len(summary.RecentFailures) != 1 {
+		t.Fatalf("unexpected failure details: %+v", summary)
 	}
 
 	check := adminRequest(engine, http.MethodPost, "/api/admin/monitor/check", token)
