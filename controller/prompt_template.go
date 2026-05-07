@@ -30,5 +30,10 @@ func defaultPromptTemplates() []model.PromptTemplate {
 		{Category: "sample", Label: "赛博朋克城市", Prompt: "未来城市夜景，湿润街道反射霓虹灯，密集高楼与飞行交通，赛博朋克风格，强烈蓝紫色光影", SortOrder: 21, Status: 1},
 		{Category: "sample", Label: "水彩小屋", Prompt: "森林中的小木屋，清晨薄雾，温暖阳光穿过树叶，柔和水彩画风格，安静治愈氛围", SortOrder: 22, Status: 1},
 		{Category: "sample", Label: "抽象艺术", Prompt: "流动的光影和透明几何结构，紫蓝渐变，细腻颗粒质感，现代抽象艺术海报", SortOrder: 23, Status: 1},
+		{Category: "scenario", Label: "小红书封面", Prompt: "小红书封面图，一眼能看懂主题，清晰大标题留白，明亮干净的构图，适合手机竖屏浏览", SortOrder: 40, Status: 1},
+		{Category: "scenario", Label: "商品展示图", Prompt: "电商商品展示图，主体突出，干净背景，真实材质，高级商业摄影光影，适合商品主图", SortOrder: 41, Status: 1},
+		{Category: "scenario", Label: "头像", Prompt: "精致头像，主体居中，五官清晰，背景简洁，有辨识度，适合作为社交平台头像", SortOrder: 42, Status: 1},
+		{Category: "scenario", Label: "海报", Prompt: "宣传海报视觉，主题突出，层次清晰，保留文字排版空间，适合活动宣传和内容配图", SortOrder: 43, Status: 1},
+		{Category: "scenario", Label: "壁纸", Prompt: "高清壁纸画面，视觉舒适，构图开阔，细节丰富，适合手机或电脑屏幕背景", SortOrder: 44, Status: 1},
 	}
 }

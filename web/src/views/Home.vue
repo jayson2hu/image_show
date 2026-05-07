@@ -46,6 +46,14 @@ interface SamplePrompt {
   prompt: string
 }
 
+interface ScenarioPrompt {
+  id: string
+  title: string
+  prompt: string
+  size: string
+  style: string
+}
+
 interface PromptTemplate {
   id?: number
   category: string
@@ -105,8 +113,16 @@ const defaultSamplePrompts: SamplePrompt[] = [
   { id: 'sample-watercolor', title: '水彩小屋', prompt: '森林中的小木屋，清晨薄雾，温暖阳光穿过树叶，柔和水彩画风格，安静治愈氛围' },
   { id: 'sample-abstract', title: '抽象艺术', prompt: '流动的光影和透明几何结构，紫蓝渐变，细腻颗粒质感，现代抽象艺术海报' },
 ]
+const defaultScenarioPrompts: ScenarioPrompt[] = [
+  { id: 'scenario-redbook-cover', title: '小红书封面', prompt: '小红书封面图，主题是春季穿搭灵感，明亮干净的构图，留出醒目标题空间，适合手机竖屏浏览', size: 'story', style: 'style-realistic' },
+  { id: 'scenario-product', title: '商品展示图', prompt: '电商商品展示图，一瓶高级香薰蜡烛放在干净台面上，主体突出，真实材质，商业摄影光影，适合商品主图', size: 'square', style: 'style-realistic' },
+  { id: 'scenario-avatar', title: '头像', prompt: '精致头像，一位温和自信的年轻创作者，主体居中，背景简洁，有辨识度，适合作为社交平台头像', size: 'square', style: 'style-anime' },
+  { id: 'scenario-poster', title: '海报', prompt: '活动宣传海报视觉，主题是周末咖啡市集，层次清晰，保留文字排版空间，温暖自然的画面氛围', size: 'portrait_3_4', style: 'style-realistic' },
+  { id: 'scenario-wallpaper', title: '壁纸', prompt: '高清壁纸画面，星空下的安静湖泊和远山，构图开阔，细节丰富，视觉舒适，适合手机屏幕背景', size: 'story', style: 'style-fantasy' },
+]
 const stylePresets = ref<StylePreset[]>([...defaultStylePresets])
 const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
+const scenarioPrompts = ref<ScenarioPrompt[]>([...defaultScenarioPrompts])
 
 const selectedStylePrompt = computed(() => stylePresets.value.find((item) => item.id === selectedStyle.value)?.prompt || '')
 const canRetry = computed(() => !!lastRequest.value && !loading.value)
@@ -133,6 +149,15 @@ const generateHint = computed(() => {
 const displayName = computed(() => userStore.user?.email.split('@')[0] || '访客')
 const creditBalanceText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '1 次免费试用'))
 const creditStatusText = computed(() => (userStore.user ? '当前可用额度' : '登录后可获得更多积分'))
+const heroTitle = computed(() => (userStore.user ? '继续创作你的下一张图' : '输入一句话，生成封面、商品图和头像'))
+const heroSubtitle = computed(() =>
+  userStore.user
+    ? '复用你的想法，选择合适比例，生成完成后可以下载并在历史记录中找回。'
+    : '游客可免费生成 1 次；注册后获得积分，作品会保存在历史记录里，方便继续修改和下载。',
+)
+const creditBenefitText = computed(() =>
+  userStore.user ? '生成会按尺寸消耗积分，失败任务不会让你白白扣费。' : '游客免费试用 1 次，注册后获得积分并保存历史作品。',
+)
 const canAffordCurrentGeneration = computed(() => !userStore.user || userStore.user.credits >= estimatedCreditCost.value)
 const creditCostTone = computed(() => (canAffordCurrentGeneration.value ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100'))
 
@@ -180,6 +205,7 @@ async function loadPromptTemplates() {
     const items: PromptTemplate[] = Array.isArray(response.data.items) ? response.data.items : []
     const styles = items.filter((item) => item.category === 'style')
     const samples = items.filter((item) => item.category === 'sample')
+    const scenarios = items.filter((item) => item.category === 'scenario')
     if (styles.length > 0) {
       stylePresets.value = styles.map((item) => ({
         id: `style-${item.id || item.label}`,
@@ -194,9 +220,22 @@ async function loadPromptTemplates() {
         prompt: item.prompt,
       }))
     }
+    if (scenarios.length > 0) {
+      scenarioPrompts.value = scenarios.map((item, index) => {
+        const fallback = defaultScenarioPrompts[index % defaultScenarioPrompts.length]
+        return {
+          id: `scenario-${item.id || item.label}`,
+          title: item.label,
+          prompt: item.prompt,
+          size: fallback.size,
+          style: fallback.style,
+        }
+      })
+    }
   } catch {
     stylePresets.value = [...defaultStylePresets]
     samplePrompts.value = [...defaultSamplePrompts]
+    scenarioPrompts.value = [...defaultScenarioPrompts]
   }
 }
 
@@ -310,6 +349,18 @@ function formatSizeOption(option: SizeOption | undefined, fallbackValue: string)
 
 function useSample(sample: SamplePrompt) {
   prompt.value = sample.prompt
+}
+
+function useScenario(scenario: ScenarioPrompt) {
+  prompt.value = scenario.prompt
+  if (sizeOptions.value.some((item) => item.value === scenario.size)) {
+    size.value = scenario.size
+  }
+  if (stylePresets.value.some((item) => item.id === scenario.style)) {
+    selectedStyle.value = scenario.style
+  } else {
+    selectedStyle.value = ''
+  }
 }
 
 function buildPrompt() {
@@ -661,8 +712,8 @@ function resetCaptcha() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2 1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <p class="mb-2 text-xl text-gray-700 dark:text-slate-200">把想法变成一张好图</p>
-            <p class="mx-auto max-w-md text-gray-500 dark:text-slate-400">写下你脑海里的画面，选择合适比例，系统会持续展示生成进度，直到作品完成。</p>
+            <p class="mb-2 text-xl text-gray-700 dark:text-slate-200">{{ heroTitle }}</p>
+            <p class="mx-auto max-w-md text-gray-500 dark:text-slate-400">{{ heroSubtitle }}</p>
           </div>
         </div>
       </main>
@@ -708,7 +759,7 @@ function resetCaptcha() {
               </div>
             </div>
             <div class="mt-3 flex items-center justify-between gap-3">
-              <p class="text-xs text-violet-700">{{ userStore.user ? '生成会按所选尺寸扣除积分' : '免费试用用完后可登录继续创作' }}</p>
+              <p class="text-xs text-violet-700">{{ creditBenefitText }}</p>
               <button class="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100" type="button" @click="isPromptPanelCollapsed = true">收起</button>
             </div>
           </div>
@@ -769,6 +820,27 @@ function resetCaptcha() {
               :placeholder="generationMode === 'edit' ? '描述你想要怎样修改这张图片，例如：把背景换成星空，保留人物姿势...' : '描述你想要生成的图片，例如：一只在星空下的猫咪，水彩画风格...'"
             />
           </div>
+
+          <section v-if="generationMode === 'generate'" class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-semibold text-gray-900">不知道怎么写？先选一个用途</h3>
+                <p class="mt-1 text-xs text-gray-500">会自动带入提示词、推荐比例和风格，你还可以继续修改。</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                v-for="scenario in scenarioPrompts"
+                :key="scenario.id"
+                class="home-button min-h-12 rounded-xl border border-white bg-white px-3 py-2 text-left text-sm text-gray-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                type="button"
+                @click="useScenario(scenario)"
+              >
+                <span class="block font-medium">{{ scenario.title }}</span>
+                <span class="mt-0.5 block text-xs text-gray-400">{{ formatSizeOption(sizeOptions.find((item) => item.value === scenario.size), scenario.size) }}</span>
+              </button>
+            </div>
+          </section>
 
           <div>
             <label class="mb-2 block text-gray-900">风格预设</label>
@@ -848,7 +920,9 @@ function resetCaptcha() {
             重新生成上一次
           </button>
 
-          <p v-if="!userStore.user" class="text-center text-sm text-gray-500">未登录可免费试用 1 次；登录后可查看历史记录和积分。</p>
+          <p v-if="!userStore.user" class="rounded-xl border border-violet-100 bg-violet-50 px-3 py-2 text-center text-sm text-violet-700">
+            游客可免费生成 1 次，注册后获得积分并保存历史记录。
+          </p>
           </div>
           <div class="home-panel sticky bottom-0 border-t border-gray-200 bg-white/95 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:shadow-black/30">
             <div class="mb-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm shadow-sm shadow-violet-900/5 dark:border-violet-400/20 dark:bg-violet-500/10 dark:shadow-none">

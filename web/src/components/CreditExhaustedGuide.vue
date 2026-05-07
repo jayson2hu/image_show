@@ -23,9 +23,9 @@ const supportContact = ref({
 const guide = computed(() => {
   const map = {
     free_trial_exhausted: {
-      title: '免费体验已结束',
-      description: '你已使用 1 次游客免费生成机会。通过微信注册账号即可获得更多积分，继续创作和保存历史作品。',
-      primaryText: '微信注册',
+      title: '这次免费体验已经用完',
+      description: '注册账号后会赠送新用户积分，你刚才填写的提示词和尺寸会保留，登录后可以继续生成，也能在历史记录里找回作品。',
+      primaryText: '注册领取积分',
       primaryRoute: '/register',
       secondaryText: '已有账号？去登录',
       secondaryRoute: '/login',
@@ -33,8 +33,8 @@ const guide = computed(() => {
     },
     insufficient_credits: {
       title: '积分不足',
-      description: '当前积分余额不足以生成图片，请前往充值页面购买积分包后继续。',
-      primaryText: '去充值',
+      description: '当前余额不够生成这张图。你可以先换成消耗更低的尺寸，或购买积分后继续生成。',
+      primaryText: '查看积分套餐',
       primaryRoute: '/packages',
       secondaryText: '',
       secondaryRoute: '',
@@ -42,8 +42,8 @@ const guide = computed(() => {
     },
     credits_expired: {
       title: '积分已过期',
-      description: '你的积分已过期。请重新购买积分包，继续生成新的图片作品。',
-      primaryText: '去充值',
+      description: '你的积分已经过期，当前不能继续生成。购买新的积分包后，可以继续创作和下载作品。',
+      primaryText: '查看积分套餐',
       primaryRoute: '/packages',
       secondaryText: '',
       secondaryRoute: '',

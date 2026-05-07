@@ -25,7 +25,7 @@ func TestPromptTemplatesDefaultIncludesHomeCategories(t *testing.T) {
 	for _, item := range response.Items {
 		seen[item.Category] = true
 	}
-	if !seen["style"] || !seen["sample"] {
-		t.Fatalf("expected default style and sample templates, got %#v", seen)
+	if !seen["style"] || !seen["sample"] || !seen["scenario"] {
+		t.Fatalf("expected default style, sample and scenario templates, got %#v", seen)
 	}
 }

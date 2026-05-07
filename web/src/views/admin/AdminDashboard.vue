@@ -597,6 +597,7 @@ function templateCategoryText(category: string) {
     repair: '修复标签',
     style: '首页风格预设',
     sample: '首页推荐样例',
+    scenario: '首页场景入口',
   }
   return map[category] || category
 }
@@ -1330,6 +1331,7 @@ onMounted(async () => {
                 <select v-model="templateForm.category" class="admin-input mt-2 w-full">
                   <option value="style">首页风格预设</option>
                   <option value="sample">首页推荐样例</option>
+                  <option value="scenario">首页场景入口</option>
                   <option value="default">默认标签</option>
                   <option value="repair">修复标签</option>
                 </select>
