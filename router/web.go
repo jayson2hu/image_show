@@ -17,6 +17,11 @@ func registerWebRoutes(r *gin.Engine) {
 	fileServer := http.FileServer(http.FS(dist))
 
 	r.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "api route not found"})
+			return
+		}
+
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 		if path == "" {
 			path = "index.html"

@@ -165,6 +165,7 @@ const channelForm = ref<Channel>({ id: 0, name: '', base_url: '', api_key: '', h
 const announcementForm = ref<Announcement>({ id: 0, title: '', content: '', notify_mode: 'silent', target: 'all', sort_order: 0, status: 1, starts_at: '', ends_at: '', created_at: '', updated_at: '' })
 const channelTestResult = ref<Record<number, string>>({})
 const settingFileInputs = ref<Record<string, HTMLInputElement | null>>({})
+const refreshDiagnostics = ref<string[]>([])
 
 const tabs = [
   { id: 'overview', label: '概览', description: '核心指标与运行状态' },
@@ -258,6 +259,8 @@ const tabCounts = computed<Record<string, number | string>>(() => ({
   monitor: monitor.value?.alert_triggered ? '!' : '',
 }))
 const creditPreviewBalance = computed(() => Number(selectedUser.value?.credits || 0) + Number(creditForm.value.amount || 0))
+const pageOrigin = computed(() => window.location.origin)
+const hasRefreshFailure = computed(() => refreshDiagnostics.value.some((item) => item.includes('：')))
 
 async function guarded<T>(fn: () => Promise<T>, successMessage = '') {
   loading.value = true
@@ -269,18 +272,64 @@ async function guarded<T>(fn: () => Promise<T>, successMessage = '') {
     }
     return result
   } catch (error: any) {
-    message.value = error.response?.data?.error || '操作失败，请检查权限或输入'
+    message.value = adminErrorMessage(error)
     throw error
   } finally {
     loading.value = false
   }
 }
 
+function adminErrorMessage(error: any) {
+  const data = error?.response?.data
+  if (data) {
+    if (typeof data === 'string') {
+      return data
+    }
+    if (typeof data.message === 'string' && data.message.trim()) {
+      return data.message
+    }
+    if (typeof data.error === 'string' && data.error.trim()) {
+      return data.error
+    }
+    if (typeof data.detail === 'string' && data.detail.trim()) {
+      return data.detail
+    }
+  }
+  if (error?.response?.status === 403) {
+    return '当前账号没有管理员权限，请重新登录管理员账号'
+  }
+  if (error?.response?.status === 401) {
+    return '登录已失效，请重新登录'
+  }
+  if (error?.message) {
+    return `请求失败：${error.message}`
+  }
+  return '操作失败，请检查权限或输入'
+}
+
+function adminErrorDetail(error: any) {
+  const parts = [adminErrorMessage(error).replace(/^请求失败：/, '')]
+  const config = error?.config
+  const response = error?.response
+  if (config?.url) {
+    const base = config.baseURL || ''
+    parts.push(`url=${base}${config.url}`)
+  }
+  if (typeof response?.status === 'number') {
+    parts.push(`status=${response.status}`)
+  }
+  if (error?.code) {
+    parts.push(`code=${error.code}`)
+  }
+  if (typeof window !== 'undefined') {
+    parts.push(`origin=${window.location.origin}`)
+  }
+  return parts.join('，')
+}
+
 async function loadUsers() {
-  await guarded(async () => {
-    const response = await api.get('/admin/users', { params: { keyword: userKeyword.value, pageSize: 20 } })
-    users.value = response.data
-  })
+  const response = await api.get('/admin/users', { params: { keyword: userKeyword.value, pageSize: 20 } })
+  users.value = response.data
 }
 
 function resetUserForm() {
@@ -448,11 +497,25 @@ function closeAnnouncementModal() {
 }
 
 async function saveAnnouncement() {
+  const startsAt = toRFC3339(announcementForm.value.starts_at)
+  const endsAt = toRFC3339(announcementForm.value.ends_at)
+  if (!startsAt && announcementForm.value.starts_at) {
+    message.value = '开始时间格式不正确，请重新选择'
+    return
+  }
+  if (!endsAt && announcementForm.value.ends_at) {
+    message.value = '结束时间格式不正确，请重新选择'
+    return
+  }
+  if (startsAt && endsAt && new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+    message.value = '结束时间必须晚于开始时间'
+    return
+  }
   await guarded(async () => {
     const payload = {
       ...announcementForm.value,
-      starts_at: toRFC3339(announcementForm.value.starts_at),
-      ends_at: toRFC3339(announcementForm.value.ends_at),
+      starts_at: startsAt,
+      ends_at: endsAt,
     }
     if (payload.id) {
       await api.put(`/admin/announcements/${payload.id}`, payload)
@@ -602,9 +665,64 @@ async function checkMonitorAlert() {
 }
 
 async function refreshDashboard() {
-  await guarded(async () => {
-    await Promise.all([loadUsers(), loadCreditLogs(), loadTemplates(), loadSettings(), loadChannels(), loadAnnouncements(), loadMonitor()])
-  }, '数据已刷新')
+  loading.value = true
+  message.value = ''
+  refreshDiagnostics.value = []
+  const tasks = [
+    { label: '用户', run: loadUsers },
+    { label: '积分流水', run: loadCreditLogs },
+    { label: '提示词模板', run: loadTemplates },
+    { label: '系统设置', run: loadSettings },
+    { label: '渠道', run: loadChannels },
+    { label: '公告', run: loadAnnouncements },
+    { label: '监控', run: loadMonitor },
+  ]
+  const results = await Promise.allSettled(tasks.map((task) => task.run()))
+  const failed = results
+    .map((result, index) => ({ result, task: tasks[index] }))
+    .filter((item): item is { result: PromiseRejectedResult; task: typeof tasks[number] } => item.result.status === 'rejected')
+  if (failed.length) {
+    const details = failed.map((item) => {
+      const detail = adminErrorDetail(item.result.reason)
+      refreshDiagnostics.value.push(`${item.task.label}：${detail}`)
+      return `${item.task.label}：${detail}`
+    }).join('；')
+    message.value = `部分数据刷新失败，${details}`
+  } else {
+    refreshDiagnostics.value = ['所有后台数据接口刷新成功']
+    message.value = '数据已刷新'
+  }
+  loading.value = false
+}
+
+async function initialLoadDashboard() {
+  loading.value = true
+  message.value = ''
+  refreshDiagnostics.value = []
+  const tasks = [
+    { label: '用户', run: loadUsers },
+    { label: '积分流水', run: loadCreditLogs },
+    { label: '提示词模板', run: loadTemplates },
+    { label: '系统设置', run: loadSettings },
+    { label: '渠道', run: loadChannels },
+    { label: '公告', run: loadAnnouncements },
+    { label: '监控', run: loadMonitor },
+  ]
+  const results = await Promise.allSettled(tasks.map((task) => task.run()))
+  const failed = results
+    .map((result, index) => ({ result, task: tasks[index] }))
+    .filter((item): item is { result: PromiseRejectedResult; task: typeof tasks[number] } => item.result.status === 'rejected')
+  if (failed.length) {
+    const details = failed.map((item) => {
+      const detail = adminErrorDetail(item.result.reason)
+      refreshDiagnostics.value.push(`${item.task.label}：${detail}`)
+      return `${item.task.label}：${detail}`
+    }).join('；')
+    message.value = `部分数据加载失败，${details}`
+  } else {
+    refreshDiagnostics.value = ['所有后台数据接口加载成功']
+  }
+  loading.value = false
 }
 
 function fmtTime(value?: string | null) {
@@ -791,7 +909,7 @@ onMounted(async () => {
     await router.push('/')
     return
   }
-  await Promise.all([loadUsers(), loadCreditLogs(), loadTemplates(), loadSettings(), loadChannels(), loadAnnouncements(), loadMonitor()])
+  await initialLoadDashboard()
 })
 </script>
 
@@ -846,6 +964,29 @@ onMounted(async () => {
         <p v-if="message" class="mb-4 rounded-md border px-4 py-3 text-sm" :class="message.includes('失败') ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'">
           {{ message }}
         </p>
+        <div
+          v-if="refreshDiagnostics.length"
+          class="mb-4 rounded-xl border px-4 py-3 text-sm shadow-sm"
+          :class="hasRefreshFailure ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-100 bg-emerald-50 text-emerald-900'"
+        >
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="flex min-w-0 gap-3">
+              <span class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full" :class="hasRefreshFailure ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'">
+                {{ hasRefreshFailure ? '!' : '✓' }}
+              </span>
+              <div class="min-w-0">
+                <div class="font-semibold">{{ hasRefreshFailure ? '部分模块需要检查' : '后台数据已同步' }}</div>
+                <div class="mt-1 text-xs opacity-80">页面来源：{{ pageOrigin }}</div>
+              </div>
+            </div>
+            <button v-if="hasRefreshFailure" class="shrink-0 rounded-lg border border-amber-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-white" type="button" @click="refreshDiagnostics = []">
+              收起
+            </button>
+          </div>
+          <ul v-if="hasRefreshFailure" class="mt-3 space-y-1.5 border-t border-amber-200/70 pt-3 text-xs">
+            <li v-for="item in refreshDiagnostics" :key="item" class="break-all rounded-lg bg-white/60 px-3 py-2">{{ item }}</li>
+          </ul>
+        </div>
 
         <div v-if="activeTab === 'overview'" class="space-y-5">
           <div class="admin-metric-grid">
@@ -897,7 +1038,7 @@ onMounted(async () => {
                   </svg>
                   <input v-model="userKeyword" class="admin-input w-full pl-9" placeholder="搜索邮箱或用户名" @keydown.enter.prevent="loadUsers" />
                 </div>
-                <button class="admin-btn" type="button" @click="loadUsers">刷新 / 搜索</button>
+                <button class="admin-btn" type="button" @click="guarded(loadUsers, '用户列表已刷新')">刷新 / 搜索</button>
               </div>
               <button class="admin-primary" type="button" @click="openCreateUserModal">新建用户</button>
             </div>

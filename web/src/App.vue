@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import AnnouncementCenter from './components/AnnouncementCenter.vue'
@@ -14,13 +14,24 @@ const isAdminArea = computed(() => route.path.startsWith('/console/admin'))
 const isAdminConsole = computed(() => route.name === 'admin')
 const isFullBleed = computed(() => isHome.value || isAdminConsole.value)
 const roleLabel = computed(() => (isAdmin.value ? '管理员' : userStore.user ? '普通用户' : '未登录'))
+const isAccountMenuOpen = ref(false)
 
 function handleUnauthorized() {
   userStore.logout()
+  isAccountMenuOpen.value = false
+}
+
+function closeAccountMenu() {
+  isAccountMenuOpen.value = false
+}
+
+function toggleAccountMenu() {
+  isAccountMenuOpen.value = !isAccountMenuOpen.value
 }
 
 async function logout() {
   const target = isAdminArea.value ? '/console/admin/login' : '/login'
+  isAccountMenuOpen.value = false
   userStore.logout()
   await router.push(target)
 }
@@ -30,11 +41,15 @@ onMounted(() => {
   localStorage.removeItem('theme')
   userStore.fetchUser()
   window.addEventListener('auth:unauthorized', handleUnauthorized)
+  window.addEventListener('click', closeAccountMenu)
 })
 
 onUnmounted(() => {
   window.removeEventListener('auth:unauthorized', handleUnauthorized)
+  window.removeEventListener('click', closeAccountMenu)
 })
+
+watch(() => route.fullPath, closeAccountMenu)
 </script>
 
 <template>
@@ -55,15 +70,27 @@ onUnmounted(() => {
 
         <div class="flex flex-wrap items-center justify-end gap-2 text-sm">
           <AnnouncementCenter v-if="!isAdminConsole" />
-          <div v-if="userStore.user" class="group relative">
-            <button class="flex min-h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" type="button">
+          <div v-if="userStore.user" class="relative" @click.stop>
+            <button
+              class="flex min-h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              type="button"
+              :aria-expanded="isAccountMenuOpen"
+              aria-haspopup="menu"
+              @click="toggleAccountMenu"
+              @keydown.escape.stop="closeAccountMenu"
+            >
               <span>{{ roleLabel }}</span>
               <span v-if="!isAdmin" class="rounded-full bg-teal/10 px-2 py-0.5 text-xs text-teal">{{ userStore.user.credits }} 积分</span>
             </button>
-            <div class="invisible absolute right-0 top-full z-40 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-2 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
-              <RouterLink class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" to="/history">历史记录</RouterLink>
-              <RouterLink v-if="!isAdmin" class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" to="/credits">积分流水</RouterLink>
-              <RouterLink v-if="!isAdmin" class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" to="/packages">积分套餐</RouterLink>
+            <div
+              v-if="isAccountMenuOpen"
+              class="absolute right-0 top-full z-40 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900"
+              role="menu"
+              @keydown.escape.stop="closeAccountMenu"
+            >
+              <RouterLink class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" role="menuitem" to="/history">历史记录</RouterLink>
+              <RouterLink v-if="!isAdmin" class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" role="menuitem" to="/credits">积分流水</RouterLink>
+              <RouterLink v-if="!isAdmin" class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" role="menuitem" to="/packages">积分套餐</RouterLink>
               <button class="mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30" type="button" @click="logout">退出登录</button>
             </div>
           </div>

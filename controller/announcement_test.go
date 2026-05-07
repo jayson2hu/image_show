@@ -230,6 +230,49 @@ func TestAnnouncementTargeting(t *testing.T) {
 	}
 }
 
+func TestAnnouncementRejectsInvalidTimeRange(t *testing.T) {
+	engine := setupAuthTest(t)
+	adminToken := createTokenForRole(t, 10)
+	start := time.Now().Add(time.Hour)
+	end := start.Add(-time.Minute)
+
+	rec := adminJSON(engine, http.MethodPost, "/api/admin/announcements", map[string]interface{}{
+		"title":     "时间错误",
+		"content":   "结束时间早于开始时间",
+		"status":    1,
+		"starts_at": start.Format(time.RFC3339),
+		"ends_at":   end.Format(time.RFC3339),
+	}, adminToken)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid time range to be rejected, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode invalid time response: %v", err)
+	}
+	if body["error"] != "ends_at must be after starts_at" {
+		t.Fatalf("unexpected invalid time error: %#v", body)
+	}
+}
+
+func TestUnknownAPIRouteReturnsJSONNotWebRedirect(t *testing.T) {
+	engine := setupAuthTest(t)
+	rec := adminRequest(engine, http.MethodGet, "/api/not-found-route", "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected api 404, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Location") != "" {
+		t.Fatalf("api 404 should not redirect, location=%s", rec.Header().Get("Location"))
+	}
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode api 404 response: %v body=%s", err, rec.Body.String())
+	}
+	if body["error"] != "api route not found" {
+		t.Fatalf("unexpected api 404 response: %#v", body)
+	}
+}
+
 func countAnnouncementItems(t *testing.T, body []byte) int {
 	t.Helper()
 	var resp struct {
