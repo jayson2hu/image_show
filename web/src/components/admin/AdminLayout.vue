@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import { useUserStore } from '@/stores/user'
 
+import AnnouncementsTab from './AnnouncementsTab.vue'
 import AdminSidebar from './AdminSidebar.vue'
 import ChannelsTab from './ChannelsTab.vue'
 import CreditsTab from './CreditsTab.vue'
@@ -54,6 +55,7 @@ onMounted(async () => {
         <ChannelsTab v-else-if="activeTab === 'channels'" />
         <TemplatesTab v-else-if="activeTab === 'templates'" />
         <SettingsTab v-else-if="activeTab === 'settings'" />
+        <AnnouncementsTab v-else-if="activeTab === 'announcements'" />
         <CreditsTab v-else-if="activeTab === 'credits'" />
         <MonitorTab v-else-if="activeTab === 'monitor'" />
         <div v-else class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
