@@ -12,6 +12,7 @@ const router = createRouter({
     { path: '/console/admin/login', name: 'admin-login', component: () => import('@/views/admin/AdminLogin.vue') },
     { path: '/console/admin', name: 'admin', component: () => import('@/views/admin/AdminDashboard.vue') },
     { path: '/history', name: 'history', component: () => import('@/views/History.vue') },
+    { path: '/credits', name: 'credits', component: () => import('@/views/Credits.vue') },
     { path: '/packages', name: 'packages', component: () => import('@/views/Packages.vue') },
   ],
 })
@@ -33,6 +34,9 @@ router.beforeEach(async (to) => {
     if (userStore.user && !isAdmin) {
       return { name: 'home' }
     }
+  }
+  if (to.name === 'credits' && !userStore.token) {
+    return { name: 'login' }
   }
 })
 

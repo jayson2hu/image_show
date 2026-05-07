@@ -54,21 +54,18 @@ onUnmounted(() => {
         </RouterLink>
 
         <div class="flex flex-wrap items-center justify-end gap-2 text-sm">
-          <RouterLink
-            v-if="userStore.user && !isAdmin"
-            class="min-h-10 rounded-full border border-slate-300 px-3 py-2 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
-            to="/history"
-          >
-            历史
-          </RouterLink>
           <AnnouncementCenter v-if="!isAdminConsole" />
-          <div v-if="userStore.user" class="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 dark:border-slate-700 dark:bg-slate-800">
-            <span class="px-2 text-sm text-slate-700 dark:text-slate-200">
-              {{ roleLabel }}<template v-if="!isAdmin"> · {{ userStore.user.credits }} 积分</template>
-            </span>
-            <button class="min-h-8 rounded-full bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:text-red-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-red-300" type="button" @click="logout">
-              退出
+          <div v-if="userStore.user" class="group relative">
+            <button class="flex min-h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" type="button">
+              <span>{{ roleLabel }}</span>
+              <span v-if="!isAdmin" class="rounded-full bg-teal/10 px-2 py-0.5 text-xs text-teal">{{ userStore.user.credits }} 积分</span>
             </button>
+            <div class="invisible absolute right-0 top-full z-40 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-2 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
+              <RouterLink class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" to="/history">历史记录</RouterLink>
+              <RouterLink v-if="!isAdmin" class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" to="/credits">积分流水</RouterLink>
+              <RouterLink v-if="!isAdmin" class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" to="/packages">积分套餐</RouterLink>
+              <button class="mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30" type="button" @click="logout">退出登录</button>
+            </div>
           </div>
           <RouterLink
             v-else
