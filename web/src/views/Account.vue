@@ -69,6 +69,13 @@ interface AccountOverview {
     unread_count: number
     recent_items: RecentAnnouncement[]
   }
+  security?: {
+    latest_login?: {
+      method: string
+      ip: string
+      created_at: string
+    } | null
+  }
 }
 
 const router = useRouter()
@@ -97,6 +104,7 @@ const lastLoginText = computed(() => formatDate(user.value?.last_login_at, '暂�
 const recentLogs = computed(() => overview.value?.credits.recent_logs || [])
 const recentItems = computed(() => overview.value?.creations.recent_items || [])
 const recentAnnouncements = computed(() => overview.value?.announcements.recent_items || [])
+const latestLogin = computed(() => overview.value?.security?.latest_login || null)
 
 onMounted(async () => {
   if (!userStore.token) {
@@ -177,6 +185,11 @@ function statusLabel(status: number) {
 
 function generationPrompt(item: RecentGeneration) {
   return item.prompt || '未填写提示词'
+}
+
+function loginMethodText(method?: string) {
+  const map: Record<string, string> = { email: '邮箱登录', wechat: '微信验证码' }
+  return method ? map[method] || method : '暂无登录方式'
 }
 </script>
 
@@ -293,7 +306,8 @@ function generationPrompt(item: RecentGeneration) {
           <div class="mt-4 grid gap-3">
             <div class="rounded-2xl bg-slate-50 px-4 py-3">
               <p class="text-xs text-slate-500">登录信息</p>
-              <p class="mt-1 text-sm text-slate-800">{{ lastLoginText }}</p>
+              <p class="mt-1 text-sm text-slate-800">{{ latestLogin ? formatDate(latestLogin.created_at) : lastLoginText }}</p>
+              <p class="mt-1 text-xs text-slate-500">{{ loginMethodText(latestLogin?.method) }} · {{ latestLogin?.ip || user?.last_login_ip || '暂无 IP' }}</p>
             </div>
             <div class="rounded-2xl bg-slate-50 px-4 py-3">
               <p class="text-xs text-slate-500">公告通知</p>

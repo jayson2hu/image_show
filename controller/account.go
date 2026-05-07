@@ -49,6 +49,12 @@ type accountAnnouncementResponse struct {
 	CreatedAt  time.Time  `json:"created_at"`
 }
 
+type accountLoginResponse struct {
+	Method    string    `json:"method"`
+	IP        string    `json:"ip"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type updateAccountProfileRequest struct {
 	Username  string `json:"username"`
 	AvatarURL string `json:"avatar_url"`
@@ -78,12 +84,18 @@ func AccountOverview(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load announcements"})
 		return
 	}
+	securitySummary, err := accountSecuritySummary(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load security summary"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"user":          accountUserFromModel(user),
 		"credits":       gin.H{"recent_logs": recentCreditLogs},
 		"creations":     creationSummary,
 		"announcements": announcementSummary,
+		"security":      securitySummary,
 	})
 }
 
@@ -254,4 +266,18 @@ func accountAnnouncementSummary(userID int64, role int) (gin.H, error) {
 		})
 	}
 	return gin.H{"unread_count": unreadCount, "recent_items": recentItems}, nil
+}
+
+func accountSecuritySummary(userID int64) (gin.H, error) {
+	var login model.LoginLog
+	if err := model.DB.
+		Where("user_id = ? AND success = ?", userID, true).
+		Order("created_at DESC, id DESC").
+		First(&login).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return gin.H{"latest_login": nil}, nil
+		}
+		return nil, err
+	}
+	return gin.H{"latest_login": accountLoginResponse{Method: login.Method, IP: login.IP, CreatedAt: login.CreatedAt}}, nil
 }

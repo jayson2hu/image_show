@@ -52,6 +52,9 @@ func TestAccountOverviewReturnsCurrentUserAssets(t *testing.T) {
 	if err := model.DB.Create(&announcement).Error; err != nil {
 		t.Fatalf("create announcement: %v", err)
 	}
+	if err := model.DB.Create(&model.LoginLog{UserID: userID, IP: "5.6.7.8", Method: "email", Success: true, CreatedAt: now.Add(time.Minute)}).Error; err != nil {
+		t.Fatalf("create login log: %v", err)
+	}
 
 	rec := adminRequest(engine, http.MethodGet, "/api/account/overview", token)
 	if rec.Code != http.StatusOK {
@@ -87,6 +90,12 @@ func TestAccountOverviewReturnsCurrentUserAssets(t *testing.T) {
 				Title string `json:"title"`
 			} `json:"recent_items"`
 		} `json:"announcements"`
+		Security struct {
+			LatestLogin *struct {
+				Method string `json:"method"`
+				IP     string `json:"ip"`
+			} `json:"latest_login"`
+		} `json:"security"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode overview: %v", err)
@@ -110,6 +119,9 @@ func TestAccountOverviewReturnsCurrentUserAssets(t *testing.T) {
 	}
 	if resp.Announcements.UnreadCount != 1 || len(resp.Announcements.RecentItems) != 1 || resp.Announcements.RecentItems[0].Title != "notice" {
 		t.Fatalf("unexpected announcements: %+v", resp.Announcements)
+	}
+	if resp.Security.LatestLogin == nil || resp.Security.LatestLogin.Method != "email" || resp.Security.LatestLogin.IP != "5.6.7.8" {
+		t.Fatalf("unexpected security summary: %+v", resp.Security)
 	}
 }
 
