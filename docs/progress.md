@@ -1,4 +1,20 @@
 # 开发进度记录
+## 2026-05-07 渠道归因与渠道健康统计计划文档
+
+- 需求：
+  - 针对 Milestone 5.3 渠道近 24 小时成功/失败聚合缺少 `channel_id` 的问题，先输出详细开发计划和自测验收文档，拆分小功能后再开发。
+- 完成：
+  - 新增 `docs/plan-channel-attribution-and-health.md`。
+  - 新增 `docs/acceptance-channel-attribution-and-health.md`。
+  - 开发计划拆分为 5 个小功能：生成记录渠道字段扩展、生成渠道选择结果回传、生成任务写入渠道归因、渠道近 24 小时统计接口、后台渠道页展示统计。
+  - 自测验收文档覆盖每个小功能的测试点、命令、通过标准，以及大功能整体 Go/No-Go 标准。
+  - 明确暂不做历史回填和 `generation_channel_attempts` 明细表，先实现单字段归因版。
+- 自测记录：
+  - `Get-Content docs/plan-channel-attribution-and-health.md`：可读取。
+  - `Get-Content docs/acceptance-channel-attribution-and-health.md`：可读取。
+- 问题记录：
+  - PowerShell 当前输出中文会乱码，但文档文件按 UTF-8 写入；后续如需要可统一检查文档编码。
+
 ## 2026-05-07 产品体验优化 Milestone 4.1：设置项分组梳理和映射
 
 - 开发目标：
