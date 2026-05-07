@@ -29,6 +29,7 @@ func Register(r *gin.Engine) {
 	auth.DELETE("/wechat/bind", middleware.AuthRequired(), controller.WeChatUnbind)
 	account := api.Group("/account", middleware.AuthRequired())
 	account.GET("/overview", controller.AccountOverview)
+	account.PUT("/profile", controller.UpdateAccountProfile)
 	api.GET("/generations", middleware.AuthRequired(), controller.ListGenerations)
 	api.POST("/generations", middleware.OptionalAuth(), middleware.GenerationRateLimit(), controller.CreateGeneration)
 	api.POST("/generations/edit", middleware.OptionalAuth(), middleware.GenerationRateLimit(), controller.CreateImageEdit)

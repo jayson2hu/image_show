@@ -75,7 +75,11 @@ const router = useRouter()
 const userStore = useUserStore()
 const overview = ref<AccountOverview | null>(null)
 const loading = ref(false)
+const savingProfile = ref(false)
 const error = ref('')
+const notice = ref('')
+const profileForm = ref({ username: '', avatar_url: '' })
+const avatarPreviewFailed = ref(false)
 
 const user = computed(() => overview.value?.user || userStore.user)
 const displayName = computed(() => {
@@ -109,11 +113,52 @@ async function loadOverview() {
     const response = await api.get('/account/overview')
     overview.value = response.data
     userStore.user = response.data.user
+    profileForm.value = {
+      username: response.data.user?.username || '',
+      avatar_url: response.data.user?.avatar_url || '',
+    }
   } catch (err: any) {
     error.value = err.response?.data?.error || '个人中心加载失败，请稍后重试'
   } finally {
     loading.value = false
   }
+}
+
+async function saveProfile() {
+  savingProfile.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const response = await api.put('/account/profile', {
+      username: profileForm.value.username,
+      avatar_url: profileForm.value.avatar_url,
+    })
+    if (overview.value) {
+      overview.value.user = response.data.user
+    }
+    userStore.user = response.data.user
+    profileForm.value = {
+      username: response.data.user?.username || '',
+      avatar_url: response.data.user?.avatar_url || '',
+    }
+    avatarPreviewFailed.value = false
+    notice.value = '个人资料已更新'
+  } catch (err: any) {
+    const message = err.response?.data?.error || '个人资料保存失败'
+    if (message.includes('avatar_url')) {
+      error.value = '头像地址必须以 http:// 或 https:// 开头'
+    } else if (message.includes('username')) {
+      error.value = '昵称太长，请控制在 64 个字符以内'
+    } else {
+      error.value = message
+    }
+  } finally {
+    savingProfile.value = false
+  }
+}
+
+function handleAvatarPreviewError() {
+  avatarPreviewFailed.value = true
 }
 
 function formatDate(value?: string | null, fallback = '-') {
@@ -172,6 +217,7 @@ function generationPrompt(item: RecentGeneration) {
     </div>
 
     <p v-if="error" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</p>
+    <p v-if="notice" class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ notice }}</p>
 
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <RouterLink class="account-action" to="/">去生成</RouterLink>
@@ -186,6 +232,36 @@ function generationPrompt(item: RecentGeneration) {
 
     <div v-else class="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
       <section class="space-y-6">
+        <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-semibold text-slate-950">个人资料</h2>
+              <p class="mt-1 text-sm text-slate-500">维护展示昵称和头像地址。</p>
+            </div>
+          </div>
+          <form class="mt-5 space-y-4" @submit.prevent="saveProfile">
+            <div class="flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
+              <img v-if="profileForm.avatar_url && !avatarPreviewFailed" class="size-14 shrink-0 rounded-2xl object-cover ring-1 ring-slate-200" :src="profileForm.avatar_url" alt="头像预览" @error="handleAvatarPreviewError" />
+              <div v-else class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-xl font-semibold text-white">{{ initials }}</div>
+              <div class="min-w-0 text-sm text-slate-500">
+                <p class="font-medium text-slate-900">{{ profileForm.username.trim() || displayName }}</p>
+                <p class="mt-1 truncate">{{ profileForm.avatar_url || '未设置头像地址' }}</p>
+              </div>
+            </div>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">昵称</span>
+              <input v-model="profileForm.username" class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20" maxlength="64" placeholder="输入昵称" />
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">头像 URL</span>
+              <input v-model="profileForm.avatar_url" class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20" maxlength="512" placeholder="https://example.com/avatar.png" @input="avatarPreviewFailed = false" />
+            </label>
+            <button class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60" type="submit" :disabled="savingProfile">
+              {{ savingProfile ? '保存中...' : '保存资料' }}
+            </button>
+          </form>
+        </div>
+
         <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div class="flex items-start justify-between gap-3">
             <div>

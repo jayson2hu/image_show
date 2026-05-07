@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -48,6 +49,11 @@ type accountAnnouncementResponse struct {
 	CreatedAt  time.Time  `json:"created_at"`
 }
 
+type updateAccountProfileRequest struct {
+	Username  string `json:"username"`
+	AvatarURL string `json:"avatar_url"`
+}
+
 func AccountOverview(c *gin.Context) {
 	userID := c.GetInt64("userID")
 	role := c.GetInt("role")
@@ -79,6 +85,45 @@ func AccountOverview(c *gin.Context) {
 		"creations":     creationSummary,
 		"announcements": announcementSummary,
 	})
+}
+
+func UpdateAccountProfile(c *gin.Context) {
+	userID := c.GetInt64("userID")
+	var req updateAccountProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	username := strings.TrimSpace(req.Username)
+	avatarURL := strings.TrimSpace(req.AvatarURL)
+	if len([]rune(username)) > 64 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "username is too long"})
+		return
+	}
+	if len(avatarURL) > 512 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar_url is too long"})
+		return
+	}
+	if avatarURL != "" && !strings.HasPrefix(avatarURL, "http://") && !strings.HasPrefix(avatarURL, "https://") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar_url must start with http:// or https://"})
+		return
+	}
+
+	var user model.User
+	if err := model.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
+	}
+	if err := model.DB.Model(&user).Updates(map[string]interface{}{
+		"username":   username,
+		"avatar_url": avatarURL,
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update profile"})
+		return
+	}
+	user.Username = username
+	user.AvatarURL = avatarURL
+	c.JSON(http.StatusOK, gin.H{"user": accountUserFromModel(user)})
 }
 
 func accountUserFromModel(user model.User) accountUserResponse {

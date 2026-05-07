@@ -143,3 +143,66 @@ func TestAccountOverviewEmptyState(t *testing.T) {
 		t.Fatalf("unexpected empty summary: %+v", resp)
 	}
 }
+
+func TestAccountProfileUpdate(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 1)
+	rec := adminJSON(engine, http.MethodPut, "/api/account/profile", map[string]interface{}{
+		"username":   "新的昵称",
+		"avatar_url": "https://example.com/avatar.png",
+		"role":       10,
+		"credits":    999,
+		"email":      "changed@example.com",
+	}, token)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("profile update status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		User struct {
+			ID        int64   `json:"id"`
+			Username  string  `json:"username"`
+			AvatarURL string  `json:"avatar_url"`
+			Email     string  `json:"email"`
+			Role      int     `json:"role"`
+			Credits   float64 `json:"credits"`
+		} `json:"user"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode profile update: %v", err)
+	}
+	if resp.User.Username != "新的昵称" || resp.User.AvatarURL != "https://example.com/avatar.png" {
+		t.Fatalf("unexpected profile response: %+v", resp.User)
+	}
+	if resp.User.Role == 10 || resp.User.Credits == 999 || resp.User.Email == "changed@example.com" {
+		t.Fatalf("sensitive fields should not be updated: %+v", resp.User)
+	}
+	var user model.User
+	if err := model.DB.First(&user, resp.User.ID).Error; err != nil {
+		t.Fatalf("load user: %v", err)
+	}
+	if user.Username != "新的昵称" || user.AvatarURL != "https://example.com/avatar.png" || user.Role == 10 || user.Credits == 999 {
+		t.Fatalf("unexpected stored user: %+v", user)
+	}
+}
+
+func TestAccountProfileRejectsInvalidAvatarURL(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 1)
+	rec := adminJSON(engine, http.MethodPut, "/api/account/profile", map[string]string{
+		"username":   "user",
+		"avatar_url": "ftp://example.com/avatar.png",
+	}, token)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected bad avatar url 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAccountProfileRequiresAuth(t *testing.T) {
+	engine := setupAuthTest(t)
+	rec := adminJSON(engine, http.MethodPut, "/api/account/profile", map[string]string{
+		"username": "user",
+	}, "")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected unauthorized, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
