@@ -107,6 +107,7 @@ const toggleNudge = ref(false)
 const isFullscreenOpen = ref(false)
 const fullscreenEl = ref<HTMLElement | null>(null)
 const isBillingGuideOpen = ref(false)
+const resultNotice = ref('')
 
 const defaultStylePresets: StylePreset[] = [
   { id: 'style-realistic', name: '写实', prompt: '写实摄影风格，细节丰富，自然光影，真实材质，高质量商业摄影' },
@@ -538,6 +539,15 @@ function downloadCurrentImage() {
   void downloadImage(imageURL.value, `image-show-${Date.now()}`)
 }
 
+async function copyCurrentPrompt() {
+  try {
+    await navigator.clipboard.writeText(lastRequest.value?.prompt || buildPrompt())
+    resultNotice.value = '提示词已复制'
+  } catch {
+    error.value = '复制失败，请手动选择提示词复制'
+  }
+}
+
 async function openFullscreen() {
   if (imageURL.value) {
     isFullscreenOpen.value = true
@@ -677,8 +687,17 @@ function resetCaptcha() {
                 <div class="text-white">
                   <h2 class="text-lg font-medium">生成结果</h2>
                   <p class="mt-1 text-sm text-white/70">{{ selectedSizeDisplay }} · {{ estimatedCreditCost }} 积分</p>
+                  <p class="mt-1 max-w-xl truncate text-xs text-white/55">{{ lastRequest?.prompt || buildPrompt() }}</p>
+                  <p v-if="resultNotice" class="mt-1 text-xs text-emerald-200">{{ resultNotice }}</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
+                  <button
+                    class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/15 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25"
+                    type="button"
+                    @click="copyCurrentPrompt"
+                  >
+                    复制提示词
+                  </button>
                   <button
                     v-if="canRetry"
                     class="inline-flex min-h-11 items-center justify-center rounded-full bg-violet-600 px-5 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500"

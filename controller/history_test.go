@@ -56,6 +56,42 @@ func TestUserGenerationHistoryDetailAndSoftDelete(t *testing.T) {
 	}
 }
 
+func TestUserGenerationHistoryFilters(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 1)
+	userID := tokenUserID(t, token)
+	otherID := userID + 100
+	items := []model.Generation{
+		{UserID: &userID, Prompt: "red book cover", Size: "1024x1024", Status: 3},
+		{UserID: &userID, Prompt: "product photo", Size: "1536x1024", Status: 4},
+		{UserID: &userID, Prompt: "red poster", Size: "1536x1024", Status: 3},
+		{UserID: &otherID, Prompt: "red private", Size: "1536x1024", Status: 3},
+	}
+	if err := model.DB.Create(&items).Error; err != nil {
+		t.Fatalf("create generations: %v", err)
+	}
+
+	list := adminRequest(engine, http.MethodGet, "/api/generations?keyword=red&status=3&size=1536x1024", token)
+	if list.Code != http.StatusOK {
+		t.Fatalf("list status=%d body=%s", list.Code, list.Body.String())
+	}
+	var listResp struct {
+		Total int64              `json:"total"`
+		Items []model.Generation `json:"items"`
+	}
+	if err := json.Unmarshal(list.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("decode list: %v", err)
+	}
+	if listResp.Total != 1 || len(listResp.Items) != 1 || listResp.Items[0].Prompt != "red poster" {
+		t.Fatalf("unexpected filtered response: total=%d items=%+v", listResp.Total, listResp.Items)
+	}
+
+	invalid := adminRequest(engine, http.MethodGet, "/api/generations?status=bad", token)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid status 400, got %d body=%s", invalid.Code, invalid.Body.String())
+	}
+}
+
 func TestAdminGenerationBatchDelete(t *testing.T) {
 	engine := setupAuthTest(t)
 	token := createTokenForRole(t, 10)

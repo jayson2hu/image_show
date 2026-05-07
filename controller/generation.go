@@ -57,6 +57,20 @@ func ListGenerations(c *gin.Context) {
 	page, pageSize := pagination(c)
 	userID := c.GetInt64("userID")
 	query := model.DB.Model(&model.Generation{}).Where("user_id = ? AND is_deleted = ?", userID, false)
+	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
+		query = query.Where("prompt LIKE ?", "%"+keyword+"%")
+	}
+	if statusText := strings.TrimSpace(c.Query("status")); statusText != "" {
+		status, err := strconv.Atoi(statusText)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status"})
+			return
+		}
+		query = query.Where("status = ?", status)
+	}
+	if size := strings.TrimSpace(c.Query("size")); size != "" {
+		query = query.Where("size = ?", size)
+	}
 
 	var total int64
 	var items []model.Generation
