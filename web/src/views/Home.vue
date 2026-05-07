@@ -682,46 +682,65 @@ function resetCaptcha() {
                 {{ isPromptPanelCollapsed ? '展开参数' : '收起参数' }}
               </button>
             </div>
-            <div class="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-5 sm:p-8">
-              <div class="pointer-events-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div class="text-white">
-                  <h2 class="text-lg font-medium">生成结果</h2>
-                  <p class="mt-1 text-sm text-white/70">{{ selectedSizeDisplay }} · {{ estimatedCreditCost }} 积分</p>
-                  <p class="mt-1 max-w-xl truncate text-xs text-white/55">{{ lastRequest?.prompt || buildPrompt() }}</p>
-                  <p v-if="resultNotice" class="mt-1 text-xs text-emerald-200">{{ resultNotice }}</p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/15 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25"
-                    type="button"
-                    @click="copyCurrentPrompt"
-                  >
-                    复制提示词
-                  </button>
-                  <button
-                    v-if="canRetry"
-                    class="inline-flex min-h-11 items-center justify-center rounded-full bg-violet-600 px-5 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500"
-                    type="button"
-                    @click="retry"
-                  >
-                    再生成一次
-                  </button>
-                  <button
-                    class="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/15 px-4 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25"
-                    type="button"
-                    @click="downloadCurrentImage"
-                  >
-                    下载
-                  </button>
-                  <button
-                    class="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-slate-950 shadow-lg shadow-black/20 transition hover:bg-slate-100"
-                    type="button"
-                    @click="downloadCurrentImage"
-                  >
-                    下载全部
-                  </button>
-                </div>
+            <div class="pointer-events-none absolute bottom-5 left-5 z-20 max-w-[min(520px,calc(100%-120px))] sm:bottom-8 sm:left-8">
+              <div class="pointer-events-auto rounded-2xl border border-white/10 bg-black/28 px-4 py-3 text-white shadow-2xl shadow-black/20 backdrop-blur-md">
+                <h2 class="text-base font-medium">生成结果</h2>
+                <p class="mt-1 text-sm text-white/70">{{ selectedSizeDisplay }} · {{ estimatedCreditCost }} 积分</p>
+                <p class="mt-1 truncate text-xs text-white/55">{{ lastRequest?.prompt || buildPrompt() }}</p>
+                <p v-if="resultNotice" class="mt-1 text-xs text-emerald-200">{{ resultNotice }}</p>
               </div>
+            </div>
+            <div class="absolute bottom-5 right-5 z-30 flex items-center gap-1.5 rounded-full border border-white/12 bg-black/25 p-1.5 text-white opacity-80 shadow-2xl shadow-black/20 backdrop-blur-md transition hover:bg-black/45 hover:opacity-100 focus-within:bg-black/45 focus-within:opacity-100 sm:bottom-8 sm:right-8">
+              <button
+                class="inline-flex size-10 items-center justify-center rounded-full text-white/85 transition hover:bg-white/15 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40"
+                type="button"
+                title="复制提示词"
+                aria-label="复制提示词"
+                @click="copyCurrentPrompt"
+              >
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+                </svg>
+              </button>
+              <button
+                v-if="canRetry"
+                class="inline-flex size-10 items-center justify-center rounded-full bg-white/12 text-white/90 transition hover:bg-violet-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-violet-200/60"
+                type="button"
+                title="再生成一次"
+                aria-label="再生成一次"
+                @click="retry"
+              >
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" />
+                </svg>
+              </button>
+              <button
+                class="inline-flex size-10 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40"
+                type="button"
+                title="下载"
+                aria-label="下载"
+                @click="downloadCurrentImage"
+              >
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0 4-4m-4 4-4-4" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 21h14" />
+                </svg>
+              </button>
+              <button
+                class="inline-flex h-10 items-center gap-2 rounded-full bg-white px-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-black/15 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-white/60"
+                type="button"
+                title="下载全部"
+                aria-label="下载全部"
+                @click="downloadCurrentImage"
+              >
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 3h8m-4 0v10m0 0 3.5-3.5M12 13 8.5 9.5" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" />
+                </svg>
+                <span class="hidden sm:inline">全部</span>
+              </button>
             </div>
           </div>
         </div>
