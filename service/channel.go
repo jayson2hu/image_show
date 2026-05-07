@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -9,6 +10,29 @@ import (
 	"github.com/jayson2hu/image-show/config"
 	"github.com/jayson2hu/image-show/model"
 )
+
+const envFallbackChannelName = "env:SUB2API_BASE_URL"
+
+type ChannelUse struct {
+	ID   *int64
+	Name string
+}
+
+type ChannelError struct {
+	Channel ChannelUse
+	Err     error
+}
+
+func (e ChannelError) Error() string {
+	if e.Err == nil {
+		return ""
+	}
+	return e.Err.Error()
+}
+
+func (e ChannelError) Unwrap() error {
+	return e.Err
+}
 
 func SelectChannels() ([]model.Channel, error) {
 	var channels []model.Channel
@@ -19,7 +43,7 @@ func SelectChannels() ([]model.Channel, error) {
 	}
 	if len(channels) == 0 && config.AppConfig != nil && config.AppConfig.Sub2APIBaseURL != "" {
 		channels = append(channels, model.Channel{
-			Name:    "default",
+			Name:    envFallbackChannelName,
 			BaseURL: config.AppConfig.Sub2APIBaseURL,
 			Status:  1,
 			Weight:  1,
@@ -33,7 +57,11 @@ func SelectChannels() ([]model.Channel, error) {
 
 func GenerateImageViaChannels(prompt, quality, size, userIP string, options ImageOptions) (*ImageGenerationResult, error) {
 	if config.AppConfig != nil && config.AppConfig.MockSub2API {
-		return NewSub2APIClient("http://mock", "", nil).GenerateImage(prompt, quality, size, userIP, options)
+		result, err := NewSub2APIClient("http://mock", "", nil).GenerateImage(prompt, quality, size, userIP, options)
+		if result != nil {
+			result.Channel = ChannelUse{Name: "mock"}
+		}
+		return result, err
 	}
 
 	channels, err := SelectChannels()
@@ -41,6 +69,7 @@ func GenerateImageViaChannels(prompt, quality, size, userIP string, options Imag
 		return nil, err
 	}
 	var lastErr error
+	var lastChannel ChannelUse
 	for _, channel := range channels {
 		headers := map[string]string{}
 		if channel.Headers != "" {
@@ -49,16 +78,22 @@ func GenerateImageViaChannels(prompt, quality, size, userIP string, options Imag
 		client := NewSub2APIClient(channel.BaseURL, channel.APIKey, headers)
 		result, err := client.GenerateImage(prompt, quality, size, userIP, options)
 		if err == nil {
+			result.Channel = channelUse(channel)
 			return result, nil
 		}
 		lastErr = err
+		lastChannel = channelUse(channel)
 	}
-	return nil, lastErr
+	return nil, withChannelError(lastChannel, lastErr)
 }
 
 func EditImageViaChannels(prompt, quality, size, userIP string, imageData []byte, filename, contentType string, options ImageOptions) (*ImageGenerationResult, error) {
 	if config.AppConfig != nil && config.AppConfig.MockSub2API {
-		return NewSub2APIClient("http://mock", "", nil).EditImage(prompt, quality, size, userIP, imageData, filename, contentType, options)
+		result, err := NewSub2APIClient("http://mock", "", nil).EditImage(prompt, quality, size, userIP, imageData, filename, contentType, options)
+		if result != nil {
+			result.Channel = ChannelUse{Name: "mock"}
+		}
+		return result, err
 	}
 
 	channels, err := SelectChannels()
@@ -66,6 +101,7 @@ func EditImageViaChannels(prompt, quality, size, userIP string, imageData []byte
 		return nil, err
 	}
 	var lastErr error
+	var lastChannel ChannelUse
 	for _, channel := range channels {
 		headers := map[string]string{}
 		if channel.Headers != "" {
@@ -74,11 +110,32 @@ func EditImageViaChannels(prompt, quality, size, userIP string, imageData []byte
 		client := NewSub2APIClient(channel.BaseURL, channel.APIKey, headers)
 		result, err := client.EditImage(prompt, quality, size, userIP, imageData, filename, contentType, options)
 		if err == nil {
+			result.Channel = channelUse(channel)
 			return result, nil
 		}
 		lastErr = err
+		lastChannel = channelUse(channel)
 	}
-	return nil, lastErr
+	return nil, withChannelError(lastChannel, lastErr)
+}
+
+func withChannelError(channel ChannelUse, err error) error {
+	if err == nil {
+		return nil
+	}
+	var channelErr ChannelError
+	if errors.As(err, &channelErr) {
+		return err
+	}
+	return ChannelError{Channel: channel, Err: err}
+}
+
+func channelUse(channel model.Channel) ChannelUse {
+	if channel.ID == 0 {
+		return ChannelUse{Name: channel.Name}
+	}
+	id := channel.ID
+	return ChannelUse{ID: &id, Name: channel.Name}
 }
 
 func weightedShuffle(channels []model.Channel) []model.Channel {

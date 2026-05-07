@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -172,10 +173,12 @@ func runGeneration(id int64, prompt, quality, size, ip string, options ImageOpti
 		return
 	}
 	if err != nil {
+		updateGenerationChannel(id, channelFromError(err))
 		refundGenerationCredits(id)
 		updateGenerationStatus(id, 4, "生成失败", "", err.Error())
 		return
 	}
+	updateGenerationChannel(id, result.Channel)
 
 	updateGenerationStatus(id, 2, "正在保存图片...", "", "")
 	imageURL, r2Key, err := StoreGeneratedImage(id, result, size)
@@ -204,10 +207,12 @@ func runImageEdit(id int64, prompt, quality, size, ip string, imageData []byte, 
 		return
 	}
 	if err != nil {
+		updateGenerationChannel(id, channelFromError(err))
 		refundGenerationCredits(id)
 		updateGenerationStatus(id, 4, "图片编辑失败", "", err.Error())
 		return
 	}
+	updateGenerationChannel(id, result.Channel)
 
 	updateGenerationStatus(id, 2, "正在保存图片...", "", "")
 	imageURL, r2Key, err := StoreGeneratedImage(id, result, size)
@@ -275,6 +280,26 @@ func updateGenerationStatus(id int64, status int, message, imageURL, errMsg stri
 		ImageURL: imageURL,
 		Error:    errMsg,
 	})
+}
+
+func updateGenerationChannel(id int64, channel ChannelUse) {
+	if channel.ID == nil && channel.Name == "" {
+		return
+	}
+	updates := map[string]interface{}{
+		"channel_id":   channel.ID,
+		"channel_name": channel.Name,
+		"updated_at":   time.Now(),
+	}
+	_ = model.DB.Model(&model.Generation{}).Where("id = ? AND status <> ?", id, 5).Updates(updates).Error
+}
+
+func channelFromError(err error) ChannelUse {
+	var channelErr ChannelError
+	if errors.As(err, &channelErr) {
+		return channelErr.Channel
+	}
+	return ChannelUse{}
 }
 
 func isGenerationCancelled(id int64) bool {

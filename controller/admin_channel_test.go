@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/jayson2hu/image-show/model"
 )
@@ -46,10 +47,40 @@ func TestAdminChannelCRUD(t *testing.T) {
 	if list.Code != http.StatusOK {
 		t.Fatalf("list status=%d body=%s", list.Code, list.Body.String())
 	}
+	if !bytes.Contains(list.Body.Bytes(), []byte(`"recent_success_count":0`)) || !bytes.Contains(list.Body.Bytes(), []byte(`"recent_failed_count":0`)) {
+		t.Fatalf("list missing channel stats: %s", list.Body.String())
+	}
 
 	del := adminRequest(engine, http.MethodDelete, "/api/admin/channels/"+jsonNumber(channel.ID), token)
 	if del.Code != http.StatusOK {
 		t.Fatalf("delete status=%d body=%s", del.Code, del.Body.String())
+	}
+}
+
+func TestAdminChannelRecentGenerationStats(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 10)
+	channel := model.Channel{Name: "stats", BaseURL: "http://sub2api:8080", Status: 1, Weight: 1}
+	if err := model.DB.Create(&channel).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	old := time.Now().Add(-25 * time.Hour)
+	if err := model.DB.Create(&[]model.Generation{
+		{Prompt: "ok", Size: "1024x1024", Status: 3, ChannelID: &channel.ID, ChannelName: channel.Name, CreatedAt: time.Now()},
+		{Prompt: "bad", Size: "1024x1024", Status: 4, ChannelID: &channel.ID, ChannelName: channel.Name, CreatedAt: time.Now()},
+		{Prompt: "old", Size: "1024x1024", Status: 4, ChannelID: &channel.ID, ChannelName: channel.Name, CreatedAt: old},
+	}).Error; err != nil {
+		t.Fatalf("create generations: %v", err)
+	}
+
+	rec := adminRequest(engine, http.MethodGet, "/api/admin/channels", token)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte(`"recent_success_count":1`)) ||
+		!bytes.Contains(rec.Body.Bytes(), []byte(`"recent_failed_count":1`)) ||
+		!bytes.Contains(rec.Body.Bytes(), []byte(`"recent_failure_rate":0.5`)) {
+		t.Fatalf("unexpected stats response: %s", rec.Body.String())
 	}
 }
 

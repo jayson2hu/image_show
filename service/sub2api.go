@@ -27,6 +27,7 @@ type Sub2APIClient struct {
 type ImageGenerationResult struct {
 	Base64Data string
 	URL        string
+	Channel    ChannelUse
 }
 
 type imageGenerationRequest struct {

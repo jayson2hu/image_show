@@ -32,6 +32,8 @@ type Generation struct {
 	Background        string    `gorm:"size:16" json:"background"`
 	CreditsCost       float64   `gorm:"type:numeric" json:"credits_cost"`
 	Status            int       `gorm:"default:0;index" json:"status"`
+	ChannelID         *int64    `gorm:"index" json:"channel_id"`
+	ChannelName       string    `gorm:"size:64" json:"channel_name"`
 	R2Key             string    `gorm:"size:256" json:"r2_key"`
 	ImageURL          string    `gorm:"size:512" json:"image_url"`
 	SourceR2Key       string    `gorm:"size:256" json:"source_r2_key"`

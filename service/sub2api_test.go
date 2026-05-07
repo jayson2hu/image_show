@@ -237,6 +237,9 @@ func TestGenerateImageViaChannelsFallsBack(t *testing.T) {
 	if result.URL != "https://example.com/image.png" {
 		t.Fatalf("unexpected url: %s", result.URL)
 	}
+	if result.Channel.ID == nil || result.Channel.Name != "ok" {
+		t.Fatalf("unexpected channel use: %+v", result.Channel)
+	}
 }
 
 func TestGenerateImageMockMode(t *testing.T) {

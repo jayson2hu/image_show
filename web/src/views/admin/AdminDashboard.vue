@@ -83,6 +83,9 @@ interface Channel {
   last_test_success?: boolean
   last_test_status?: number
   last_test_error?: string
+  recent_success_count?: number
+  recent_failed_count?: number
+  recent_failure_rate?: number
 }
 
 interface Announcement {
@@ -990,6 +993,20 @@ onMounted(async () => {
                 <span v-if="channel.last_test_at" class="rounded bg-slate-100 px-2 py-1">最近测试 {{ fmtTime(channel.last_test_at) }}</span>
                 <span v-if="channel.last_test_at" class="rounded px-2 py-1" :class="channel.last_test_success ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'">{{ channel.last_test_success ? '测试可用' : (channel.last_test_error || `测试失败 ${channel.last_test_status || ''}`) }}</span>
                 <span v-if="channelTestResult[channel.id]" class="rounded bg-slate-100 px-2 py-1">{{ channelTestResult[channel.id] }}</span>
+              </div>
+              <div class="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+                <div class="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <div class="text-slate-500">近 24 小时成功</div>
+                  <div class="mt-1 text-base font-semibold text-slate-900">{{ channel.recent_success_count ?? 0 }}</div>
+                </div>
+                <div class="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <div class="text-slate-500">近 24 小时失败</div>
+                  <div class="mt-1 text-base font-semibold text-slate-900">{{ channel.recent_failed_count ?? 0 }}</div>
+                </div>
+                <div class="rounded-lg border px-3 py-2" :class="(channel.recent_failure_rate ?? 0) > 0 ? 'border-red-100 bg-red-50' : 'border-slate-100 bg-slate-50'">
+                  <div :class="(channel.recent_failure_rate ?? 0) > 0 ? 'text-red-600' : 'text-slate-500'">近 24 小时失败率</div>
+                  <div class="mt-1 text-base font-semibold" :class="(channel.recent_failure_rate ?? 0) > 0 ? 'text-red-700' : 'text-slate-900'">{{ ((channel.recent_failure_rate ?? 0) * 100).toFixed(1) }}%</div>
+                </div>
               </div>
             </div>
             <p v-if="!channels.length" class="admin-empty">暂无渠道。没有启用渠道时，后端会使用 SUB2API_BASE_URL 环境变量作为兜底。</p>
