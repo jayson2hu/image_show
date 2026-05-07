@@ -70,11 +70,21 @@ interface Announcement {
   content: string
   status: number
   notify_mode: 'silent' | 'popup'
+  target: 'all' | 'guest' | 'user' | 'admin'
   sort_order: number
   starts_at?: string | null
   ends_at?: string | null
+  read_count?: number
   created_at: string
   updated_at: string
+}
+
+interface AnnouncementRead {
+  user_id: number
+  email: string
+  username: string
+  role: number
+  read_at: string
 }
 
 interface MonitorSummary {
@@ -102,6 +112,7 @@ const isCreateUserOpen = ref(false)
 const isChannelModalOpen = ref(false)
 const isTemplateModalOpen = ref(false)
 const isAnnouncementModalOpen = ref(false)
+const isAnnouncementReadsOpen = ref(false)
 const isUserRecordsOpen = ref(false)
 const isCreditModalOpen = ref(false)
 const loading = ref(false)
@@ -114,6 +125,8 @@ const creditLogs = ref<Page<CreditLog>>(emptyCreditPage())
 const templates = ref<PromptTemplate[]>([])
 const channels = ref<Channel[]>([])
 const announcements = ref<Announcement[]>([])
+const announcementReads = ref<AnnouncementRead[]>([])
+const selectedAnnouncement = ref<Announcement | null>(null)
 const settings = ref<Record<string, string>>({})
 const revealedSettings = ref<Record<string, boolean>>({})
 const monitor = ref<MonitorSummary | null>(null)
@@ -121,7 +134,7 @@ const creditForm = ref({ amount: 1, remark: '' })
 const userForm = ref({ email: '', username: '', password: '', role: 1, status: 1, credits: 0 })
 const templateForm = ref<PromptTemplate>({ id: 0, category: 'style', label: '', prompt: '', sort_order: 0, status: 1 })
 const channelForm = ref<Channel>({ id: 0, name: '', base_url: '', api_key: '', headers: '', status: 1, weight: 1, remark: '' })
-const announcementForm = ref<Announcement>({ id: 0, title: '', content: '', notify_mode: 'silent', sort_order: 0, status: 1, starts_at: '', ends_at: '', created_at: '', updated_at: '' })
+const announcementForm = ref<Announcement>({ id: 0, title: '', content: '', notify_mode: 'silent', target: 'all', sort_order: 0, status: 1, starts_at: '', ends_at: '', created_at: '', updated_at: '' })
 const channelTestResult = ref<Record<number, string>>({})
 const settingFileInputs = ref<Record<string, HTMLInputElement | null>>({})
 
@@ -380,7 +393,7 @@ async function loadAnnouncements() {
 }
 
 function resetAnnouncement() {
-  announcementForm.value = { id: 0, title: '', content: '', notify_mode: 'silent', sort_order: 0, status: 1, starts_at: '', ends_at: '', created_at: '', updated_at: '' }
+  announcementForm.value = { id: 0, title: '', content: '', notify_mode: 'silent', target: 'all', sort_order: 0, status: 1, starts_at: '', ends_at: '', created_at: '', updated_at: '' }
 }
 
 function openCreateAnnouncementModal() {
@@ -392,6 +405,7 @@ function editAnnouncement(item: Announcement) {
   announcementForm.value = {
     ...item,
     notify_mode: item.notify_mode || 'silent',
+    target: item.target || 'all',
     starts_at: toDatetimeLocal(item.starts_at),
     ends_at: toDatetimeLocal(item.ends_at),
   }
@@ -440,6 +454,16 @@ function toRFC3339(value?: string | null) {
   return Number.isNaN(date.getTime()) ? '' : date.toISOString()
 }
 
+function announcementTargetText(target?: string) {
+  const map: Record<string, string> = {
+    all: '全部',
+    guest: '仅访客',
+    user: '登录用户',
+    admin: '管理员',
+  }
+  return map[target || 'all'] || '全部'
+}
+
 async function deleteAnnouncement(item: Announcement) {
   if (!window.confirm(`确认删除公告「${item.title}」？`)) {
     return
@@ -448,6 +472,16 @@ async function deleteAnnouncement(item: Announcement) {
     await api.delete(`/admin/announcements/${item.id}`)
     await loadAnnouncements()
   }, '公告已删除')
+}
+
+async function openAnnouncementReads(item: Announcement) {
+  selectedAnnouncement.value = item
+  isAnnouncementReadsOpen.value = true
+  announcementReads.value = []
+  await guarded(async () => {
+    const response = await api.get(`/admin/announcements/${item.id}/reads`)
+    announcementReads.value = response.data.items || []
+  })
 }
 
 async function saveSettings() {
@@ -1034,12 +1068,15 @@ onMounted(async () => {
                     <h3 class="font-semibold text-slate-900">{{ item.title }}</h3>
                     <span class="admin-badge" :class="item.status === 1 ? 'admin-badge-ok' : 'admin-badge-muted'">{{ statusText(item.status) }}</span>
                     <span class="admin-badge" :class="item.notify_mode === 'popup' ? 'admin-badge-warning' : 'admin-badge-muted'">{{ item.notify_mode === 'popup' ? '弹窗提醒' : '仅公告中心' }}</span>
+                    <span class="admin-badge admin-badge-info">{{ announcementTargetText(item.target) }}</span>
+                    <span class="admin-badge admin-badge-muted">已读 {{ item.read_count || 0 }}</span>
                     <span class="admin-badge admin-badge-muted">排序 {{ item.sort_order }}</span>
                   </div>
                   <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{{ item.content }}</p>
                   <p class="mt-2 text-xs text-slate-400">展示时间：{{ fmtTime(item.starts_at) }} - {{ fmtTime(item.ends_at) }} · 更新时间：{{ fmtTime(item.updated_at) }}</p>
                 </div>
                 <div class="flex shrink-0 gap-1.5">
+                  <button class="admin-btn" type="button" @click="openAnnouncementReads(item)">阅读</button>
                   <button class="admin-btn" type="button" @click="editAnnouncement(item)">编辑</button>
                   <button class="admin-btn-danger" type="button" @click="deleteAnnouncement(item)">删除</button>
                 </div>
@@ -1356,6 +1393,16 @@ onMounted(async () => {
                 </select>
               </label>
               <label class="block">
+                <span class="admin-label">投放范围</span>
+                <select v-model="announcementForm.target" class="admin-input mt-2 w-full">
+                  <option value="all">全部</option>
+                  <option value="guest">仅访客</option>
+                  <option value="user">登录用户</option>
+                  <option value="admin">管理员</option>
+                </select>
+                <span class="mt-1 block text-xs text-slate-500">第二阶段先支持按登录状态和角色投放。</span>
+              </label>
+              <label class="block">
                 <span class="admin-label">开始时间</span>
                 <input v-model="announcementForm.starts_at" class="admin-input mt-2 w-full" type="datetime-local" />
                 <span class="mt-1 block text-xs text-slate-500">留空表示立即展示。</span>
@@ -1376,6 +1423,43 @@ onMounted(async () => {
               <button class="admin-primary" type="submit" :disabled="loading">保存公告</button>
             </div>
           </form>
+        </div>
+
+        <div v-if="isAnnouncementReadsOpen && selectedAnnouncement" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4" role="dialog" aria-modal="true" aria-labelledby="announcement-reads-title" @click.self="isAnnouncementReadsOpen = false">
+          <section class="flex max-h-[86vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl shadow-slate-950/20">
+            <div class="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
+              <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase tracking-wide text-teal">Reads</p>
+                <h3 id="announcement-reads-title" class="mt-1 text-xl font-semibold text-slate-950">阅读明细</h3>
+                <p class="mt-1 truncate text-sm text-slate-500">{{ selectedAnnouncement.title }} · {{ announcementTargetText(selectedAnnouncement.target) }}</p>
+              </div>
+              <button class="admin-btn" type="button" @click="isAnnouncementReadsOpen = false">关闭</button>
+            </div>
+            <div class="min-h-0 overflow-y-auto">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>用户</th>
+                    <th>角色</th>
+                    <th>阅读时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in announcementReads" :key="`${item.user_id}-${item.read_at}`">
+                    <td>
+                      <div class="font-medium text-slate-900">{{ item.email || '-' }}</div>
+                      <div class="text-xs text-slate-500">ID {{ item.user_id }} · {{ item.username || '未设置用户名' }}</div>
+                    </td>
+                    <td><span class="admin-badge" :class="item.role >= 10 ? 'admin-badge-info' : 'admin-badge-muted'">{{ item.role >= 10 ? '管理员' : '用户' }}</span></td>
+                    <td class="text-slate-500">{{ fmtTime(item.read_at) }}</td>
+                  </tr>
+                  <tr v-if="!announcementReads.length">
+                    <td class="py-12 text-center text-slate-500" colspan="3">暂无阅读记录</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
       </main>
     </div>

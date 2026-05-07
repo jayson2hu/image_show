@@ -15,6 +15,7 @@ type announcementRequest struct {
 	Content    string `json:"content" binding:"required"`
 	Status     int    `json:"status"`
 	NotifyMode string `json:"notify_mode"`
+	Target     string `json:"target"`
 	SortOrder  int    `json:"sort_order"`
 	StartsAt   string `json:"starts_at"`
 	EndsAt     string `json:"ends_at"`
@@ -23,6 +24,19 @@ type announcementRequest struct {
 type userAnnouncementResponse struct {
 	model.Announcement
 	ReadAt *time.Time `json:"read_at"`
+}
+
+type adminAnnouncementResponse struct {
+	model.Announcement
+	ReadCount int64 `json:"read_count"`
+}
+
+type adminAnnouncementReadResponse struct {
+	UserID    int64     `json:"user_id"`
+	Email     string    `json:"email"`
+	Username  string    `json:"username"`
+	Role      int       `json:"role"`
+	ReadAt    time.Time `json:"read_at"`
 }
 
 func ActiveAnnouncement(c *gin.Context) {
@@ -43,6 +57,7 @@ func UserAnnouncements(c *gin.Context) {
 	var items []model.Announcement
 	if err := model.DB.
 		Scopes(activeAnnouncementScope(time.Now())).
+		Scopes(announcementTargetScope(userID, c.GetInt("role"))).
 		Order("sort_order ASC, created_at DESC, id DESC").
 		Limit(20).
 		Find(&items).Error; err != nil {
@@ -104,6 +119,62 @@ func AdminAnnouncements(c *gin.Context) {
 	if err := model.DB.Order("sort_order ASC, id DESC").Find(&items).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list announcements"})
 		return
+	}
+	readCounts := map[int64]int64{}
+	if len(items) > 0 {
+		type countRow struct {
+			AnnouncementID int64
+			Count          int64
+		}
+		var rows []countRow
+		if err := model.DB.Model(&model.AnnouncementRead{}).
+			Select("announcement_id, count(*) as count").
+			Group("announcement_id").
+			Find(&rows).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count reads"})
+			return
+		}
+		for _, row := range rows {
+			readCounts[row.AnnouncementID] = row.Count
+		}
+	}
+	response := make([]adminAnnouncementResponse, 0, len(items))
+	for _, item := range items {
+		response = append(response, adminAnnouncementResponse{Announcement: item, ReadCount: readCounts[item.ID]})
+	}
+	c.JSON(http.StatusOK, gin.H{"items": response})
+}
+
+func AdminAnnouncementReads(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	var rows []struct {
+		UserID   int64
+		Email    string
+		Username string
+		Role     int
+		ReadAt   time.Time
+	}
+	if err := model.DB.Table("announcement_reads").
+		Select("announcement_reads.user_id, users.email, users.username, users.role, announcement_reads.read_at").
+		Joins("LEFT JOIN users ON users.id = announcement_reads.user_id").
+		Where("announcement_reads.announcement_id = ?", id).
+		Order("announcement_reads.read_at DESC").
+		Scan(&rows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list announcement reads"})
+		return
+	}
+	items := make([]adminAnnouncementReadResponse, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, adminAnnouncementReadResponse{
+			UserID:   row.UserID,
+			Email:    row.Email,
+			Username: row.Username,
+			Role:     row.Role,
+			ReadAt:   row.ReadAt,
+		})
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
@@ -181,6 +252,14 @@ func announcementFromRequest(c *gin.Context, req announcementRequest) (model.Ann
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid notify mode"})
 		return model.Announcement{}, false
 	}
+	target := strings.TrimSpace(req.Target)
+	if target == "" {
+		target = "all"
+	}
+	if target != "all" && target != "guest" && target != "user" && target != "admin" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid target"})
+		return model.Announcement{}, false
+	}
 	startsAt, ok := parseOptionalAnnouncementTime(c, req.StartsAt, "starts_at")
 	if !ok {
 		return model.Announcement{}, false
@@ -198,6 +277,7 @@ func announcementFromRequest(c *gin.Context, req announcementRequest) (model.Ann
 		Content:    content,
 		Status:     status,
 		NotifyMode: notifyMode,
+		Target:     target,
 		SortOrder:  req.SortOrder,
 		StartsAt:   startsAt,
 		EndsAt:     endsAt,
@@ -223,5 +303,18 @@ func activeAnnouncementScope(now time.Time) func(db *gorm.DB) *gorm.DB {
 			Where("status = ?", 1).
 			Where("starts_at IS NULL OR starts_at <= ?", now).
 			Where("ends_at IS NULL OR ends_at > ?", now)
+	}
+}
+
+func announcementTargetScope(userID int64, role int) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if userID <= 0 {
+			return db.Where("target IN ?", []string{"", "all", "guest"})
+		}
+		targets := []string{"", "all", "user"}
+		if role >= 10 {
+			targets = append(targets, "admin")
+		}
+		return db.Where("target IN ?", targets)
 	}
 }

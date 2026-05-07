@@ -77,6 +77,7 @@ func Register(r *gin.Engine) {
 	admin.POST("/announcements", controller.AdminCreateAnnouncement)
 	admin.PUT("/announcements/:id", controller.AdminUpdateAnnouncement)
 	admin.DELETE("/announcements/:id", controller.AdminDeleteAnnouncement)
+	admin.GET("/announcements/:id/reads", controller.AdminAnnouncementReads)
 	admin.GET("/settings", controller.AdminSettings)
 	admin.PUT("/settings", controller.AdminUpdateSettings)
 	admin.GET("/generations", controller.AdminGenerations)

@@ -101,6 +101,7 @@ type Announcement struct {
 	Content   string    `gorm:"type:text" json:"content"`
 	Status    int       `gorm:"default:1;index" json:"status"`
 	NotifyMode string   `gorm:"size:16;default:silent;index" json:"notify_mode"`
+	Target    string    `gorm:"size:16;default:all;index" json:"target"`
 	SortOrder int       `gorm:"default:0;index" json:"sort_order"`
 	StartsAt  *time.Time `gorm:"index" json:"starts_at"`
 	EndsAt    *time.Time `gorm:"index" json:"ends_at"`

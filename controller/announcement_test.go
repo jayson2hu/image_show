@@ -23,6 +23,7 @@ func TestAnnouncementAdminCRUDAndPublicActive(t *testing.T) {
 		"content":     "今晚 23:00 进行短暂维护",
 		"status":      1,
 		"notify_mode": "popup",
+		"target":      "all",
 		"sort_order":  1,
 		"starts_at":   time.Now().Add(-time.Hour).Format(time.RFC3339),
 		"ends_at":     time.Now().Add(time.Hour).Format(time.RFC3339),
@@ -57,6 +58,7 @@ func TestAnnouncementAdminCRUDAndPublicActive(t *testing.T) {
 		"content":     "服务已恢复",
 		"status":      2,
 		"notify_mode": "silent",
+		"target":      "user",
 		"sort_order":  2,
 	}, token)
 	if update.Code != http.StatusOK {
@@ -97,6 +99,7 @@ func TestUserAnnouncementsAndReadStatus(t *testing.T) {
 		"title":      "未来公告",
 		"content":    "稍后展示",
 		"status":     1,
+		"target":     "all",
 		"starts_at":  time.Now().Add(time.Hour).Format(time.RFC3339),
 		"sort_order": 1,
 	}, adminToken)
@@ -109,6 +112,7 @@ func TestUserAnnouncementsAndReadStatus(t *testing.T) {
 		"content":     "请查看公告中心",
 		"status":      1,
 		"notify_mode": "popup",
+		"target":      "user",
 		"sort_order":  0,
 	}, adminToken)
 	if create.Code != http.StatusOK {
@@ -157,4 +161,82 @@ func TestUserAnnouncementsAndReadStatus(t *testing.T) {
 	if len(listAgainResp.Items) != 1 || listAgainResp.Items[0].ReadAt == nil {
 		t.Fatalf("expected read_at after mark read: %#v", listAgainResp.Items)
 	}
+
+	reads := adminRequest(engine, http.MethodGet, "/api/admin/announcements/"+jsonNumber(item.ID)+"/reads", adminToken)
+	if reads.Code != http.StatusOK {
+		t.Fatalf("admin reads=%d body=%s", reads.Code, reads.Body.String())
+	}
+	var readsResp struct {
+		Items []struct {
+			UserID int64  `json:"user_id"`
+			Email  string `json:"email"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(reads.Body.Bytes(), &readsResp); err != nil {
+		t.Fatalf("decode reads: %v", err)
+	}
+	if len(readsResp.Items) != 1 || readsResp.Items[0].Email == "" {
+		t.Fatalf("unexpected reads response: %#v", readsResp.Items)
+	}
+}
+
+func TestAnnouncementTargeting(t *testing.T) {
+	engine := setupAuthTest(t)
+	adminToken := createTokenForRole(t, 10)
+	userToken := createTokenForRole(t, 1)
+
+	for _, item := range []struct {
+		title  string
+		target string
+	}{
+		{"全部公告", "all"},
+		{"游客公告", "guest"},
+		{"用户公告", "user"},
+		{"管理员公告", "admin"},
+	} {
+		rec := adminJSON(engine, http.MethodPost, "/api/admin/announcements", map[string]interface{}{
+			"title":   item.title,
+			"content": item.title,
+			"status":  1,
+			"target":  item.target,
+		}, adminToken)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("create %s=%d body=%s", item.target, rec.Code, rec.Body.String())
+		}
+	}
+
+	guest := adminRequest(engine, http.MethodGet, "/api/announcements", "")
+	if guest.Code != http.StatusOK {
+		t.Fatalf("guest list=%d body=%s", guest.Code, guest.Body.String())
+	}
+	if countAnnouncementItems(t, guest.Body.Bytes()) != 2 {
+		t.Fatalf("expected all+guest for guest, body=%s", guest.Body.String())
+	}
+
+	user := adminRequest(engine, http.MethodGet, "/api/announcements", userToken)
+	if user.Code != http.StatusOK {
+		t.Fatalf("user list=%d body=%s", user.Code, user.Body.String())
+	}
+	if countAnnouncementItems(t, user.Body.Bytes()) != 2 {
+		t.Fatalf("expected all+user for user, body=%s", user.Body.String())
+	}
+
+	admin := adminRequest(engine, http.MethodGet, "/api/announcements", adminToken)
+	if admin.Code != http.StatusOK {
+		t.Fatalf("admin list=%d body=%s", admin.Code, admin.Body.String())
+	}
+	if countAnnouncementItems(t, admin.Body.Bytes()) != 3 {
+		t.Fatalf("expected all+user+admin for admin, body=%s", admin.Body.String())
+	}
+}
+
+func countAnnouncementItems(t *testing.T, body []byte) int {
+	t.Helper()
+	var resp struct {
+		Items []model.Announcement `json:"items"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode announcements: %v", err)
+	}
+	return len(resp.Items)
 }
