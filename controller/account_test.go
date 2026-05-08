@@ -128,6 +128,43 @@ func TestAccountOverviewReturnsCurrentUserAssets(t *testing.T) {
 	}
 }
 
+func TestAccountOverviewLimitsRecentWorksPreview(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 1)
+	userID := tokenUserID(t, token)
+	now := time.Now()
+	items := make([]model.Generation, 0, 5)
+	for i := 0; i < 5; i++ {
+		items = append(items, model.Generation{
+			UserID:    &userID,
+			Prompt:    "recent",
+			Size:      "1024x1024",
+			Status:    3,
+			CreatedAt: now.Add(time.Duration(i) * time.Minute),
+		})
+	}
+	if err := model.DB.Create(&items).Error; err != nil {
+		t.Fatalf("create generations: %v", err)
+	}
+
+	rec := adminRequest(engine, http.MethodGet, "/api/account/overview", token)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("overview status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Creations struct {
+			Total       int64         `json:"total"`
+			RecentItems []interface{} `json:"recent_items"`
+		} `json:"creations"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode overview: %v", err)
+	}
+	if resp.Creations.Total != 5 || len(resp.Creations.RecentItems) != 3 {
+		t.Fatalf("expected total 5 and 3 recent items, got %+v", resp.Creations)
+	}
+}
+
 func TestAccountOverviewEmptyState(t *testing.T) {
 	engine := setupAuthTest(t)
 	token := createTokenForRole(t, 1)

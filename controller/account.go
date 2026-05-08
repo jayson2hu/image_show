@@ -294,7 +294,7 @@ func accountCreationSummary(userID int64) (gin.H, error) {
 	var items []model.Generation
 	if err := base.Session(&gorm.Session{}).
 		Order("created_at DESC, id DESC").
-		Limit(6).
+		Limit(3).
 		Find(&items).Error; err != nil {
 		return nil, err
 	}
