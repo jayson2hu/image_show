@@ -35,6 +35,23 @@
   - `pnpm.cmd exec vue-tsc --noEmit`：通过。
 - 验收结论：
   - C1 局部自测通过，可以提交。
+
+## 2026-05-08 A1 后端设置键和默认值
+
+- 开发目标：
+  - 后台设置接口补齐站点基础、SEO 和注册邮箱后缀设置，保证老数据库没有配置时也有默认值。
+- 完成：
+  - `GET /api/admin/settings` 新增返回 `site_title`、`site_about`、`seo_title`、`seo_keywords`、`seo_description`、`register_email_domain_allowlist`。
+  - 新增 `adminSettingDefaults` 集中记录站点、SEO、注册、微信、验证、监控、积分、图片模型和 R2 的默认设置值。
+  - 设置保存接口沿用现有 upsert 逻辑，老数据库无需额外迁移。
+  - 管理员创建用户现有请求绑定已要求 `email` 格式，本小功能未改变管理员创建用户权限策略。
+  - 更新 `docs/plan-admin-site-account-ops.md` 进度表，标记 A1 已完成。
+- 自测记录：
+  - `gofmt -w controller/admin_template_setting.go controller/admin_template_setting_test.go`：已执行。
+  - `go test ./controller -run "TestAdminPromptTemplateCRUDAndSettings" -v`：通过。
+  - `go test ./controller -run "TestAdminPromptTemplateCRUDAndSettings|TestRegister" -v`：通过。
+- 验收结论：
+  - A1 局部自测通过，可以提交。
 ## 2026-05-07 渠道归因与渠道健康统计 1.1：生成记录渠道字段扩展
 
 - 开发目标：

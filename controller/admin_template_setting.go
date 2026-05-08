@@ -20,6 +20,37 @@ type settingsRequest struct {
 	Items map[string]string `json:"items" binding:"required"`
 }
 
+var adminSettingDefaults = map[string]string{
+	"site_title":                         "来看看巴",
+	"site_about":                         "把想法变成一张好图。",
+	"seo_title":                          "来看看巴 - AI 图片生成",
+	"seo_keywords":                       "AI图片生成,图片生成,AI绘画",
+	"seo_description":                    "输入提示词，选择合适比例，持续查看生成进度，直到作品完成。",
+	"register_enabled":                   "true",
+	"register_email_domain_allowlist":    "",
+	"wechat_auth_enabled":                "false",
+	"wechat_server_address":              "",
+	"wechat_server_token":                "",
+	"wechat_qrcode_url":                  "",
+	"ip_blacklist":                       "",
+	"captcha_enabled":                    "false",
+	"turnstile_site_key":                 "",
+	"turnstile_secret":                   "",
+	"monitor_daily_credit_threshold":     "0",
+	"monitor_alert_last_date":            "",
+	"register_gift_credits":              "10",
+	"credit_exhausted_message":           "额度已用完，可以注册账号获取新用户积分；如需人工开通或咨询套餐，请联系管理员。",
+	"credit_exhausted_wechat_qrcode_url": "",
+	"credit_exhausted_qq":                "",
+	"image_model":                        "gpt-image-2",
+	"enabled_image_sizes":                defaultEnabledImageSizes,
+	"r2_endpoint":                        "",
+	"r2_access_key":                      "",
+	"r2_secret_key":                      "",
+	"r2_bucket":                          "image-show",
+	"r2_public_url":                      "",
+}
+
 func AdminPromptTemplates(c *gin.Context) {
 	var items []model.PromptTemplate
 	if err := model.DB.Order("sort_order ASC, id ASC").Find(&items).Error; err != nil {
@@ -80,7 +111,13 @@ func AdminSettings(c *gin.Context) {
 		return
 	}
 	values := map[string]string{
+		"site_title":                         model.GetSettingValue("site_title", adminSettingDefaults["site_title"]),
+		"site_about":                         model.GetSettingValue("site_about", adminSettingDefaults["site_about"]),
+		"seo_title":                          model.GetSettingValue("seo_title", adminSettingDefaults["seo_title"]),
+		"seo_keywords":                       model.GetSettingValue("seo_keywords", adminSettingDefaults["seo_keywords"]),
+		"seo_description":                    model.GetSettingValue("seo_description", adminSettingDefaults["seo_description"]),
 		"register_enabled":                   model.GetSettingValue("register_enabled", "true"),
+		"register_email_domain_allowlist":    model.GetSettingValue("register_email_domain_allowlist", ""),
 		"wechat_auth_enabled":                model.GetSettingValue("wechat_auth_enabled", "false"),
 		"wechat_server_address":              model.GetSettingValue("wechat_server_address", ""),
 		"wechat_server_token":                model.GetSettingValue("wechat_server_token", ""),

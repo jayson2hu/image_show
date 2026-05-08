@@ -49,6 +49,12 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 	settings := adminJSON(engine, http.MethodPut, "/api/admin/settings", map[string]interface{}{
 		"items": map[string]string{
 			"register_enabled":                   "false",
+			"register_email_domain_allowlist":    "example.com,company.com",
+			"site_title":                         "来看看巴",
+			"site_about":                         "把想法变成一张好图",
+			"seo_title":                          "来看看巴 - AI 图片生成",
+			"seo_keywords":                       "AI图片生成,AI绘画",
+			"seo_description":                    "输入提示词生成图片",
 			"site_name":                          "Image Show",
 			"credit_exhausted_message":           "请联系管理员开通额度",
 			"credit_exhausted_wechat_qrcode_url": "https://cdn.example.com/wechat.png",
@@ -80,6 +86,14 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 		if _, ok := settingsResp.Items[key]; !ok {
 			t.Fatalf("missing support setting %s in %#v", key, settingsResp.Items)
 		}
+	}
+	for _, key := range []string{"site_title", "site_about", "seo_title", "seo_keywords", "seo_description", "register_email_domain_allowlist"} {
+		if _, ok := settingsResp.Items[key]; !ok {
+			t.Fatalf("missing site setting %s in %#v", key, settingsResp.Items)
+		}
+	}
+	if settingsResp.Items["site_title"] != "来看看巴" || settingsResp.Items["register_email_domain_allowlist"] != "example.com,company.com" {
+		t.Fatalf("unexpected site settings: %#v", settingsResp.Items)
 	}
 	contact := adminRequest(engine, http.MethodGet, "/api/support/contact", "")
 	if contact.Code != http.StatusOK {
