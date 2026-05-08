@@ -34,6 +34,7 @@ func Register(r *gin.Engine) {
 	api.GET("/generations", middleware.AuthRequired(), controller.ListGenerations)
 	api.POST("/generations", middleware.OptionalAuth(), middleware.GenerationRateLimit(), controller.CreateGeneration)
 	api.POST("/generations/edit", middleware.OptionalAuth(), middleware.GenerationRateLimit(), controller.CreateImageEdit)
+	api.GET("/generations/:id/image", middleware.AuthRequired(), controller.GenerationImage)
 	api.GET("/generations/:id", middleware.AuthRequired(), controller.GenerationDetail)
 	api.DELETE("/generations/:id", middleware.AuthRequired(), controller.DeleteGeneration)
 	api.POST("/generations/:id/cancel", middleware.AuthRequired(), controller.CancelGeneration)

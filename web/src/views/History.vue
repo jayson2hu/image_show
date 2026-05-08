@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import api from '@/api'
@@ -30,6 +30,7 @@ const notice = ref('')
 const keyword = ref('')
 const statusFilter = ref('')
 const sizeFilter = ref('')
+const imageObjectURLs = ref<Record<number, string>>({})
 
 const statusOptions = [
   { value: '', label: '全部状态' },
@@ -63,6 +64,7 @@ async function load(reset = false) {
     if (reset) {
       page.value = 1
       items.value = []
+      revokeImageObjectURLs()
     }
     const response = await api.get('/generations', {
       params: {
@@ -74,7 +76,9 @@ async function load(reset = false) {
       },
     })
     total.value = response.data.total
-    items.value.push(...response.data.items)
+    const nextItems = response.data.items as Generation[]
+    items.value.push(...nextItems)
+    void hydrateImageObjectURLs(nextItems)
     page.value += 1
   } catch {
     error.value = '历史记录加载失败'
@@ -84,6 +88,7 @@ async function load(reset = false) {
 }
 
 async function openDetail(item: Generation) {
+  selected.value = item
   try {
     const response = await api.get(`/generations/${item.id}`)
     selected.value = response.data.item
@@ -110,6 +115,33 @@ async function deleteItem(item: Generation) {
 
 function download(url: string, id?: number) {
   downloadImage(url, `image-show-${id || Date.now()}.png`)
+}
+
+function imageSrc(item: Generation) {
+  if (item.image_url?.startsWith('/api/')) {
+    return imageObjectURLs.value[item.id] || ''
+  }
+  return item.image_url
+}
+
+async function hydrateImageObjectURLs(nextItems: Generation[]) {
+  for (const item of nextItems) {
+    if (!item.image_url?.startsWith('/api/') || imageObjectURLs.value[item.id]) {
+      continue
+    }
+    try {
+      const response = await api.get(item.image_url.replace(/^\/api/, ''), { responseType: 'blob' })
+      const objectURL = URL.createObjectURL(response.data)
+      imageObjectURLs.value = { ...imageObjectURLs.value, [item.id]: objectURL }
+    } catch {
+      // Keep the card usable even if a thumbnail fails to load.
+    }
+  }
+}
+
+function revokeImageObjectURLs() {
+  Object.values(imageObjectURLs.value).forEach((url) => URL.revokeObjectURL(url))
+  imageObjectURLs.value = {}
 }
 
 async function copyPrompt(item: Generation) {
@@ -175,6 +207,10 @@ onMounted(async () => {
   }
   await load(true)
 })
+
+onBeforeUnmount(() => {
+  revokeImageObjectURLs()
+})
 </script>
 
 <template>
@@ -218,7 +254,7 @@ onMounted(async () => {
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <article v-for="item in items" :key="item.id" class="overflow-hidden rounded border border-slate-200 bg-white">
         <button class="block aspect-square w-full bg-slate-100" type="button" @click="openDetail(item)">
-          <img v-if="item.image_url" :src="item.image_url" class="h-full w-full object-cover" alt="生成图片" />
+          <img v-if="imageSrc(item)" :src="imageSrc(item)" class="h-full w-full object-cover" alt="生成图片" loading="lazy" decoding="async" />
         </button>
         <div class="space-y-2 p-3 text-sm">
           <div class="flex items-center justify-between text-slate-600">
@@ -231,7 +267,7 @@ onMounted(async () => {
             <button class="rounded border border-slate-300 px-2 py-1" type="button" @click="openDetail(item)">查看</button>
             <button class="rounded border border-slate-300 px-2 py-1" type="button" @click="copyPrompt(item)">复制提示词</button>
             <button class="rounded border border-teal/30 px-2 py-1 text-teal" type="button" @click="reuseGeneration(item)">再次生成</button>
-            <button class="rounded border border-slate-300 px-2 py-1" type="button" @click="download(item.image_url, item.id)">下载</button>
+            <button class="rounded border border-slate-300 px-2 py-1" type="button" @click="download(imageSrc(item), item.id)">下载</button>
             <button class="rounded border border-red-200 px-2 py-1 text-red-600" type="button" @click="deleteItem(item)">删除</button>
           </div>
         </div>
@@ -254,11 +290,11 @@ onMounted(async () => {
           </div>
           <button class="rounded border border-slate-300 px-3 py-1.5" type="button" @click="selected = null">关闭</button>
         </div>
-        <img :src="selected.image_url" class="max-h-[70vh] w-full object-contain" alt="生成图片详情" />
+        <img :src="imageSrc(selected)" class="max-h-[70vh] w-full object-contain" alt="生成图片详情" decoding="async" />
         <div class="mt-3 flex gap-2">
           <button class="rounded border border-slate-300 px-4 py-2" type="button" @click="copyPrompt(selected)">复制提示词</button>
           <button class="rounded border border-teal/30 px-4 py-2 text-teal" type="button" @click="reuseGeneration(selected)">再次生成</button>
-          <button class="rounded bg-teal px-4 py-2 text-white" type="button" @click="download(selected.image_url, selected.id)">下载</button>
+          <button class="rounded bg-teal px-4 py-2 text-white" type="button" @click="download(imageSrc(selected), selected.id)">下载</button>
           <button class="rounded border border-red-200 px-4 py-2 text-red-600" type="button" @click="deleteItem(selected)">删除</button>
         </div>
       </div>

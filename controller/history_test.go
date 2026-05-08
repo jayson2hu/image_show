@@ -3,6 +3,7 @@ package controller_test
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/jayson2hu/image-show/model"
@@ -19,7 +20,7 @@ func TestUserGenerationHistoryDetailAndSoftDelete(t *testing.T) {
 		Quality:  "low",
 		Size:     "1024x1024",
 		Status:   3,
-		ImageURL: "data:image/png;base64,abc",
+		ImageURL: "data:image/png;base64,aGVsbG8=",
 	}
 	if err := model.DB.Create(&generation).Error; err != nil {
 		t.Fatalf("create generation: %v", err)
@@ -38,6 +39,20 @@ func TestUserGenerationHistoryDetailAndSoftDelete(t *testing.T) {
 	_ = json.Unmarshal(list.Body.Bytes(), &listResp)
 	if listResp.Total != 1 {
 		t.Fatalf("expected one owned generation, got %d", listResp.Total)
+	}
+	if strings.Contains(list.Body.String(), "data:image/png;base64,aGVsbG8=") {
+		t.Fatalf("list response should not include inline image data: %s", list.Body.String())
+	}
+
+	image := adminRequest(engine, http.MethodGet, "/api/generations/"+jsonNumber(generation.ID)+"/image", token)
+	if image.Code != http.StatusOK {
+		t.Fatalf("image status=%d body=%s", image.Code, image.Body.String())
+	}
+	if got := image.Header().Get("Content-Type"); got != "image/png" {
+		t.Fatalf("expected image/png content type, got %s", got)
+	}
+	if image.Body.String() != "hello" {
+		t.Fatalf("unexpected image body: %q", image.Body.String())
 	}
 
 	detail := adminRequest(engine, http.MethodGet, "/api/generations/"+jsonNumber(generation.ID), token)

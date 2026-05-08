@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -48,6 +49,19 @@ type batchDeleteGenerationsRequest struct {
 	DeleteR2 bool    `json:"delete_r2"`
 }
 
+type generationListItemResponse struct {
+	ID          int64     `json:"id"`
+	Mode        string    `json:"mode"`
+	Prompt      string    `json:"prompt"`
+	Quality     string    `json:"quality"`
+	Size        string    `json:"size"`
+	Status      int       `json:"status"`
+	ImageURL    string    `json:"image_url"`
+	ErrorMsg    string    `json:"error_msg"`
+	CreatedAt   time.Time `json:"created_at"`
+	CreditsCost float64   `json:"credits_cost"`
+}
+
 func GenerationOptions(c *gin.Context) {
 	sizes := enabledImageSizes()
 	c.JSON(http.StatusOK, gin.H{"sizes": sizes, "size_options": buildImageSizeOptions(sizes)})
@@ -78,11 +92,31 @@ func ListGenerations(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count generations"})
 		return
 	}
-	if err := query.Order("created_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&items).Error; err != nil {
+	if err := query.
+		Select("id", "mode", "prompt", "quality", "size", "status", "image_url", "r2_key", "error_msg", "credits_cost", "created_at").
+		Order("created_at DESC, id DESC").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
+		Find(&items).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list generations"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items, "total": total, "page": page, "pageSize": pageSize})
+	responseItems := make([]generationListItemResponse, 0, len(items))
+	for _, item := range items {
+		responseItems = append(responseItems, generationListItemResponse{
+			ID:          item.ID,
+			Mode:        item.Mode,
+			Prompt:      item.Prompt,
+			Quality:     item.Quality,
+			Size:        item.Size,
+			Status:      item.Status,
+			ImageURL:    generationListImageURL(item),
+			ErrorMsg:    item.ErrorMsg,
+			CreatedAt:   item.CreatedAt,
+			CreditsCost: item.CreditsCost,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"items": responseItems, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func GenerationDetail(c *gin.Context) {
@@ -103,6 +137,69 @@ func GenerationDetail(c *gin.Context) {
 	}
 	generation.ImageURL = url
 	c.JSON(http.StatusOK, gin.H{"item": generation})
+}
+
+func GenerationImage(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	userID := c.GetInt64("userID")
+	var generation model.Generation
+	if err := model.DB.
+		Select("id", "user_id", "r2_key", "image_url", "is_deleted").
+		Where("id = ? AND user_id = ? AND is_deleted = ?", id, userID, false).
+		First(&generation).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "generation not found"})
+		return
+	}
+	url, err := service.RefreshImageURL(&generation)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to refresh image url"})
+		return
+	}
+	if url == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "image not found"})
+		return
+	}
+	if strings.HasPrefix(url, "data:image/") {
+		contentType, data, ok := parseDataImageURL(url)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid image data"})
+			return
+		}
+		c.Header("Cache-Control", "private, max-age=3600")
+		c.Data(http.StatusOK, contentType, data)
+		return
+	}
+	c.Redirect(http.StatusFound, url)
+}
+
+func generationListImageURL(generation model.Generation) string {
+	if generation.ImageURL == "" {
+		return ""
+	}
+	if generation.R2Key != "" || strings.HasPrefix(generation.ImageURL, "data:image/") {
+		return fmt.Sprintf("/api/generations/%d/image", generation.ID)
+	}
+	return generation.ImageURL
+}
+
+func parseDataImageURL(value string) (string, []byte, bool) {
+	const marker = ";base64,"
+	if !strings.HasPrefix(value, "data:image/") {
+		return "", nil, false
+	}
+	parts := strings.SplitN(value, marker, 2)
+	if len(parts) != 2 {
+		return "", nil, false
+	}
+	contentType := strings.TrimPrefix(parts[0], "data:")
+	data, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", nil, false
+	}
+	return contentType, data, true
 }
 
 func DeleteGeneration(c *gin.Context) {
