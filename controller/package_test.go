@@ -18,7 +18,10 @@ func TestPackageListAndAdminCRUD(t *testing.T) {
 		Items []model.Package `json:"items"`
 	}
 	_ = json.Unmarshal(public.Body.Bytes(), &publicResp)
-	if len(publicResp.Items) != 3 || publicResp.Items[0].Credits != 10 || publicResp.Items[1].Price != 39.9 {
+	if len(publicResp.Items) != 3 || publicResp.Items[0].Name != "Starter Pack" || publicResp.Items[1].Name != "Standard Pack" || publicResp.Items[2].Name != "Pro Pack" {
+		t.Fatalf("unexpected default package names: %+v", publicResp.Items)
+	}
+	if publicResp.Items[0].Credits != 10 || publicResp.Items[1].Price != 39.9 || publicResp.Items[2].Credits != 100 {
 		t.Fatalf("unexpected default packages: %+v", publicResp.Items)
 	}
 

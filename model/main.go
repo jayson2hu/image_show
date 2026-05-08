@@ -81,9 +81,9 @@ func seedDefaultPackages(db *gorm.DB) error {
 		return nil
 	}
 	defaults := []Package{
-		{Name: "入门包", Credits: 10, Price: 9.9, ValidDays: 30, SortOrder: 1, Status: 1},
-		{Name: "标准包", Credits: 50, Price: 39.9, ValidDays: 90, SortOrder: 2, Status: 1},
-		{Name: "专业包", Credits: 200, Price: 99.9, ValidDays: 180, SortOrder: 3, Status: 1},
+		{Name: "Starter Pack", Credits: 10, Price: 9.9, ValidDays: 30, SortOrder: 1, Status: 1},
+		{Name: "Standard Pack", Credits: 50, Price: 39.9, ValidDays: 90, SortOrder: 2, Status: 1},
+		{Name: "Pro Pack", Credits: 100, Price: 79.9, ValidDays: 180, SortOrder: 3, Status: 1},
 	}
 	return db.Create(&defaults).Error
 }

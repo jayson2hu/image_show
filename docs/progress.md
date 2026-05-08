@@ -124,6 +124,28 @@
   - `pnpm.cmd exec vue-tsc --noEmit`：通过。
 - 验收结论：
   - 大功能 A 自动验收通过，可以提交整体验收记录并继续大功能 B。
+
+## 2026-05-08 B1 套餐模型和默认套餐核查
+
+- 开发目标：
+  - 确保新部署没有套餐时，系统自动创建可用的默认积分套餐，个人中心购买中心后续能直接读取。
+- 完成：
+  - 核查现有套餐模型、公开 `/api/packages`、后台 `/api/admin/packages` CRUD 已存在。
+  - 修正默认套餐初始化逻辑，默认创建 3 个启用套餐：
+    - `Starter Pack`：10 积分，9.9，30 天。
+    - `Standard Pack`：50 积分，39.9，90 天。
+    - `Pro Pack`：100 积分，79.9，180 天。
+  - 重写 `model/main.go` 为 ASCII 安全版本，保留原有 DB 初始化、迁移、默认管理员逻辑，避免历史乱码继续影响 Go 编译和补丁维护。
+  - 更新套餐测试，断言默认套餐名称、积分和价格。
+  - 更新 `docs/plan-admin-site-account-ops.md` 进度表，标记 B1 已完成。
+- 自测记录：
+  - `gofmt -w model/main.go controller/package_test.go`：已执行。
+  - `go test ./controller -run "TestPackage|TestOrder" -v`：通过。
+  - `go test ./model -v`：通过。
+- 问题记录：
+  - 原 `model/main.go` 中默认套餐中文名称已有历史乱码，且影响补丁匹配；本次改为英文 ASCII 套餐名保证稳定。后续如果需要前台显示中文，可在前端展示层或后台套餐管理中手动改名。
+- 验收结论：
+  - B1 局部自测通过，可以提交。
 ## 2026-05-07 渠道归因与渠道健康统计 1.1：生成记录渠道字段扩展
 
 - 开发目标：
