@@ -62,6 +62,18 @@ export interface PromptTemplate {
   status: number
 }
 
+export interface CreditPackage {
+  id: number
+  name: string
+  credits: number
+  price: number
+  valid_days: number
+  sort_order: number
+  status: number
+  created_at?: string
+  updated_at?: string
+}
+
 export interface Channel {
   id: number
   name: string

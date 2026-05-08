@@ -19,6 +19,7 @@ const tabs = [
   { id: 'users', label: '用户', description: '账号、角色与充值', icon: 'M16 11a4 4 0 1 0-8 0m8 0a4 4 0 1 1-8 0m8 0c2.5.8 4 2.2 4 4v1H4v-1c0-1.8 1.5-3.2 4-4' },
   { id: 'channels', label: '渠道', description: 'API 渠道配置与测试', icon: 'M4 6h16M4 12h16M4 18h16M7 6v.01M7 12v.01M7 18v.01' },
   { id: 'templates', label: '模板', description: '提示词模板管理', icon: 'M7 3h7l5 5v13H7V3Zm7 0v5h5M10 13h6M10 17h6' },
+  { id: 'packages', label: '套餐', description: '积分套餐和价格', icon: 'M4 7h16v10H4V7Zm3-3h10l2 3H5l2-3Zm2 8h6m-6 4h4' },
   { id: 'settings', label: '设置', description: '系统开关和配置', icon: 'M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0-5v3m0 12v3M4.6 4.6l2.1 2.1m10.6 10.6 2.1 2.1M3 12h3m12 0h3M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1' },
   { id: 'announcements', label: '公告', description: '前台通知和弹窗', icon: 'M5 8h14v9H8l-3 3V8Zm3-3h8' },
   { id: 'credits', label: '积分', description: '积分流水审计', icon: 'M4 7h16v10H4V7Zm0 3h16M8 15h3' },

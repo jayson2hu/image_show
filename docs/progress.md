@@ -146,6 +146,24 @@
   - 原 `model/main.go` 中默认套餐中文名称已有历史乱码，且影响补丁匹配；本次改为英文 ASCII 套餐名保证稳定。后续如果需要前台显示中文，可在前端展示层或后台套餐管理中手动改名。
 - 验收结论：
   - B1 局部自测通过，可以提交。
+
+## 2026-05-08 B2 后台套餐管理 UI 优化
+
+- 开发目标：
+  - 管理后台提供明确的套餐管理入口，管理员可新增、编辑、启用/停用、删除积分套餐。
+- 完成：
+  - 新增 `web/src/components/admin/PackagesTab.vue`。
+  - 后台侧边栏新增“套餐”入口。
+  - 后台布局接入套餐 Tab。
+  - 前端 admin API 增加 `fetchAdminPackages`、`createPackage`、`updatePackage`、`deletePackage`。
+  - 前端类型增加 `CreditPackage`。
+  - 套餐卡片展示价格、积分、有效期、排序、启用状态和约可生成标准图数量。
+  - 新增/编辑使用弹窗表单，删除使用确认弹窗，操作结果使用 Toast。
+  - 更新 `docs/plan-admin-site-account-ops.md` 进度表，标记 B2 已完成。
+- 自测记录：
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+- 验收结论：
+  - B2 局部自测通过，可以提交。
 ## 2026-05-07 渠道归因与渠道健康统计 1.1：生成记录渠道字段扩展
 
 - 开发目标：

@@ -5,6 +5,7 @@ import type {
   Announcement,
   AnnouncementRead,
   Channel,
+  CreditPackage,
   CreditForm,
   CreditLog,
   Generation,
@@ -119,4 +120,20 @@ export function fetchAdminGenerations(params: { user_id?: number; status?: numbe
 
 export function deleteAdminGenerations(ids: number[], deleteR2 = false) {
   return api.delete('/admin/generations/batch', { data: { ids, delete_r2: deleteR2 } })
+}
+
+export function fetchAdminPackages() {
+  return api.get<{ items: CreditPackage[] }>('/admin/packages')
+}
+
+export function createPackage(payload: Omit<CreditPackage, 'id' | 'created_at' | 'updated_at'>) {
+  return api.post<CreditPackage>('/admin/packages', payload)
+}
+
+export function updatePackage(id: number, payload: Partial<CreditPackage>) {
+  return api.put(`/admin/packages/${id}`, payload)
+}
+
+export function deletePackage(id: number) {
+  return api.delete(`/admin/packages/${id}`)
 }

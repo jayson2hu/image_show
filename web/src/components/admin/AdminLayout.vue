@@ -11,6 +11,7 @@ import ChannelsTab from './ChannelsTab.vue'
 import CreditsTab from './CreditsTab.vue'
 import MonitorTab from './MonitorTab.vue'
 import OverviewTab from './OverviewTab.vue'
+import PackagesTab from './PackagesTab.vue'
 import SettingsTab from './SettingsTab.vue'
 import TemplatesTab from './TemplatesTab.vue'
 import UsersTab from './UsersTab.vue'
@@ -28,6 +29,7 @@ const tabTitles: Record<string, string> = {
   users: '用户',
   channels: '渠道',
   templates: '模板',
+  packages: '套餐',
   settings: '设置',
   announcements: '公告',
   credits: '积分',
@@ -54,6 +56,7 @@ onMounted(async () => {
         <UsersTab v-else-if="activeTab === 'users'" />
         <ChannelsTab v-else-if="activeTab === 'channels'" />
         <TemplatesTab v-else-if="activeTab === 'templates'" />
+        <PackagesTab v-else-if="activeTab === 'packages'" />
         <SettingsTab v-else-if="activeTab === 'settings'" />
         <AnnouncementsTab v-else-if="activeTab === 'announcements'" />
         <CreditsTab v-else-if="activeTab === 'credits'" />
