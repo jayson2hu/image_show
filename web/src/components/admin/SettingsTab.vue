@@ -32,6 +32,12 @@ const groups = [
     keys: ['register_gift_credits', 'credit_exhausted_message', 'credit_exhausted_wechat_qrcode_url', 'credit_exhausted_qq'],
   },
   {
+    id: 'manual-recharge',
+    title: '人工充值',
+    description: '配置购买中心展示的人工充值联系方式，第一版不接真实支付渠道。',
+    keys: ['manual_recharge_enabled', 'manual_recharge_wechat_id', 'manual_recharge_wechat_qrcode_url', 'manual_recharge_qq', 'manual_recharge_note'],
+  },
+  {
     id: 'wechat',
     title: '微信登录',
     description: '公众号二维码、验证码服务地址和访问凭证。',
@@ -103,6 +109,11 @@ function settingLabel(key: string) {
     credit_exhausted_message: '额度用完提示',
     credit_exhausted_wechat_qrcode_url: '联系二维码',
     credit_exhausted_qq: '联系 QQ',
+    manual_recharge_enabled: '启用人工充值',
+    manual_recharge_wechat_id: '充值微信号',
+    manual_recharge_wechat_qrcode_url: '充值微信二维码 URL',
+    manual_recharge_qq: '充值 QQ',
+    manual_recharge_note: '充值说明',
     wechat_auth_enabled: '微信登录开关',
     wechat_qrcode_url: '公众号二维码',
     wechat_server_address: 'WeChat Server 地址',
@@ -133,6 +144,11 @@ function settingLabel(key: string) {
     credit_exhausted_message: '额度用完提示',
     credit_exhausted_wechat_qrcode_url: '联系二维码',
     credit_exhausted_qq: '联系 QQ',
+    manual_recharge_enabled: '启用人工充值',
+    manual_recharge_wechat_id: '充值微信号',
+    manual_recharge_wechat_qrcode_url: '充值微信二维码 URL',
+    manual_recharge_qq: '充值 QQ',
+    manual_recharge_note: '充值说明',
     image_model: '图像模型',
     enabled_image_sizes: '启用尺寸',
     captcha_enabled: '验证码开关',
@@ -161,6 +177,11 @@ function settingHelp(key: string) {
     register_enabled: 'true 表示允许前台注册，false 表示关闭前台注册；管理员后台创建用户不受影响。',
     register_email_domain_allowlist: '留空表示不限制；多个后缀用英文逗号或换行分隔，例如：qq.com, gmail.com。',
     register_gift_credits: '例如：10 表示注册即送 10 积分，0 表示不赠送。',
+    manual_recharge_enabled: 'true 表示在购买中心展示人工充值入口；false 表示暂时隐藏充值联系方式。',
+    manual_recharge_wechat_id: '填写客服微信号，留空则前台不展示微信号。',
+    manual_recharge_wechat_qrcode_url: '填写可公开访问的二维码图片地址，留空则前台不展示二维码。',
+    manual_recharge_qq: '填写 QQ 号码，留空则前台不展示 QQ。',
+    manual_recharge_note: '用于说明充值备注、到账时间、客服时间等，避免用户误以为已经自动支付。',
     enabled_image_sizes: '例如：square,portrait_3_4,story,landscape_4_3,widescreen。',
     ip_blacklist: '一行一个 IP 或 CIDR，例如：1.2.3.4 或 10.0.0.0/24。',
     monitor_daily_credit_threshold: '例如：500 表示当天积分消耗超过 500 时触发告警。',
@@ -175,7 +196,7 @@ function isSensitive(key: string) {
 }
 
 function isTextarea(key: string) {
-  return key.includes('message') || key.includes('headers') || key === 'ip_blacklist' || key === 'enabled_image_sizes' || key === 'site_about' || key === 'seo_description' || key === 'register_email_domain_allowlist'
+  return key.includes('message') || key.includes('headers') || key === 'manual_recharge_note' || key === 'ip_blacklist' || key === 'enabled_image_sizes' || key === 'site_about' || key === 'seo_description' || key === 'register_email_domain_allowlist'
 }
 
 function inputType(key: string) {
@@ -196,6 +217,11 @@ function settingPlaceholder(key: string) {
     seo_keywords: 'AI图片生成,AI绘画,图片编辑',
     seo_description: '输入提示词，选择比例，持续查看生成进度，直到作品完成。',
     register_email_domain_allowlist: 'qq.com\ngmail.com\ncompany.com',
+    manual_recharge_enabled: 'true',
+    manual_recharge_wechat_id: 'image-show-admin',
+    manual_recharge_wechat_qrcode_url: 'https://img.example.com/recharge-wechat.png',
+    manual_recharge_qq: '123456',
+    manual_recharge_note: '添加客服后请备注账号邮箱和套餐名称，工作日 10:00-19:00 处理。',
   }
   return map[key] || ''
 }

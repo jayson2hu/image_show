@@ -59,6 +59,11 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 			"credit_exhausted_message":           "请联系管理员开通额度",
 			"credit_exhausted_wechat_qrcode_url": "https://cdn.example.com/wechat.png",
 			"credit_exhausted_qq":                "123456",
+			"manual_recharge_enabled":            "true",
+			"manual_recharge_wechat_id":          "image-show-admin",
+			"manual_recharge_wechat_qrcode_url":  "https://cdn.example.com/recharge-wechat.png",
+			"manual_recharge_qq":                 "654321",
+			"manual_recharge_note":               "添加管理员后备注账号邮箱和套餐名称",
 		},
 	}, token)
 	if settings.Code != http.StatusOK {
@@ -87,6 +92,11 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 			t.Fatalf("missing support setting %s in %#v", key, settingsResp.Items)
 		}
 	}
+	for _, key := range []string{"manual_recharge_enabled", "manual_recharge_wechat_id", "manual_recharge_wechat_qrcode_url", "manual_recharge_qq", "manual_recharge_note"} {
+		if _, ok := settingsResp.Items[key]; !ok {
+			t.Fatalf("missing manual recharge setting %s in %#v", key, settingsResp.Items)
+		}
+	}
 	for _, key := range []string{"site_title", "site_about", "seo_title", "seo_keywords", "seo_description", "register_email_domain_allowlist"} {
 		if _, ok := settingsResp.Items[key]; !ok {
 			t.Fatalf("missing site setting %s in %#v", key, settingsResp.Items)
@@ -94,6 +104,9 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 	}
 	if settingsResp.Items["site_title"] != "来看看巴" || settingsResp.Items["register_email_domain_allowlist"] != "example.com,company.com" {
 		t.Fatalf("unexpected site settings: %#v", settingsResp.Items)
+	}
+	if settingsResp.Items["manual_recharge_wechat_id"] != "image-show-admin" || settingsResp.Items["manual_recharge_qq"] != "654321" {
+		t.Fatalf("unexpected manual recharge settings: %#v", settingsResp.Items)
 	}
 	contact := adminRequest(engine, http.MethodGet, "/api/support/contact", "")
 	if contact.Code != http.StatusOK {
