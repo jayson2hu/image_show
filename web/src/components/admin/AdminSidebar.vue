@@ -6,10 +6,12 @@ import { useUserStore } from '@/stores/user'
 
 const props = defineProps<{
   activeTab: string
+  collapsed: boolean
 }>()
 
 const emit = defineEmits<{
   'update:activeTab': [tab: string]
+  'update:collapsed': [collapsed: boolean]
 }>()
 
 const userStore = useUserStore()
@@ -31,37 +33,72 @@ const adminEmail = computed(() => userStore.user?.email || '管理员')
 function selectTab(tab: string) {
   emit('update:activeTab', tab)
 }
+
+function toggleCollapsed() {
+  emit('update:collapsed', !props.collapsed)
+}
 </script>
 
 <template>
-  <aside class="border-b border-slate-200 bg-white lg:min-h-[calc(100vh-65px)] lg:border-b-0 lg:border-r">
+  <aside class="border-b border-slate-200 bg-white transition-all duration-300 lg:min-h-[calc(100vh-65px)] lg:border-b-0 lg:border-r">
     <div class="hidden h-full flex-col lg:flex">
-      <div class="border-b border-slate-200 p-5">
-        <p class="text-xs font-semibold uppercase tracking-wide text-teal">Console</p>
-        <h1 class="mt-2 text-xl font-semibold text-slate-950">管理后台</h1>
-        <p class="mt-1 text-sm text-slate-500">运营、配置和监控工作台</p>
+      <div class="border-b border-slate-200" :class="props.collapsed ? 'p-3' : 'p-5'">
+        <div class="flex items-center gap-3" :class="props.collapsed ? 'justify-center' : 'justify-between'">
+          <div v-if="!props.collapsed" class="min-w-0">
+            <p class="text-xs font-semibold uppercase tracking-wide text-teal">Console</p>
+            <h1 class="mt-2 text-xl font-semibold text-slate-950">管理后台</h1>
+            <p class="mt-1 text-sm text-slate-500">运营、配置和监控工作台</p>
+          </div>
+          <button
+            class="inline-flex size-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-teal/40 hover:bg-slate-50 hover:text-slate-950"
+            type="button"
+            :aria-label="props.collapsed ? '展开侧边栏' : '收起侧边栏'"
+            :title="props.collapsed ? '展开侧边栏' : '收起侧边栏'"
+            @click="toggleCollapsed"
+          >
+            <svg class="size-5 transition-transform duration-300" :class="props.collapsed ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 6l-6 6 6 6" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <nav class="flex-1 space-y-1 p-3">
+
+      <nav class="flex-1 space-y-1" :class="props.collapsed ? 'p-2' : 'p-3'">
         <button
           v-for="tab in tabs"
           :key="tab.id"
-          class="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition"
-          :class="props.activeTab === tab.id ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/15' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'"
+          class="flex w-full items-center rounded-2xl py-3 text-left transition"
+          :class="[
+            props.collapsed ? 'justify-center px-0' : 'gap-3 px-3',
+            props.activeTab === tab.id ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/15' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950',
+          ]"
+          :title="props.collapsed ? `${tab.label} - ${tab.description}` : undefined"
           type="button"
           @click="selectTab(tab.id)"
         >
           <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" :d="tab.icon" />
           </svg>
-          <span class="min-w-0">
+          <span v-if="!props.collapsed" class="min-w-0">
             <span class="block text-sm font-semibold">{{ tab.label }}</span>
             <span class="mt-0.5 block truncate text-xs opacity-70">{{ tab.description }}</span>
           </span>
         </button>
       </nav>
-      <div class="border-t border-slate-200 p-4">
-        <p class="truncate text-sm font-medium text-slate-800">{{ adminEmail }}</p>
-        <RouterLink class="mt-3 inline-flex w-full justify-center rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50" to="/">返回前台</RouterLink>
+
+      <div class="border-t border-slate-200" :class="props.collapsed ? 'p-2' : 'p-4'">
+        <p v-if="!props.collapsed" class="truncate text-sm font-medium text-slate-800">{{ adminEmail }}</p>
+        <RouterLink
+          class="inline-flex w-full justify-center rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+          :class="props.collapsed ? 'mt-0 px-0' : 'mt-3'"
+          :title="props.collapsed ? '返回前台' : undefined"
+          to="/"
+        >
+          <svg v-if="props.collapsed" class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12h14m0 0-5-5m5 5-5 5M21 4v16" />
+          </svg>
+          <span v-else>返回前台</span>
+        </RouterLink>
       </div>
     </div>
 

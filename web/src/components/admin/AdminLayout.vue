@@ -21,6 +21,7 @@ const userStore = useUserStore()
 const toast = useToast()
 const activeTab = ref('overview')
 const ready = ref(false)
+const sidebarCollapsed = ref(false)
 
 const isAdmin = computed(() => (userStore.user?.role || 0) >= 10)
 
@@ -49,8 +50,11 @@ onMounted(async () => {
 
 <template>
   <section v-if="ready" class="min-h-[calc(100vh-65px)] bg-slate-50 text-slate-950">
-    <div class="grid min-h-[calc(100vh-65px)] lg:grid-cols-[260px_1fr]">
-      <AdminSidebar v-model:active-tab="activeTab" />
+    <div
+      class="grid min-h-[calc(100vh-65px)] transition-[grid-template-columns] duration-300 ease-out"
+      :class="sidebarCollapsed ? 'lg:grid-cols-[84px_1fr]' : 'lg:grid-cols-[260px_1fr]'"
+    >
+      <AdminSidebar v-model:active-tab="activeTab" v-model:collapsed="sidebarCollapsed" />
       <main class="min-w-0 p-4 sm:p-6 lg:p-8">
         <OverviewTab v-if="activeTab === 'overview'" @change-tab="activeTab = $event" />
         <UsersTab v-else-if="activeTab === 'users'" />
