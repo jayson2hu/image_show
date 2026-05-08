@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
+import { fetchSiteConfig, type SiteConfig } from './api/site'
 import AnnouncementCenter from './components/AnnouncementCenter.vue'
 import AppToast from './components/ui/AppToast.vue'
 import { provideToast } from './composables/useToast'
@@ -16,6 +17,13 @@ const isAdminArea = computed(() => route.path.startsWith('/console/admin'))
 const isAdminConsole = computed(() => route.name === 'admin')
 const isFullBleed = computed(() => isHome.value || isAdminConsole.value)
 const roleLabel = computed(() => (isAdmin.value ? '管理员' : userStore.user ? '普通用户' : '未登录'))
+const siteConfig = ref<SiteConfig>({
+  site_title: '来看看巴',
+  site_about: '把想法变成一张好图。',
+  seo_title: '来看看巴 - AI 图片生成',
+  seo_keywords: 'AI图片生成,AI绘画,图片编辑',
+  seo_description: '输入提示词，选择合适比例，持续查看生成进度，直到作品完成。',
+})
 const isAccountMenuOpen = ref(false)
 provideToast()
 
@@ -39,9 +47,36 @@ async function logout() {
   await router.push(target)
 }
 
+async function loadSiteConfig() {
+  try {
+    const response = await fetchSiteConfig()
+    siteConfig.value = { ...siteConfig.value, ...response.data }
+    applySiteMeta(siteConfig.value)
+  } catch {
+    applySiteMeta(siteConfig.value)
+  }
+}
+
+function applySiteMeta(config: SiteConfig) {
+  document.title = config.seo_title || config.site_title
+  setMeta('description', config.seo_description)
+  setMeta('keywords', config.seo_keywords)
+}
+
+function setMeta(name: string, content: string) {
+  let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.name = name
+    document.head.appendChild(meta)
+  }
+  meta.content = content || ''
+}
+
 onMounted(() => {
   document.documentElement.classList.remove('dark')
   localStorage.removeItem('theme')
+  loadSiteConfig()
   userStore.fetchUser()
   window.addEventListener('auth:unauthorized', handleUnauthorized)
   window.addEventListener('click', closeAccountMenu)
@@ -66,8 +101,8 @@ watch(() => route.fullPath, closeAccountMenu)
             </svg>
           </span>
           <span>
-            <span class="block text-xl font-medium tracking-tight text-gray-900 dark:text-white">来看看巴</span>
-            <span class="hidden text-xs text-gray-500 sm:block">来看看巴</span>
+            <span class="block text-xl font-medium tracking-tight text-gray-900 dark:text-white">{{ siteConfig.site_title }}</span>
+            <span class="hidden text-xs text-gray-500 sm:block">{{ siteConfig.site_about }}</span>
           </span>
         </RouterLink>
 

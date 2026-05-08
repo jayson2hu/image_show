@@ -69,6 +69,24 @@
   - `pnpm.cmd exec vue-tsc --noEmit`：通过。
 - 验收结论：
   - A2 局部自测通过，可以提交。
+
+## 2026-05-08 A3 前台应用网站标题和 SEO
+
+- 开发目标：
+  - 前台读取后台配置的网站标题、关于网站和 SEO 配置，并避免暴露后台敏感设置。
+- 完成：
+  - 新增 `GET /api/site/config`，只返回 `site_title`、`site_about`、`seo_title`、`seo_keywords`、`seo_description`。
+  - 新增后端测试，确认公开接口能返回站点配置，并且不会泄露 `wechat_server_token`。
+  - 前端新增 `web/src/api/site.ts`。
+  - `App.vue` 启动时读取站点配置，更新 `document.title`、`meta[name=description]`、`meta[name=keywords]`。
+  - 顶部品牌标题和副标题改为读取后台站点配置。
+  - 更新 `docs/plan-admin-site-account-ops.md` 进度表，标记 A3 已完成。
+- 自测记录：
+  - `gofmt -w controller/site.go controller/site_test.go router/main.go`：已执行。
+  - `go test ./controller -run "TestSiteConfig|TestAdminPromptTemplateCRUDAndSettings" -v`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+- 验收结论：
+  - A3 局部自测通过，可以提交。
 ## 2026-05-07 渠道归因与渠道健康统计 1.1：生成记录渠道字段扩展
 
 - 开发目标：
