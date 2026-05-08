@@ -56,6 +56,12 @@ const groups = [
     keys: ['r2_endpoint', 'r2_access_key', 'r2_secret_key', 'r2_bucket', 'r2_public_url'],
   },
   {
+    id: 'avatar-storage',
+    title: '头像存储',
+    description: '配置用户头像上传限制。当前版本仅使用本地存储，R2 迁移后续单独执行。',
+    keys: ['avatar_storage_driver', 'avatar_max_size_mb', 'avatar_allowed_types'],
+  },
+  {
     id: 'captcha',
     title: '人机验证',
     description: 'Cloudflare Turnstile 验证开关和密钥。',
@@ -125,6 +131,9 @@ function settingLabel(key: string) {
     r2_secret_key: 'R2 Secret Key',
     r2_bucket: 'R2 Bucket',
     r2_public_url: 'R2 Public URL',
+    avatar_storage_driver: '头像存储方式',
+    avatar_max_size_mb: '头像最大大小 MB',
+    avatar_allowed_types: '允许头像格式',
     captcha_enabled: '验证码开关',
     turnstile_site_key: 'Turnstile Site Key',
     turnstile_secret: 'Turnstile Secret',
@@ -187,6 +196,9 @@ function settingHelp(key: string) {
     monitor_daily_credit_threshold: '例如：500 表示当天积分消耗超过 500 时触发告警。',
     wechat_server_address: '例如：https://your-domain.com/wechat。',
     r2_public_url: '例如：https://img.example.com。',
+    avatar_storage_driver: '当前只支持 local。本地头像会保存到后端 uploads/avatars 目录；后续启用 R2 前需要先做迁移。',
+    avatar_max_size_mb: '例如：2 表示最大 2MB。后端会限制最高 10MB，避免上传过大文件。',
+    avatar_allowed_types: '例如：jpg,jpeg,png,webp。多个格式用英文逗号或换行分隔。',
   })
   return map[key] || ''
 }
@@ -196,14 +208,14 @@ function isSensitive(key: string) {
 }
 
 function isTextarea(key: string) {
-  return key.includes('message') || key.includes('headers') || key === 'manual_recharge_note' || key === 'ip_blacklist' || key === 'enabled_image_sizes' || key === 'site_about' || key === 'seo_description' || key === 'register_email_domain_allowlist'
+  return key.includes('message') || key.includes('headers') || key === 'manual_recharge_note' || key === 'avatar_allowed_types' || key === 'ip_blacklist' || key === 'enabled_image_sizes' || key === 'site_about' || key === 'seo_description' || key === 'register_email_domain_allowlist'
 }
 
 function inputType(key: string) {
   if (isSensitive(key) && !revealed.value[key]) {
     return 'password'
   }
-  if (key.includes('credits') || key.includes('threshold')) {
+  if (key.includes('credits') || key.includes('threshold') || key === 'avatar_max_size_mb') {
     return 'number'
   }
   return 'text'
@@ -222,6 +234,9 @@ function settingPlaceholder(key: string) {
     manual_recharge_wechat_qrcode_url: 'https://img.example.com/recharge-wechat.png',
     manual_recharge_qq: '123456',
     manual_recharge_note: '添加客服后请备注账号邮箱和套餐名称，工作日 10:00-19:00 处理。',
+    avatar_storage_driver: 'local',
+    avatar_max_size_mb: '2',
+    avatar_allowed_types: 'jpg,jpeg,png,webp',
   }
   return map[key] || ''
 }
