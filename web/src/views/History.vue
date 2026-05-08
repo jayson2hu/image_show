@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 
 import api from '@/api'
 import { useUserStore } from '@/stores/user'
@@ -179,6 +179,9 @@ onMounted(async () => {
 
 <template>
   <section class="space-y-5">
+    <RouterLink class="inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50" to="/account">
+      返回个人中心
+    </RouterLink>
     <div class="flex items-end justify-between border-b border-slate-200 pb-4">
       <div>
         <h1 class="text-2xl font-semibold">图片历史</h1>
