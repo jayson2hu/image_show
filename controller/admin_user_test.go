@@ -97,6 +97,32 @@ func TestBannedUserCannotLogin(t *testing.T) {
 	}
 }
 
+func TestAdminCreateUserIgnoresRegistrationDomainAllowlist(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 10)
+	if err := model.DB.Create(&model.Setting{Key: "register_email_domain_allowlist", Value: "example.com"}).Error; err != nil {
+		t.Fatalf("create allowlist: %v", err)
+	}
+
+	create := adminJSON(engine, http.MethodPost, "/api/admin/users", map[string]interface{}{
+		"email":    "manual@other.com",
+		"password": "password123",
+		"role":     1,
+		"status":   1,
+	}, token)
+	if create.Code != http.StatusOK {
+		t.Fatalf("admin create should ignore registration allowlist, got %d body=%s", create.Code, create.Body.String())
+	}
+
+	invalid := adminJSON(engine, http.MethodPost, "/api/admin/users", map[string]interface{}{
+		"email":    "not-an-email",
+		"password": "password123",
+	}, token)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid email rejected, got %d body=%s", invalid.Code, invalid.Body.String())
+	}
+}
+
 func bcryptHash(t *testing.T, password string) string {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)

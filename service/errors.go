@@ -6,6 +6,7 @@ var (
 	ErrVerificationTooFrequent = errors.New("verification code sent too frequently")
 	ErrInvalidVerificationCode = errors.New("invalid verification code")
 	ErrEmailExists             = errors.New("email already exists")
+	ErrEmailDomainNotAllowed   = errors.New("email domain is not allowed")
 	ErrInvalidCredentials      = errors.New("invalid credentials")
 	ErrRegisterDisabled        = errors.New("registration is disabled")
 	ErrUserDisabled            = errors.New("user is disabled")

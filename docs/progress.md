@@ -87,6 +87,25 @@
   - `pnpm.cmd exec vue-tsc --noEmit`：通过。
 - 验收结论：
   - A3 局部自测通过，可以提交。
+
+## 2026-05-08 A4 注册开关和邮箱后缀限制
+
+- 开发目标：
+  - 前台注册受后台注册开关和邮箱后缀 allowlist 控制；管理员后台创建用户不受普通注册策略限制，但邮箱格式必须合法。
+- 完成：
+  - `service.Register` 增加 `register_email_domain_allowlist` 校验。
+  - 邮箱后缀 allowlist 支持英文逗号、换行、分号和空格分隔，配置项留空表示不限制。
+  - 注册关闭时返回中文友好提示：当前暂未开放注册，请联系管理员。
+  - 邮箱后缀不允许时返回中文友好提示：当前邮箱后缀暂不支持注册，请更换邮箱或联系管理员。
+  - 后台创建用户保持现有权限逻辑，不读取普通注册策略；补充测试确认 allowlist 不影响后台创建用户。
+  - 后台创建用户现有 `binding:"required,email"` 保持邮箱格式校验。
+  - 更新 `docs/plan-admin-site-account-ops.md` 进度表，标记 A4 已完成。
+- 自测记录：
+  - `gofmt -w service/errors.go service/auth.go controller/auth.go controller/auth_test.go controller/admin_user_test.go`：已执行。
+  - `go test ./controller -run "TestRegister|TestAdminCreateUserIgnoresRegistrationDomainAllowlist|TestAdminUserManagementAndCredits" -v`：通过。
+  - `go test ./service ./controller -run "TestRegister|TestAdminCreateUserIgnoresRegistrationDomainAllowlist|TestAdminUserManagementAndCredits" -v`：通过。
+- 验收结论：
+  - A4 局部自测通过，可以提交。
 ## 2026-05-07 渠道归因与渠道健康统计 1.1：生成记录渠道字段扩展
 
 - 开发目标：

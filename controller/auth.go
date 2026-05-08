@@ -53,7 +53,9 @@ func Register(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrRegisterDisabled):
-			c.JSON(http.StatusForbidden, gin.H{"error": "registration is disabled"})
+			c.JSON(http.StatusForbidden, gin.H{"error": "当前暂未开放注册，请联系管理员。"})
+		case errors.Is(err, service.ErrEmailDomainNotAllowed):
+			c.JSON(http.StatusForbidden, gin.H{"error": "当前邮箱后缀暂不支持注册，请更换邮箱或联系管理员。"})
 		case errors.Is(err, service.ErrInvalidVerificationCode):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid verification code"})
 		case errors.Is(err, service.ErrEmailExists):

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"time"
 
 	"github.com/jayson2hu/image-show/model"
@@ -16,6 +17,9 @@ type AuthResult struct {
 func Register(email, password, code, ip, anonymousID string) (*AuthResult, error) {
 	if !model.RegisterEnabled() {
 		return nil, ErrRegisterDisabled
+	}
+	if !registerEmailDomainAllowed(email) {
+		return nil, ErrEmailDomainNotAllowed
 	}
 	if !VerifyCode(email, code) {
 		return nil, ErrInvalidVerificationCode
@@ -70,6 +74,27 @@ func Register(email, password, code, ip, anonymousID string) (*AuthResult, error
 		return nil, err
 	}
 	return &AuthResult{Token: token, User: user}, nil
+}
+
+func registerEmailDomainAllowed(email string) bool {
+	raw := strings.TrimSpace(model.GetSettingValue("register_email_domain_allowlist", ""))
+	if raw == "" {
+		return true
+	}
+	at := strings.LastIndex(email, "@")
+	if at < 0 || at == len(email)-1 {
+		return false
+	}
+	domain := strings.ToLower(strings.TrimSpace(email[at+1:]))
+	for _, item := range strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r' || r == ';' || r == ' '
+	}) {
+		allowed := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(item)), "@")
+		if allowed != "" && domain == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 func Login(email, password, ip, userAgent string) (*AuthResult, error) {

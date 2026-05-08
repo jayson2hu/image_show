@@ -161,6 +161,42 @@ func TestRegisterDisabled(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d body=%s", rec.Code, rec.Body.String())
 	}
+	if strings.Contains(rec.Body.String(), "registration is disabled") {
+		t.Fatalf("expected friendly disabled message, got %s", rec.Body.String())
+	}
+}
+
+func TestRegisterEmailDomainAllowlist(t *testing.T) {
+	engine := setupAuthTest(t)
+	if err := model.DB.Create(&model.Setting{Key: "register_email_domain_allowlist", Value: "example.com\ncompany.com"}).Error; err != nil {
+		t.Fatalf("create allowlist: %v", err)
+	}
+
+	blockedEmail := "blocked@other.com"
+	if err := service.SendVerificationCode(blockedEmail); err != nil {
+		t.Fatalf("send blocked code: %v", err)
+	}
+	blocked := postJSON(engine, "/api/auth/register", map[string]string{
+		"email":    blockedEmail,
+		"password": "password123",
+		"code":     service.PeekVerificationCode(blockedEmail),
+	})
+	if blocked.Code != http.StatusForbidden || !strings.Contains(blocked.Body.String(), "邮箱后缀") {
+		t.Fatalf("expected domain forbidden, got %d body=%s", blocked.Code, blocked.Body.String())
+	}
+
+	allowedEmail := "allowed@example.com"
+	if err := service.SendVerificationCode(allowedEmail); err != nil {
+		t.Fatalf("send allowed code: %v", err)
+	}
+	allowed := postJSON(engine, "/api/auth/register", map[string]string{
+		"email":    allowedEmail,
+		"password": "password123",
+		"code":     service.PeekVerificationCode(allowedEmail),
+	})
+	if allowed.Code != http.StatusOK {
+		t.Fatalf("expected allowed register, got %d body=%s", allowed.Code, allowed.Body.String())
+	}
 }
 
 func setupAuthTest(t *testing.T) *gin.Engine {
