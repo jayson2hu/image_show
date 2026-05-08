@@ -269,30 +269,23 @@ func accountRecentCreditLogs(userID int64) ([]model.CreditLog, error) {
 
 func accountCreationSummary(userID int64) (gin.H, error) {
 	base := model.DB.Model(&model.Generation{}).Where("user_id = ? AND is_deleted = ?", userID, false)
-	var total int64
-	if err := base.Session(&gorm.Session{}).Count(&total).Error; err != nil {
-		return nil, err
+	var aggregate struct {
+		Total     int64
+		Completed int64
+		Failed    int64
 	}
-	var completed int64
-	if err := base.Session(&gorm.Session{}).Where("status = ?", 3).Count(&completed).Error; err != nil {
+	if err := base.Session(&gorm.Session{}).
+		Select(`
+			COUNT(*) AS total,
+			COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) AS completed,
+			COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) AS failed
+		`, 3, 4).
+		Scan(&aggregate).Error; err != nil {
 		return nil, err
-	}
-	var failed int64
-	if err := base.Session(&gorm.Session{}).Where("status = ?", 4).Count(&failed).Error; err != nil {
-		return nil, err
-	}
-	var latest model.Generation
-	var latestAt *time.Time
-	if err := base.Session(&gorm.Session{}).Order("created_at DESC, id DESC").First(&latest).Error; err != nil {
-		if err != gorm.ErrRecordNotFound {
-			return nil, err
-		}
-	} else {
-		value := latest.CreatedAt
-		latestAt = &value
 	}
 	var items []model.Generation
 	if err := base.Session(&gorm.Session{}).
+		Select("id", "prompt", "mode", "quality", "size", "status", "image_url", "error_msg", "credits_cost", "created_at").
 		Order("created_at DESC, id DESC").
 		Limit(3).
 		Find(&items).Error; err != nil {
@@ -313,10 +306,15 @@ func accountCreationSummary(userID int64) (gin.H, error) {
 			CreatedAt:   item.CreatedAt,
 		})
 	}
+	var latestAt *time.Time
+	if len(items) > 0 {
+		value := items[0].CreatedAt
+		latestAt = &value
+	}
 	return gin.H{
-		"total":        total,
-		"completed":    completed,
-		"failed":       failed,
+		"total":        aggregate.Total,
+		"completed":    aggregate.Completed,
+		"failed":       aggregate.Failed,
 		"latest_at":    latestAt,
 		"recent_items": recentItems,
 	}, nil

@@ -91,11 +91,18 @@ const latestLogin = computed(() => overview.value?.security?.latest_login || nul
 const recentLogs = computed(() => overview.value?.credits.recent_logs || [])
 const recentItems = computed(() => overview.value?.creations.recent_items || [])
 const recentAnnouncements = computed(() => overview.value?.announcements.recent_items || [])
+const isInitialLoading = computed(() => loading.value && !overview.value && !user.value)
 
 onMounted(async () => {
   if (!userStore.token) {
     await router.push('/login')
     return
+  }
+  if (userStore.user) {
+    profileForm.value = {
+      username: userStore.user.username || '',
+      avatar_url: userStore.user.avatar_url || '',
+    }
   }
   await loadOverview()
 })
@@ -249,7 +256,7 @@ function loginMethodText(method?: string) {
       <RouterLink class="account-action" to="/packages">购买积分</RouterLink>
     </div>
 
-    <div v-if="loading && !overview" class="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+    <div v-if="isInitialLoading" class="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
       正在加载个人中心...
     </div>
 
