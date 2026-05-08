@@ -101,7 +101,7 @@ async function confirmDelete() {
       <div>
         <p class="text-sm font-medium text-teal">Channels</p>
         <h2 class="mt-1 text-2xl font-semibold text-slate-950">渠道管理</h2>
-        <p class="mt-2 text-sm text-slate-500">维护 Sub2API 渠道、权重、状态和测试结果。</p>
+        <p class="mt-2 text-sm text-slate-500">维护图片生成服务渠道、权重、状态和测试结果。</p>
       </div>
       <button class="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800" type="button" @click="openCreate">新增渠道</button>
     </div>

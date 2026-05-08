@@ -21,6 +21,20 @@
   - D 头像相关拆为 D1 头像上传后端接口、D2 后台头像存储配置 UI、D3 个人中心头像上传 UI、D4 头像 R2 迁移预留方案文档。
 - 自测记录：
   - `Get-Content docs/plan-admin-site-account-ops.md`：已执行，可读取。
+
+## 2026-05-08 C1 渠道管理文案去 Sub2API 化
+
+- 开发目标：
+  - 后台渠道管理页不再把所有图片生成渠道统称为 Sub2API，避免后续接入其他渠道时产生误导。
+- 完成：
+  - 将 `web/src/components/admin/ChannelsTab.vue` 的渠道页副标题从“维护 Sub2API 渠道、权重、状态和测试结果”改为“维护图片生成服务渠道、权重、状态和测试结果”。
+  - 保留底层 `Sub2APIClient`、环境兜底渠道名和测试用例中的 sub2api 名称，不影响现有调用逻辑。
+  - 更新 `docs/plan-admin-site-account-ops.md` 进度表，标记 C1 已完成。
+- 自测记录：
+  - `rg -n "Sub2API|sub2api|维护 Sub2API|维护 sub2api" web/src`：无匹配，说明前端展示文案已清理。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+- 验收结论：
+  - C1 局部自测通过，可以提交。
 ## 2026-05-07 渠道归因与渠道健康统计 1.1：生成记录渠道字段扩展
 
 - 开发目标：
