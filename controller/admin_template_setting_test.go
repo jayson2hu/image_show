@@ -97,6 +97,11 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 			t.Fatalf("missing manual recharge setting %s in %#v", key, settingsResp.Items)
 		}
 	}
+	for _, key := range []string{"avatar_storage_driver", "avatar_max_size_mb", "avatar_allowed_types"} {
+		if _, ok := settingsResp.Items[key]; !ok {
+			t.Fatalf("missing avatar setting %s in %#v", key, settingsResp.Items)
+		}
+	}
 	for _, key := range []string{"site_title", "site_about", "seo_title", "seo_keywords", "seo_description", "register_email_domain_allowlist"} {
 		if _, ok := settingsResp.Items[key]; !ok {
 			t.Fatalf("missing site setting %s in %#v", key, settingsResp.Items)

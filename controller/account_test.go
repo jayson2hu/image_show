@@ -1,8 +1,11 @@
 package controller_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -217,4 +220,74 @@ func TestAccountProfileRequiresAuth(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected unauthorized, got %d body=%s", rec.Code, rec.Body.String())
 	}
+}
+
+func TestAccountAvatarUpload(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 1)
+	rec := avatarUploadRequest(engine, token, "avatar.png", []byte{0x89, 0x50, 0x4e, 0x47})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("avatar upload status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		AvatarURL string `json:"avatar_url"`
+		User      struct {
+			AvatarURL string `json:"avatar_url"`
+		} `json:"user"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode avatar upload: %v", err)
+	}
+	if !strings.HasPrefix(resp.AvatarURL, "/uploads/avatars/") || resp.User.AvatarURL != resp.AvatarURL {
+		t.Fatalf("unexpected avatar response: %+v", resp)
+	}
+	var user model.User
+	if err := model.DB.First(&user, "avatar_url = ?", resp.AvatarURL).Error; err != nil {
+		t.Fatalf("avatar url not stored: %v", err)
+	}
+}
+
+func TestAccountAvatarUploadRequiresAuth(t *testing.T) {
+	engine := setupAuthTest(t)
+	rec := avatarUploadRequest(engine, "", "avatar.png", []byte("png"))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected unauthorized, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAccountAvatarUploadRejectsInvalidType(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 1)
+	rec := avatarUploadRequest(engine, token, "avatar.exe", []byte("bad"))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid type 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAccountAvatarUploadRejectsOversize(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 1)
+	if err := model.DB.Create(&model.Setting{Key: "avatar_max_size_mb", Value: "1"}).Error; err != nil {
+		t.Fatalf("create avatar size setting: %v", err)
+	}
+	rec := avatarUploadRequest(engine, token, "avatar.png", bytes.Repeat([]byte("a"), 1024*1024+1))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected oversize 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func avatarUploadRequest(engine http.Handler, token, filename string, content []byte) *httptest.ResponseRecorder {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, _ := writer.CreateFormFile("avatar", filename)
+	_, _ = part.Write(content)
+	_ = writer.Close()
+	req := httptest.NewRequest(http.MethodPost, "/api/account/avatar", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+	return rec
 }

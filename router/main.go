@@ -30,6 +30,7 @@ func Register(r *gin.Engine) {
 	account := api.Group("/account", middleware.AuthRequired())
 	account.GET("/overview", controller.AccountOverview)
 	account.PUT("/profile", controller.UpdateAccountProfile)
+	account.POST("/avatar", controller.UploadAccountAvatar)
 	api.GET("/generations", middleware.AuthRequired(), controller.ListGenerations)
 	api.POST("/generations", middleware.OptionalAuth(), middleware.GenerationRateLimit(), controller.CreateGeneration)
 	api.POST("/generations/edit", middleware.OptionalAuth(), middleware.GenerationRateLimit(), controller.CreateImageEdit)

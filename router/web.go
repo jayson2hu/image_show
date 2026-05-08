@@ -10,6 +10,8 @@ import (
 )
 
 func registerWebRoutes(r *gin.Engine) {
+	r.Static("/uploads", "./uploads")
+
 	dist, err := fs.Sub(web.DistFS, "dist")
 	if err != nil {
 		return

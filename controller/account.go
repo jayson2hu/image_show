@@ -1,7 +1,12 @@
 package controller
 
 import (
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,6 +63,13 @@ type accountLoginResponse struct {
 type updateAccountProfileRequest struct {
 	Username  string `json:"username"`
 	AvatarURL string `json:"avatar_url"`
+}
+
+var avatarAllowedTypes = map[string]bool{
+	".jpg":  true,
+	".jpeg": true,
+	".png":  true,
+	".webp": true,
 }
 
 func AccountOverview(c *gin.Context) {
@@ -136,6 +148,96 @@ func UpdateAccountProfile(c *gin.Context) {
 	user.Username = username
 	user.AvatarURL = avatarURL
 	c.JSON(http.StatusOK, gin.H{"user": accountUserFromModel(user)})
+}
+
+func UploadAccountAvatar(c *gin.Context) {
+	userID := c.GetInt64("userID")
+	if model.GetSettingValue("avatar_storage_driver", "local") != "local" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar storage driver is not available"})
+		return
+	}
+
+	fileHeader, err := c.FormFile("avatar")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar file is required"})
+		return
+	}
+	maxSize := avatarMaxSizeBytes()
+	if fileHeader.Size <= 0 || fileHeader.Size > maxSize {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("avatar file must be less than %d MB", maxSize/(1024*1024))})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	if !avatarExtensionAllowed(ext) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar file type is not allowed"})
+		return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read avatar file"})
+		return
+	}
+	defer file.Close()
+
+	if err := os.MkdirAll(filepath.Join("uploads", "avatars"), 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to prepare avatar storage"})
+		return
+	}
+	filename := fmt.Sprintf("%d-%d%s", userID, time.Now().UnixNano(), ext)
+	targetPath := filepath.Join("uploads", "avatars", filename)
+	target, err := os.Create(targetPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save avatar"})
+		return
+	}
+	defer target.Close()
+	if _, err := io.Copy(target, file); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save avatar"})
+		return
+	}
+
+	avatarURL := "/uploads/avatars/" + filename
+	var user model.User
+	if err := model.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
+	}
+	if err := model.DB.Model(&user).Update("avatar_url", avatarURL).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update avatar"})
+		return
+	}
+	user.AvatarURL = avatarURL
+	c.JSON(http.StatusOK, gin.H{"avatar_url": avatarURL, "user": accountUserFromModel(user)})
+}
+
+func avatarMaxSizeBytes() int64 {
+	raw := strings.TrimSpace(model.GetSettingValue("avatar_max_size_mb", "2"))
+	mb, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || mb <= 0 {
+		mb = 2
+	}
+	if mb > 10 {
+		mb = 10
+	}
+	return mb * 1024 * 1024
+}
+
+func avatarExtensionAllowed(ext string) bool {
+	allowed := strings.TrimSpace(model.GetSettingValue("avatar_allowed_types", "jpg,jpeg,png,webp"))
+	if allowed == "" {
+		return avatarAllowedTypes[ext]
+	}
+	normalized := strings.TrimPrefix(ext, ".")
+	for _, item := range strings.FieldsFunc(allowed, func(r rune) bool {
+		return r == ',' || r == '\n' || r == ';' || r == ' '
+	}) {
+		if strings.EqualFold(strings.TrimPrefix(strings.TrimSpace(item), "."), normalized) {
+			return true
+		}
+	}
+	return false
 }
 
 func accountUserFromModel(user model.User) accountUserResponse {
