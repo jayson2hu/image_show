@@ -8,16 +8,28 @@ import { useToast } from '@/composables/useToast'
 const toast = useToast()
 const loading = ref(false)
 const saving = ref(false)
-const activeGroup = ref('account')
+const activeGroup = ref('site')
 const settings = ref<Record<string, string>>({})
 const revealed = ref<Record<string, boolean>>({})
 
 const groups = [
   {
+    id: 'site',
+    title: '站点与 SEO',
+    description: '配置网站标题、关于网站、搜索展示标题、关键词和描述。',
+    keys: ['site_title', 'site_about', 'seo_title', 'seo_keywords', 'seo_description'],
+  },
+  {
+    id: 'registration',
+    title: '注册策略',
+    description: '控制前台注册入口和允许注册的邮箱后缀，后台创建用户不受这里限制。',
+    keys: ['register_enabled', 'register_email_domain_allowlist'],
+  },
+  {
     id: 'account',
     title: '账号与额度',
     description: '注册开关、新用户赠送积分和额度用完后的联系提示。',
-    keys: ['register_enabled', 'register_gift_credits', 'credit_exhausted_message', 'credit_exhausted_wechat_qrcode_url', 'credit_exhausted_qq'],
+    keys: ['register_gift_credits', 'credit_exhausted_message', 'credit_exhausted_wechat_qrcode_url', 'credit_exhausted_qq'],
   },
   {
     id: 'wechat',
@@ -70,7 +82,11 @@ async function loadSettings() {
 async function submitSettings() {
   saving.value = true
   try {
-    await saveSettings(settings.value)
+    const payload = activeSettingGroup.value.keys.reduce<Record<string, string>>((items, key) => {
+      items[key] = settings.value[key] || ''
+      return items
+    }, {})
+    await saveSettings(payload)
     toast.success('设置已保存')
     await loadSettings()
   } catch (error: any) {
@@ -105,6 +121,25 @@ function settingLabel(key: string) {
     monitor_daily_credit_threshold: '每日积分告警阈值',
     monitor_alert_last_date: '最近告警日期',
   }
+  Object.assign(map, {
+    site_title: '网站标题',
+    site_about: '关于网站',
+    seo_title: 'SEO 标题',
+    seo_keywords: 'SEO 关键词',
+    seo_description: 'SEO 描述',
+    register_enabled: '注册开关',
+    register_email_domain_allowlist: '允许注册邮箱后缀',
+    register_gift_credits: '新用户赠送积分',
+    credit_exhausted_message: '额度用完提示',
+    credit_exhausted_wechat_qrcode_url: '联系二维码',
+    credit_exhausted_qq: '联系 QQ',
+    image_model: '图像模型',
+    enabled_image_sizes: '启用尺寸',
+    captcha_enabled: '验证码开关',
+    ip_blacklist: 'IP 黑名单',
+    monitor_daily_credit_threshold: '每日积分告警阈值',
+    monitor_alert_last_date: '最近告警日期',
+  })
   return map[key] || key
 }
 
@@ -117,6 +152,21 @@ function settingHelp(key: string) {
     wechat_server_address: '示例：https://your-domain.com/wechat',
     r2_public_url: '示例：https://img.example.com',
   }
+  Object.assign(map, {
+    site_title: '展示在浏览器标题、顶部品牌和默认 SEO 中，例如：来看看巴。',
+    site_about: '用于关于网站介绍，建议一句话说明网站能帮用户做什么。',
+    seo_title: '搜索结果标题，建议包含站点名称和核心能力。',
+    seo_keywords: '多个关键词用英文逗号分隔，例如：AI图片生成,AI绘画,图片编辑。',
+    seo_description: '搜索结果描述，建议 50-120 字，说明用户能在这里完成什么。',
+    register_enabled: 'true 表示允许前台注册，false 表示关闭前台注册；管理员后台创建用户不受影响。',
+    register_email_domain_allowlist: '留空表示不限制；多个后缀用英文逗号或换行分隔，例如：qq.com, gmail.com。',
+    register_gift_credits: '例如：10 表示注册即送 10 积分，0 表示不赠送。',
+    enabled_image_sizes: '例如：square,portrait_3_4,story,landscape_4_3,widescreen。',
+    ip_blacklist: '一行一个 IP 或 CIDR，例如：1.2.3.4 或 10.0.0.0/24。',
+    monitor_daily_credit_threshold: '例如：500 表示当天积分消耗超过 500 时触发告警。',
+    wechat_server_address: '例如：https://your-domain.com/wechat。',
+    r2_public_url: '例如：https://img.example.com。',
+  })
   return map[key] || ''
 }
 
@@ -125,7 +175,7 @@ function isSensitive(key: string) {
 }
 
 function isTextarea(key: string) {
-  return key.includes('message') || key.includes('headers') || key === 'ip_blacklist' || key === 'enabled_image_sizes'
+  return key.includes('message') || key.includes('headers') || key === 'ip_blacklist' || key === 'enabled_image_sizes' || key === 'site_about' || key === 'seo_description' || key === 'register_email_domain_allowlist'
 }
 
 function inputType(key: string) {
@@ -136,6 +186,18 @@ function inputType(key: string) {
     return 'number'
   }
   return 'text'
+}
+
+function settingPlaceholder(key: string) {
+  const map: Record<string, string> = {
+    site_title: '来看看巴',
+    site_about: '把想法变成一张好图。',
+    seo_title: '来看看巴 - AI 图片生成',
+    seo_keywords: 'AI图片生成,AI绘画,图片编辑',
+    seo_description: '输入提示词，选择比例，持续查看生成进度，直到作品完成。',
+    register_email_domain_allowlist: 'qq.com\ngmail.com\ncompany.com',
+  }
+  return map[key] || ''
 }
 </script>
 
@@ -182,8 +244,8 @@ function inputType(key: string) {
             <span class="text-sm font-medium text-slate-700">{{ settingLabel(key) }}</span>
             <span v-if="settingHelp(key)" class="mt-1 block text-xs leading-5 text-slate-500">{{ settingHelp(key) }}</span>
             <div class="mt-2 flex gap-2">
-              <textarea v-if="isTextarea(key)" v-model="settings[key]" class="setting-input min-h-24 py-3"></textarea>
-              <input v-else v-model="settings[key]" class="setting-input" :type="inputType(key)" />
+              <textarea v-if="isTextarea(key)" v-model="settings[key]" class="setting-input min-h-24 py-3" :placeholder="settingPlaceholder(key)"></textarea>
+              <input v-else v-model="settings[key]" class="setting-input" :type="inputType(key)" :placeholder="settingPlaceholder(key)" />
               <button v-if="isSensitive(key)" class="shrink-0 rounded-xl border border-slate-200 px-3 text-sm text-slate-600 transition hover:bg-slate-50" type="button" @click="revealed[key] = !revealed[key]">
                 {{ revealed[key] ? '隐藏' : '显示' }}
               </button>

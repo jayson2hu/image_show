@@ -52,6 +52,23 @@
   - `go test ./controller -run "TestAdminPromptTemplateCRUDAndSettings|TestRegister" -v`：通过。
 - 验收结论：
   - A1 局部自测通过，可以提交。
+
+## 2026-05-08 A2 后台站点与 SEO 设置 UI
+
+- 开发目标：
+  - 后台设置页新增清晰的“站点与 SEO”和“注册策略”分组，避免站点配置、注册配置继续混在账号额度里。
+- 完成：
+  - `web/src/components/admin/SettingsTab.vue` 默认打开“站点与 SEO”分组。
+  - 新增“站点与 SEO”分组，包含网站标题、关于网站、SEO 标题、SEO 关键词、SEO 描述。
+  - 新增“注册策略”分组，包含注册开关和允许注册邮箱后缀。
+  - “账号与额度”分组只保留注册赠送积分和额度用完提示相关配置。
+  - 注册邮箱后缀支持多行输入，并增加示例 placeholder。
+  - 保存设置时只提交当前分组字段，降低误提交其他分组配置的风险。
+  - 更新 `docs/plan-admin-site-account-ops.md` 进度表，标记 A2 已完成。
+- 自测记录：
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+- 验收结论：
+  - A2 局部自测通过，可以提交。
 ## 2026-05-07 渠道归因与渠道健康统计 1.1：生成记录渠道字段扩展
 
 - 开发目标：
