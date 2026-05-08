@@ -83,6 +83,7 @@ const userStore = useUserStore()
 const overview = ref<AccountOverview | null>(null)
 const loading = ref(false)
 const savingProfile = ref(false)
+const uploadingAvatar = ref(false)
 const error = ref('')
 const notice = ref('')
 const profileForm = ref({ username: '', avatar_url: '' })
@@ -169,6 +170,47 @@ function handleAvatarPreviewError() {
   avatarPreviewFailed.value = true
 }
 
+async function handleAvatarFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) {
+    return
+  }
+  uploadingAvatar.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const formData = new FormData()
+    formData.append('avatar', file)
+    const response = await api.post('/account/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    const nextUser = response.data.user
+    const avatarURL = response.data.avatar_url || nextUser?.avatar_url || ''
+    profileForm.value.avatar_url = avatarURL
+    avatarPreviewFailed.value = false
+    if (overview.value && nextUser) {
+      overview.value.user = nextUser
+    }
+    if (nextUser) {
+      userStore.user = nextUser
+    }
+    notice.value = '头像已更新'
+  } catch (err: any) {
+    const message = err.response?.data?.error || '头像上传失败'
+    if (message.includes('less than')) {
+      error.value = '头像文件过大，请按后台配置的大小限制上传'
+    } else if (message.includes('type')) {
+      error.value = '头像格式不支持，请上传 jpg、jpeg、png 或 webp'
+    } else {
+      error.value = message
+    }
+  } finally {
+    uploadingAvatar.value = false
+  }
+}
+
 function formatDate(value?: string | null, fallback = '-') {
   return value ? new Date(value).toLocaleString() : fallback
 }
@@ -249,7 +291,7 @@ function loginMethodText(method?: string) {
           <div class="flex items-start justify-between gap-3">
             <div>
               <h2 class="text-lg font-semibold text-slate-950">个人资料</h2>
-              <p class="mt-1 text-sm text-slate-500">维护展示昵称和头像地址。</p>
+              <p class="mt-1 text-sm text-slate-500">维护展示昵称和头像，头像会上传到当前配置的本地存储。</p>
             </div>
           </div>
           <form class="mt-5 space-y-4" @submit.prevent="saveProfile">
@@ -266,11 +308,13 @@ function loginMethodText(method?: string) {
               <input v-model="profileForm.username" class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20" maxlength="64" placeholder="输入昵称" />
             </label>
             <label class="block">
-              <span class="text-sm font-medium text-slate-700">头像 URL</span>
-              <input v-model="profileForm.avatar_url" class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20" maxlength="512" placeholder="https://example.com/avatar.png" @input="avatarPreviewFailed = false" />
+              <span class="text-sm font-medium text-slate-700">上传头像</span>
+              <input class="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800 focus:border-teal focus:ring-2 focus:ring-teal/20 disabled:opacity-60" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" :disabled="uploadingAvatar" @change="handleAvatarFileChange" />
+              <span class="mt-2 block text-xs leading-5 text-slate-500">支持 jpg、jpeg、png、webp。上传成功后会自动同步头像，不需要手动填写 URL。</span>
+              <span v-if="profileForm.avatar_url" class="mt-1 block truncate text-xs text-slate-400">{{ profileForm.avatar_url }}</span>
             </label>
-            <button class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60" type="submit" :disabled="savingProfile">
-              {{ savingProfile ? '保存中...' : '保存资料' }}
+            <button class="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60" type="submit" :disabled="savingProfile || uploadingAvatar">
+              {{ savingProfile ? '保存中...' : uploadingAvatar ? '头像上传中...' : '保存资料' }}
             </button>
           </form>
         </div>
