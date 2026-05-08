@@ -106,6 +106,24 @@
   - `go test ./service ./controller -run "TestRegister|TestAdminCreateUserIgnoresRegistrationDomainAllowlist|TestAdminUserManagementAndCredits" -v`：通过。
 - 验收结论：
   - A4 局部自测通过，可以提交。
+
+## 2026-05-08 大功能 A：管理后台站点配置整体验收
+
+- 范围：
+  - A1 后端设置键和默认值。
+  - A2 后台站点与 SEO 设置 UI。
+  - A3 前台应用网站标题和 SEO。
+  - A4 注册开关和邮箱后缀限制。
+- 整体验收结果：
+  - 后台设置接口可返回并保存站点、SEO、注册开关、邮箱后缀限制。
+  - 后台设置页已拆出“站点与 SEO”和“注册策略”分组。
+  - 前台通过公开配置接口读取站点配置，并动态更新 title/meta 和品牌文案。
+  - 前台注册受开关和邮箱后缀限制，后台创建用户不受普通注册策略影响但校验邮箱格式。
+- 自测记录：
+  - `go test ./controller -run "TestAdminPromptTemplateCRUDAndSettings|TestSiteConfig|TestRegister|TestAdminCreateUserIgnoresRegistrationDomainAllowlist" -v`：通过。
+  - `pnpm.cmd exec vue-tsc --noEmit`：通过。
+- 验收结论：
+  - 大功能 A 自动验收通过，可以提交整体验收记录并继续大功能 B。
 ## 2026-05-07 渠道归因与渠道健康统计 1.1：生成记录渠道字段扩展
 
 - 开发目标：
