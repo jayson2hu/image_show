@@ -246,7 +246,7 @@ function loginMethodText(method?: string) {
       <RouterLink class="account-action" to="/">开始生成</RouterLink>
       <RouterLink class="account-action" to="/history">图片历史</RouterLink>
       <RouterLink class="account-action" to="/credits">积分流水</RouterLink>
-      <RouterLink class="account-action account-action-primary" to="/packages">购买积分</RouterLink>
+      <RouterLink class="account-action" to="/packages">购买积分</RouterLink>
     </div>
 
     <div v-if="loading && !overview" class="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
@@ -367,14 +367,4 @@ function loginMethodText(method?: string) {
   transform: translateY(-1px);
 }
 
-.account-action-primary {
-  border-color: transparent;
-  background: rgb(15 23 42);
-  color: white;
-}
-
-.account-action-primary:hover {
-  background: rgb(30 41 59);
-  color: white;
-}
 </style>

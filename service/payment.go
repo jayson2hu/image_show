@@ -176,10 +176,11 @@ func HandlePaymentNotify(params map[string]string) (*PaymentNotify, error) {
 			return err
 		}
 		now := time.Now()
-		expiry := now.Add(time.Duration(pkg.ValidDays) * 24 * time.Hour)
-		if user.CreditsExpiry != nil && user.CreditsExpiry.After(expiry) {
-			expiry = *user.CreditsExpiry
+		expiryBase := now
+		if user.CreditsExpiry != nil && user.CreditsExpiry.After(now) {
+			expiryBase = *user.CreditsExpiry
 		}
+		expiry := expiryBase.Add(time.Duration(pkg.ValidDays) * 24 * time.Hour)
 		user.Credits += pkg.Credits
 		user.CreditsExpiry = &expiry
 		if err := tx.Model(&user).Updates(map[string]interface{}{"credits": user.Credits, "credits_expiry": user.CreditsExpiry}).Error; err != nil {

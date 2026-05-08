@@ -90,6 +90,54 @@ func TestPaymentNotifyCreditsUserAndIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestPaymentNotifyExtendsExistingCreditsExpiry(t *testing.T) {
+	engine := setupAuthTest(t)
+	configurePaymentForTest()
+	token := createTokenForRole(t, 1)
+	userID := tokenUserID(t, token)
+	pkg := firstPackage(t)
+	existingExpiry := time.Now().Add(10 * 24 * time.Hour)
+	if err := model.DB.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"credits":        3,
+		"credits_expiry": existingExpiry,
+	}).Error; err != nil {
+		t.Fatalf("set existing credits expiry: %v", err)
+	}
+
+	create := adminJSON(engine, http.MethodPost, "/api/orders", map[string]interface{}{
+		"package_id": pkg.ID,
+		"pay_method": "wechat",
+	}, token)
+	if create.Code != http.StatusOK {
+		t.Fatalf("create order status=%d body=%s", create.Code, create.Body.String())
+	}
+	var order model.Order
+	if err := model.DB.Where("user_id = ?", userID).First(&order).Error; err != nil {
+		t.Fatalf("load order: %v", err)
+	}
+
+	body := signedNotifyBody(order, "wxpay", "EPAY456", "TRADE_SUCCESS")
+	rec := postForm(engine, "/api/payment/notify", body)
+	if rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != "success" {
+		t.Fatalf("notify status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	var user model.User
+	if err := model.DB.First(&user, userID).Error; err != nil {
+		t.Fatalf("load user: %v", err)
+	}
+	if user.Credits != 3+pkg.Credits {
+		t.Fatalf("expected credits %.2f, got %.2f", 3+pkg.Credits, user.Credits)
+	}
+	if user.CreditsExpiry == nil {
+		t.Fatal("expected credits expiry")
+	}
+	expectedMin := existingExpiry.Add(time.Duration(pkg.ValidDays)*24*time.Hour - time.Minute)
+	if user.CreditsExpiry.Before(expectedMin) {
+		t.Fatalf("expected expiry to extend from existing expiry, existing=%s valid_days=%d got=%s", existingExpiry, pkg.ValidDays, user.CreditsExpiry)
+	}
+}
+
 func TestExpiredOrderIsClosed(t *testing.T) {
 	setupAuthTest(t)
 	configurePaymentForTest()
