@@ -119,4 +119,7 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 	if contactResp["credit_exhausted_message"] != "请联系管理员开通额度" || contactResp["credit_exhausted_wechat_qrcode_url"] == "" || contactResp["credit_exhausted_qq"] != "123456" {
 		t.Fatalf("unexpected support contact: %#v", contactResp)
 	}
+	if contactResp["manual_recharge_enabled"] != "true" || contactResp["manual_recharge_wechat_id"] != "image-show-admin" || contactResp["manual_recharge_qq"] != "654321" {
+		t.Fatalf("unexpected public manual recharge contact: %#v", contactResp)
+	}
 }
