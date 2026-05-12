@@ -1,5 +1,21 @@
 # 开发进度记录
 
+## 2026-05-12 P1-B 登录注册重设计
+
+- 开发目标：
+  - 完成 `docs/tasks-acceptance.md` 中 P1-B 的 L-1 ~ L-5，复用现有微信、邮箱登录、邮箱注册 API。
+- 完成：
+  - 重写 `web/src/views/Login.vue` 为微信优先登录页，页面加载自动请求 `/api/auth/wechat/qrcode`，二维码区域带 skeleton 加载态。
+  - 主卡片保留微信验证码输入和登录按钮，登录成功后调用 `fetchUser` 并跳转首页。
+  - 邮箱入口改为折叠面板，支持“邮箱登录 / 邮箱注册”Tab，注册 Tab 可发送邮箱验证码。
+  - 微信未启用或请求失败时自动展开邮箱面板，并显示“微信登录暂不可用”提示条。
+  - `/register` 路由改为重定向 `/login`，`Register.vue` 仅保留兜底跳转，导航文案改为“登录”。
+- 自测记录：
+  - `cd web && pnpm exec vue-tsc --noEmit`：通过。
+  - `cd web && pnpm build`：通过。
+- 验收结论：
+  - P1-B 自动验收通过，可以提交并推送。
+
 ## 2026-05-12 P1-A GPT Image 2 集成：固定输出参数与按比例计费
 
 - 开发目标：

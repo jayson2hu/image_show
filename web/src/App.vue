@@ -138,7 +138,7 @@ watch(() => route.fullPath, closeAccountMenu)
             class="min-h-10 rounded-full bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-2.5 text-white shadow-lg shadow-violet-500/20 hover:from-violet-700 hover:to-blue-700"
             :to="isAdminArea ? '/console/admin/login' : '/login'"
           >
-            {{ isAdminArea ? '管理员登录' : '登录 / 注册' }}
+            {{ isAdminArea ? '管理员登录' : '登录' }}
           </RouterLink>
         </div>
       </nav>

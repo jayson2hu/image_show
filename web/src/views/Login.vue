@@ -1,66 +1,66 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import api from '@/api'
 import { useUserStore } from '@/stores/user'
 
+type EmailTab = 'login' | 'register'
+
 const router = useRouter()
 const userStore = useUserStore()
-const email = ref('')
-const password = ref('')
-const loading = ref(false)
-const error = ref('')
-const wechatLoading = ref(false)
+
 const wechatCode = ref('')
 const wechatQRCode = ref('')
 const wechatEnabled = ref(false)
+const wechatLoading = ref(false)
 const wechatLoaded = ref(false)
-const qrDialogOpen = ref(false)
-const showEmailLogin = ref(false)
-const titleText = computed(() => (wechatLoaded.value ? '微信登录 / 注册' : '登录 / 注册'))
-const subtitleText = computed(() => (wechatLoaded.value ? '关注公众号获取验证码，首次使用会自动创建账号。' : '点击获取验证码后扫码关注公众号。'))
+const fallbackNotice = ref('')
 
-async function submitEmailLogin() {
-  error.value = ''
-  loading.value = true
-  try {
-    await userStore.login(email.value, password.value)
-    await router.push('/')
-  } catch {
-    error.value = '邮箱或密码不正确'
-  } finally {
-    loading.value = false
-  }
-}
+const emailExpanded = ref(false)
+const emailTab = ref<EmailTab>('login')
+const loginEmail = ref('')
+const loginPassword = ref('')
+const registerEmail = ref('')
+const registerPassword = ref('')
+const registerCode = ref('')
+const emailLoading = ref(false)
+const codeSending = ref(false)
+const error = ref('')
+const info = ref('')
+
+const wechatUnavailable = computed(() => wechatLoaded.value && !wechatEnabled.value)
+const emailPanelMaxHeight = computed(() => (emailExpanded.value ? '520px' : '0px'))
+
+onMounted(() => {
+  loadWechatLogin()
+})
 
 async function loadWechatLogin() {
   error.value = ''
+  fallbackNotice.value = ''
   wechatLoading.value = true
   try {
     const response = await api.get('/auth/wechat/qrcode')
-    wechatEnabled.value = response.data.enabled
-    wechatQRCode.value = response.data.qrcode_url
+    wechatEnabled.value = Boolean(response.data.enabled)
+    wechatQRCode.value = response.data.qrcode_url || ''
     wechatLoaded.value = true
-    if (!response.data.enabled) {
-      error.value = '微信登录未开启'
+    if (!wechatEnabled.value) {
+      fallbackToEmail()
     }
   } catch {
-    error.value = '微信登录配置读取失败'
+    wechatLoaded.value = true
+    wechatEnabled.value = false
+    wechatQRCode.value = ''
+    fallbackToEmail()
   } finally {
     wechatLoading.value = false
   }
 }
 
-async function openWechatQRCode() {
-  qrDialogOpen.value = true
-  if (!wechatLoaded.value) {
-    await loadWechatLogin()
-  }
-}
-
-function closeWechatQRCode() {
-  qrDialogOpen.value = false
+function fallbackToEmail() {
+  fallbackNotice.value = '微信登录暂不可用，请使用邮箱登录或注册。'
+  emailExpanded.value = true
 }
 
 async function submitWechatCode() {
@@ -68,9 +68,11 @@ async function submitWechatCode() {
     return
   }
   error.value = ''
+  info.value = ''
   wechatLoading.value = true
   try {
-    await userStore.wechatLogin(wechatCode.value)
+    await userStore.wechatLogin(wechatCode.value.trim())
+    await userStore.fetchUser()
     await router.push('/')
   } catch {
     error.value = '微信验证码无效或已过期'
@@ -78,109 +80,240 @@ async function submitWechatCode() {
     wechatLoading.value = false
   }
 }
+
+async function submitEmailLogin() {
+  error.value = ''
+  info.value = ''
+  emailLoading.value = true
+  try {
+    await userStore.login(loginEmail.value.trim(), loginPassword.value)
+    await userStore.fetchUser()
+    await router.push('/')
+  } catch {
+    error.value = '邮箱或密码不正确'
+  } finally {
+    emailLoading.value = false
+  }
+}
+
+async function sendRegisterCode() {
+  error.value = ''
+  info.value = ''
+  if (!registerEmail.value.trim()) {
+    error.value = '请先输入注册邮箱'
+    return
+  }
+  codeSending.value = true
+  try {
+    await api.post('/auth/send-code', { email: registerEmail.value.trim() })
+    info.value = '验证码已发送，请查看邮箱'
+  } catch (err: any) {
+    error.value = err.response?.data?.error || '验证码发送失败'
+  } finally {
+    codeSending.value = false
+  }
+}
+
+async function submitEmailRegister() {
+  error.value = ''
+  info.value = ''
+  emailLoading.value = true
+  try {
+    await userStore.register(registerEmail.value.trim(), registerPassword.value, registerCode.value.trim())
+    await userStore.fetchUser()
+    await router.push('/')
+  } catch (err: any) {
+    error.value = err.response?.data?.error || '注册失败，请检查邮箱、密码和验证码'
+  } finally {
+    emailLoading.value = false
+  }
+}
+
+function toggleEmailPanel() {
+  emailExpanded.value = !emailExpanded.value
+}
+
+function switchEmailTab(tab: EmailTab) {
+  emailTab.value = tab
+  emailExpanded.value = true
+  error.value = ''
+  info.value = ''
+}
 </script>
 
 <template>
-  <section class="mx-auto flex min-h-[calc(100vh-160px)] max-w-5xl items-center justify-center px-4 py-8 text-slate-900 dark:text-slate-100">
-    <div class="grid w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:grid-cols-[0.82fr_1.18fr] dark:border-slate-700 dark:bg-slate-900">
-      <div class="hidden border-r border-slate-200 bg-slate-50 p-8 md:flex md:flex-col md:justify-between dark:border-slate-700 dark:bg-slate-950">
-        <div>
-          <RouterLink class="inline-flex text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white" to="/">
-            返回首页
-          </RouterLink>
-          <h1 class="mt-10 text-3xl font-semibold leading-tight text-slate-950 dark:text-white">一个入口完成登录和注册</h1>
-          <p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">微信验证码可直接登录。首次使用会自动创建账号并获得注册积分。</p>
-        </div>
-        <RouterLink class="inline-flex w-fit min-h-10 items-center rounded-full border border-slate-300 px-5 text-sm font-medium text-slate-700 transition hover:bg-white dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-900" to="/">
-          游客继续体验
-        </RouterLink>
-      </div>
-
-      <div class="p-6 sm:p-8">
-        <div class="mx-auto max-w-md">
-          <div class="flex items-start justify-between gap-4 md:hidden">
-            <RouterLink class="text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white" to="/">
-              返回首页
-            </RouterLink>
-            <RouterLink class="text-sm font-medium text-teal transition hover:text-teal/80" to="/">
-              游客体验
-            </RouterLink>
-          </div>
-
-          <div class="mt-6 md:mt-0">
-            <p class="text-sm font-medium text-teal">用户入口</p>
-            <h2 class="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">{{ titleText }}</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{{ subtitleText }}</p>
-          </div>
-
-          <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
-            <div class="space-y-3">
-              <button class="min-h-11 w-full rounded-lg border border-teal/30 bg-teal/5 px-4 text-sm font-medium text-teal transition hover:bg-teal/10 disabled:opacity-60" type="button" :disabled="wechatLoading" @click="openWechatQRCode">
-                {{ wechatLoading ? '正在加载公众号二维码...' : '获取验证码' }}
-              </button>
-              <input
-                v-model="wechatCode"
-                class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="输入公众号返回的验证码"
-                :disabled="!wechatLoaded || !wechatEnabled"
-                @keydown.enter.prevent="submitWechatCode"
-              />
-              <button class="min-h-11 w-full rounded-lg bg-teal px-4 text-sm font-medium text-white transition hover:bg-teal/90 disabled:opacity-60" type="button" :disabled="!wechatLoaded || !wechatEnabled || wechatLoading || !wechatCode" @click="submitWechatCode">
-                {{ wechatLoading ? '处理中...' : '登录 / 注册' }}
-              </button>
-            </div>
-            <p v-if="error" class="mt-3 text-sm text-red-600 dark:text-red-400">{{ error }}</p>
-          </div>
-
-          <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-            <button class="flex w-full items-center justify-between text-left text-sm font-medium text-slate-700 dark:text-slate-200" type="button" @click="showEmailLogin = !showEmailLogin">
-              <span>已有邮箱账号</span>
-              <span class="text-slate-400">{{ showEmailLogin ? '收起' : '展开' }}</span>
-            </button>
-            <form v-if="showEmailLogin" class="mt-4 space-y-3" @submit.prevent="submitEmailLogin">
-              <input
-                v-model="email"
-                class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                type="email"
-                autocomplete="email"
-                placeholder="邮箱地址"
-                required
-              />
-              <input
-                v-model="password"
-                class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                type="password"
-                autocomplete="current-password"
-                placeholder="密码"
-                required
-              />
-              <button class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit" :disabled="loading">
-                {{ loading ? '登录中...' : '邮箱登录' }}
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="qrDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4" role="dialog" aria-modal="true" aria-labelledby="wechat-qrcode-title" @click.self="closeWechatQRCode">
-      <div class="w-full max-w-sm rounded-2xl bg-white p-5 text-slate-900 shadow-xl dark:bg-slate-900 dark:text-slate-100">
-        <div class="flex items-start justify-between gap-4">
+  <section class="mx-auto flex min-h-[calc(100vh-130px)] max-w-5xl items-center justify-center px-4 py-8 text-slate-900">
+    <div class="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/8">
+      <div class="bg-gradient-to-br from-violet-600 via-blue-600 to-cyan-500 px-6 py-8 text-white sm:px-10">
+        <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 id="wechat-qrcode-title" class="text-lg font-semibold">关注公众号获取验证码</h3>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">扫码关注后，公众号会返回验证码。</p>
+            <RouterLink class="text-sm font-medium text-white/75 transition hover:text-white" to="/">返回首页</RouterLink>
+            <h1 class="mt-6 text-4xl font-semibold tracking-normal">Image Show</h1>
+            <p class="mt-3 max-w-xl text-sm leading-6 text-white/82">微信验证码优先登录；邮箱账号入口保留给已有账号和管理员使用。</p>
           </div>
-          <button class="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800" type="button" @click="closeWechatQRCode">关闭</button>
+          <RouterLink class="inline-flex min-h-10 w-fit items-center rounded-full border border-white/30 px-4 text-sm font-medium text-white transition hover:bg-white/12" to="/">
+            游客体验
+          </RouterLink>
         </div>
-        <div class="mt-5 flex min-h-64 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-          <img v-if="wechatQRCode" :src="wechatQRCode" class="size-56 object-contain" alt="微信公众号二维码" />
-          <p v-else class="text-sm text-slate-500">{{ wechatLoading ? '二维码加载中...' : '未配置公众号二维码' }}</p>
+      </div>
+
+      <div class="px-5 py-6 sm:px-8 sm:py-8">
+        <div v-if="fallbackNotice" class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {{ fallbackNotice }}
         </div>
-        <div class="mt-4 grid gap-2 sm:grid-cols-2">
-          <button class="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800" type="button" :disabled="wechatLoading" @click="loadWechatLogin">刷新二维码</button>
-          <button class="min-h-10 rounded-lg bg-teal px-4 text-sm font-medium text-white transition hover:bg-teal/90" type="button" @click="closeWechatQRCode">我已拿到验证码</button>
+
+        <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="text-center">
+            <p class="text-sm font-semibold text-violet-700">微信登录</p>
+            <h2 class="mt-1 text-2xl font-semibold text-slate-950">扫码获取验证码</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-500">关注公众号获取验证码，首次使用会自动创建账号。</p>
+          </div>
+
+          <div class="mt-5 flex min-h-64 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div v-if="wechatLoading" class="size-52 animate-pulse rounded-2xl bg-slate-200"></div>
+            <img v-else-if="wechatEnabled && wechatQRCode" :src="wechatQRCode" class="size-52 object-contain" alt="微信公众号二维码" />
+            <div v-else class="text-center text-sm text-slate-500">
+              <div class="mx-auto mb-3 size-16 rounded-2xl bg-slate-200"></div>
+              <p>{{ wechatUnavailable ? '微信登录暂不可用' : '未配置公众号二维码' }}</p>
+            </div>
+          </div>
+
+          <div class="mt-5 space-y-3">
+            <input
+              v-model="wechatCode"
+              class="auth-input"
+              placeholder="输入公众号返回的验证码"
+              :disabled="!wechatEnabled"
+              @keydown.enter.prevent="submitWechatCode"
+            />
+            <button class="auth-primary" type="button" :disabled="!wechatEnabled || wechatLoading || !wechatCode" @click="submitWechatCode">
+              {{ wechatLoading ? '处理中...' : '微信登录 / 注册' }}
+            </button>
+            <button class="auth-secondary" type="button" :disabled="wechatLoading" @click="loadWechatLogin">
+              刷新二维码
+            </button>
+          </div>
+
+          <p v-if="error" class="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</p>
+          <p v-if="info" class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{{ info }}</p>
+        </div>
+
+        <div class="mx-auto mt-5 max-w-md rounded-2xl border border-slate-200 bg-slate-50">
+          <button class="flex w-full items-center justify-between px-5 py-4 text-left text-sm font-semibold text-slate-700 transition hover:text-violet-700" type="button" @click="toggleEmailPanel">
+            <span>已有邮箱账号？邮箱登录</span>
+            <span class="transition-transform" :class="emailExpanded ? 'rotate-180' : ''">⌄</span>
+          </button>
+
+          <div class="overflow-hidden transition-[max-height] duration-300 ease-in-out" :style="{ maxHeight: emailPanelMaxHeight }">
+            <div class="border-t border-slate-200 p-5">
+              <div class="grid grid-cols-2 rounded-xl bg-white p-1 shadow-sm">
+                <button class="rounded-lg px-3 py-2 text-sm font-semibold transition" :class="emailTab === 'login' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:text-violet-700'" type="button" @click="switchEmailTab('login')">
+                  邮箱登录
+                </button>
+                <button class="rounded-lg px-3 py-2 text-sm font-semibold transition" :class="emailTab === 'register' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:text-violet-700'" type="button" @click="switchEmailTab('register')">
+                  邮箱注册
+                </button>
+              </div>
+
+              <form v-if="emailTab === 'login'" class="mt-4 space-y-3" @submit.prevent="submitEmailLogin">
+                <input v-model="loginEmail" class="auth-input" type="email" autocomplete="email" placeholder="邮箱地址" required />
+                <input v-model="loginPassword" class="auth-input" type="password" autocomplete="current-password" placeholder="密码" required />
+                <button class="auth-primary" type="submit" :disabled="emailLoading">
+                  {{ emailLoading ? '登录中...' : '邮箱登录' }}
+                </button>
+              </form>
+
+              <form v-else class="mt-4 space-y-3" @submit.prevent="submitEmailRegister">
+                <input v-model="registerEmail" class="auth-input" type="email" autocomplete="email" placeholder="邮箱地址" required />
+                <input v-model="registerPassword" class="auth-input" type="password" autocomplete="new-password" placeholder="至少 8 位密码" required minlength="8" />
+                <div class="flex gap-2">
+                  <input v-model="registerCode" class="auth-input" inputmode="numeric" placeholder="邮箱验证码" required maxlength="6" />
+                  <button class="shrink-0 rounded-xl border border-violet-200 bg-white px-4 text-sm font-semibold text-violet-700 transition hover:bg-violet-50 disabled:opacity-60" type="button" :disabled="codeSending" @click="sendRegisterCode">
+                    {{ codeSending ? '发送中' : '发送验证码' }}
+                  </button>
+                </div>
+                <button class="auth-primary" type="submit" :disabled="emailLoading">
+                  {{ emailLoading ? '注册中...' : '邮箱注册并登录' }}
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 </template>
+
+<style scoped>
+.auth-input {
+  min-height: 2.75rem;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(203 213 225);
+  background: white;
+  padding: 0.625rem 0.875rem;
+  color: rgb(15 23 42);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.auth-input:focus {
+  border-color: rgb(124 58 237);
+  box-shadow: 0 0 0 3px rgb(124 58 237 / 0.18);
+}
+
+.auth-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.auth-primary {
+  min-height: 2.75rem;
+  width: 100%;
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg, rgb(124 58 237), rgb(37 99 235));
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: white;
+  box-shadow: 0 12px 24px rgb(79 70 229 / 0.22);
+  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+}
+
+.auth-primary:hover:not(:disabled) {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+.auth-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.auth-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.auth-secondary {
+  min-height: 2.75rem;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(221 214 254);
+  background: white;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: rgb(109 40 217);
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.auth-secondary:hover:not(:disabled) {
+  border-color: rgb(167 139 250);
+  background: rgb(245 243 255);
+}
+
+.auth-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+</style>

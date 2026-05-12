@@ -164,11 +164,11 @@ feat(home,admin): credit estimation display and admin pricing UI
 
 | ID | 内容 | 工作量 | 状态 |
 |----|------|--------|------|
-| L-1 | `web/src/views/Login.vue` — 重写：顶部品牌区 + 主卡片（微信二维码+验证码+登录按钮）+ 底部折叠区；onMounted 自动请求二维码 | 中 | 待开发 |
-| L-2 | 邮箱折叠区：Tab 切换「邮箱登录」(email+password) / 「邮箱注册」(email+password+邮箱验证码+发送按钮)；折叠动画 max-height transition 300ms ease | 中 | 待开发 |
-| L-3 | 微信降级处理：API 返回 `enabled=false` 或请求失败 → 隐藏二维码 → 自动展开邮箱 → 顶部提示条 | 小 | 待开发 |
-| L-4 | `router/index.ts`：`/register` → `redirect: '/login'`；`App.vue` 导航"登录/注册"→"登录"；`Register.vue` 清空内容仅做 redirect 兜底 | 小 | 待开发 |
-| L-5 | 样式与动效打磨：全站一致圆角(12/16px)、渐变按钮、折叠展开动画、二维码 skeleton、input focus 紫色边框、按钮 hover/active | 小 | 待开发 |
+| L-1 | `web/src/views/Login.vue` — 重写：顶部品牌区 + 主卡片（微信二维码+验证码+登录按钮）+ 底部折叠区；onMounted 自动请求二维码 | 中 | 已完成 |
+| L-2 | 邮箱折叠区：Tab 切换「邮箱登录」(email+password) / 「邮箱注册」(email+password+邮箱验证码+发送按钮)；折叠动画 max-height transition 300ms ease | 中 | 已完成 |
+| L-3 | 微信降级处理：API 返回 `enabled=false` 或请求失败 → 隐藏二维码 → 自动展开邮箱 → 顶部提示条 | 小 | 已完成 |
+| L-4 | `router/index.ts`：`/register` → `redirect: '/login'`；`App.vue` 导航"登录/注册"→"登录"；`Register.vue` 清空内容仅做 redirect 兜底 | 小 | 已完成 |
+| L-5 | 样式与动效打磨：全站一致圆角(12/16px)、渐变按钮、折叠展开动画、二维码 skeleton、input focus 紫色边框、按钮 hover/active | 小 | 已完成 |
 
 ### 自测标准
 
@@ -186,10 +186,10 @@ cd web && pnpm exec vue-tsc --noEmit && pnpm build
 
 ### 验收标准
 
-- [ ] `/login` 自动加载微信二维码，验证码登录可用
-- [ ] 邮箱折叠区含登录和注册 Tab，管理员可通过邮箱入口正常登录
-- [ ] `/register` 重定向 `/login`
-- [ ] 微信不可用时自动降级到邮箱，顶部提示条显示
+- [x] `/login` 自动加载微信二维码，验证码登录可用
+- [x] 邮箱折叠区含登录和注册 Tab，管理员可通过邮箱入口正常登录
+- [x] `/register` 重定向 `/login`
+- [x] 微信不可用时自动降级到邮箱，顶部提示条显示
 
 ### 提交信息
 
