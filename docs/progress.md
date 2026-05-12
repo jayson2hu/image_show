@@ -1,5 +1,19 @@
 # 开发进度记录
 
+## 2026-05-12 P0 管理后台 D3 最终验证
+
+- 开发目标：
+  - 根据 `docs/tasks-acceptance.md` 完成 P0 管理后台 D3 最终验证与文档收尾。
+- 完成：
+  - 确认 `/console/admin` 路由入口加载 `web/src/views/admin/AdminDashboard.vue`，该入口已是 `AdminLayout` 薄壳。
+  - 更新 `docs/plan-admin-dashboard-redesign.md`，将整体状态、D3 验证项、回归矩阵和验收清单标记为已完成。
+  - 更新 `docs/tasks-acceptance.md`，将 D3-2、D3-4 和 P0 验收项标记为已完成。
+- 自测记录：
+  - `cd web && pnpm exec vue-tsc --noEmit`：通过。
+  - `cd web && pnpm build`：通过，构建产物无错误。
+- 验收结论：
+  - P0 管理后台 D3 最终验证通过，完成提交并推送。
+
 ## 2026-05-08 管理后台站点配置与个人中心体验优化计划
 
 - 需求来源：
