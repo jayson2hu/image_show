@@ -29,6 +29,8 @@ type createGenerationRequest struct {
 }
 
 const standardImageQuality = "medium"
+const fixedOutputFormat = "png"
+const fixedBackground = "opaque"
 
 type imageSizeOption struct {
 	Value      string  `json:"value"`
@@ -253,10 +255,7 @@ func CreateGeneration(c *gin.Context) {
 		return
 	}
 	req.Size = realSize
-	if !validateImageOutputOptions(c, req.OutputFormat, req.Background, req.OutputCompression) {
-		return
-	}
-	options := service.ImageOptions{OutputFormat: req.OutputFormat, Background: req.Background, OutputCompression: req.OutputCompression}
+	options := fixedGenerationImageOptions()
 
 	var userID *int64
 	if value, exists := c.Get("userID"); exists {
@@ -316,16 +315,6 @@ func CreateImageEdit(c *gin.Context) {
 		Size:         c.PostForm("size"),
 		AnonymousID:  c.PostForm("anonymous_id"),
 		CaptchaToken: c.PostForm("captcha_token"),
-		OutputFormat: c.PostForm("output_format"),
-		Background:   c.PostForm("background"),
-	}
-	if compression := strings.TrimSpace(c.PostForm("output_compression")); compression != "" {
-		value, err := strconv.Atoi(compression)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "output_compression must be between 0 and 100"})
-			return
-		}
-		req.OutputCompression = &value
 	}
 	if req.Prompt == "" || len(req.Prompt) > 4000 || !isValidQuality(req.Quality) || req.Size == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
@@ -341,10 +330,7 @@ func CreateImageEdit(c *gin.Context) {
 		return
 	}
 	req.Size = realSize
-	if !validateImageOutputOptions(c, req.OutputFormat, req.Background, req.OutputCompression) {
-		return
-	}
-	options := service.ImageOptions{OutputFormat: req.OutputFormat, Background: req.Background, OutputCompression: req.OutputCompression}
+	options := fixedGenerationImageOptions()
 	file, header, err := c.Request.FormFile("image")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "image file required"})
@@ -520,9 +506,13 @@ func buildImageSizeOptions(sizes []string) []imageSizeOption {
 		if label == "" {
 			label = strings.Replace(realSize, "x", " x ", 1)
 		}
-		options = append(options, imageSizeOption{Value: size, Label: label, Ratio: ratio, CreditCost: service.CostForSize(realSize)})
+		options = append(options, imageSizeOption{Value: size, Label: label, Ratio: ratio, CreditCost: service.CostForSize(size)})
 	}
 	return options
+}
+
+func fixedGenerationImageOptions() service.ImageOptions {
+	return service.ImageOptions{OutputFormat: fixedOutputFormat, Background: fixedBackground}
 }
 
 func imageRatioLabel(size string) string {

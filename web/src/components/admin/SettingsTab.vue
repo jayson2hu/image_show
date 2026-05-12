@@ -28,8 +28,8 @@ const groups = [
   {
     id: 'account',
     title: '账号与额度',
-    description: '注册开关、新用户赠送积分和额度用完后的联系提示。',
-    keys: ['register_gift_credits', 'credit_exhausted_message', 'credit_exhausted_wechat_qrcode_url', 'credit_exhausted_qq'],
+    description: '新用户赠送积分、生成积分定价和额度用完后的联系提示。',
+    keys: ['register_gift_credits', 'credit_cost_square', 'credit_cost_portrait', 'credit_cost_story', 'credit_cost_landscape', 'credit_cost_widescreen', 'credit_exhausted_message', 'credit_exhausted_wechat_qrcode_url', 'credit_exhausted_qq'],
   },
   {
     id: 'manual-recharge',
@@ -92,6 +92,11 @@ async function loadSettings() {
 }
 
 async function submitSettings() {
+  const validationError = validateActiveSettings()
+  if (validationError) {
+    toast.error(validationError)
+    return
+  }
   saving.value = true
   try {
     const payload = activeSettingGroup.value.keys.reduce<Record<string, string>>((items, key) => {
@@ -108,10 +113,27 @@ async function submitSettings() {
   }
 }
 
+function validateActiveSettings() {
+  for (const key of activeSettingGroup.value.keys) {
+    if (isPositiveIntegerSetting(key)) {
+      const value = Number(settings.value[key])
+      if (!Number.isInteger(value) || value < 1) {
+        return `${settingLabel(key)} 必须是大于等于 1 的整数`
+      }
+    }
+  }
+  return ''
+}
+
 function settingLabel(key: string) {
   const map: Record<string, string> = {
     register_enabled: '注册开关',
     register_gift_credits: '新用户赠送积分',
+    credit_cost_square: '方形 1:1',
+    credit_cost_portrait: '竖版 3:4',
+    credit_cost_story: '故事版 9:16',
+    credit_cost_landscape: '横版 4:3',
+    credit_cost_widescreen: '宽屏 16:9',
     credit_exhausted_message: '额度用完提示',
     credit_exhausted_wechat_qrcode_url: '联系二维码',
     credit_exhausted_qq: '联系 QQ',
@@ -150,6 +172,11 @@ function settingLabel(key: string) {
     register_enabled: '注册开关',
     register_email_domain_allowlist: '允许注册邮箱后缀',
     register_gift_credits: '新用户赠送积分',
+    credit_cost_square: '方形 1:1',
+    credit_cost_portrait: '竖版 3:4',
+    credit_cost_story: '故事版 9:16',
+    credit_cost_landscape: '横版 4:3',
+    credit_cost_widescreen: '宽屏 16:9',
     credit_exhausted_message: '额度用完提示',
     credit_exhausted_wechat_qrcode_url: '联系二维码',
     credit_exhausted_qq: '联系 QQ',
@@ -171,6 +198,11 @@ function settingLabel(key: string) {
 function settingHelp(key: string) {
   const map: Record<string, string> = {
     register_gift_credits: '示例：10 表示注册即送 10 积分；0 表示不赠送。',
+    credit_cost_square: '1024x1024，默认 1 积分。请输入大于等于 1 的整数。',
+    credit_cost_portrait: '1152x1536，默认 2 积分。请输入大于等于 1 的整数。',
+    credit_cost_story: '1008x1792，默认 2 积分。请输入大于等于 1 的整数。',
+    credit_cost_landscape: '1536x1152，默认 2 积分。请输入大于等于 1 的整数。',
+    credit_cost_widescreen: '1792x1008，默认 2 积分。请输入大于等于 1 的整数。',
     enabled_image_sizes: '示例：square,portrait_3_4,story,landscape_4_3,widescreen',
     ip_blacklist: '一行一个 IP，或用英文逗号分隔。例如：1.2.3.4, 5.6.7.8',
     monitor_daily_credit_threshold: '示例：500 表示当天积分消耗超过 500 时触发告警。',
@@ -186,6 +218,11 @@ function settingHelp(key: string) {
     register_enabled: 'true 表示允许前台注册，false 表示关闭前台注册；管理员后台创建用户不受影响。',
     register_email_domain_allowlist: '留空表示不限制；多个后缀用英文逗号或换行分隔，例如：qq.com, gmail.com。',
     register_gift_credits: '例如：10 表示注册即送 10 积分，0 表示不赠送。',
+    credit_cost_square: '1024x1024，默认 1 积分。请输入大于等于 1 的整数。',
+    credit_cost_portrait: '1152x1536，默认 2 积分。请输入大于等于 1 的整数。',
+    credit_cost_story: '1008x1792，默认 2 积分。请输入大于等于 1 的整数。',
+    credit_cost_landscape: '1536x1152，默认 2 积分。请输入大于等于 1 的整数。',
+    credit_cost_widescreen: '1792x1008，默认 2 积分。请输入大于等于 1 的整数。',
     manual_recharge_enabled: 'true 表示在购买中心展示人工充值入口；false 表示暂时隐藏充值联系方式。',
     manual_recharge_wechat_id: '填写客服微信号，留空则前台不展示微信号。',
     manual_recharge_wechat_qrcode_url: '填写可公开访问的二维码图片地址，留空则前台不展示二维码。',
@@ -215,10 +252,14 @@ function inputType(key: string) {
   if (isSensitive(key) && !revealed.value[key]) {
     return 'password'
   }
-  if (key.includes('credits') || key.includes('threshold') || key === 'avatar_max_size_mb') {
+  if (key.includes('credits') || key.includes('threshold') || key === 'avatar_max_size_mb' || isPositiveIntegerSetting(key)) {
     return 'number'
   }
   return 'text'
+}
+
+function isPositiveIntegerSetting(key: string) {
+  return key.startsWith('credit_cost_')
 }
 
 function settingPlaceholder(key: string) {
@@ -229,6 +270,11 @@ function settingPlaceholder(key: string) {
     seo_keywords: 'AI图片生成,AI绘画,图片编辑',
     seo_description: '输入提示词，选择比例，持续查看生成进度，直到作品完成。',
     register_email_domain_allowlist: 'qq.com\ngmail.com\ncompany.com',
+    credit_cost_square: '1',
+    credit_cost_portrait: '2',
+    credit_cost_story: '2',
+    credit_cost_landscape: '2',
+    credit_cost_widescreen: '2',
     manual_recharge_enabled: 'true',
     manual_recharge_wechat_id: 'image-show-admin',
     manual_recharge_wechat_qrcode_url: 'https://img.example.com/recharge-wechat.png',

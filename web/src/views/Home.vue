@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import api from '@/api'
+import { fetchSiteConfig, type CreditCosts } from '@/api/site'
 import CreditExhaustedGuide from '@/components/CreditExhaustedGuide.vue'
 import GenerationProgress from '@/components/GenerationProgress.vue'
 import { useUserStore } from '@/stores/user'
@@ -87,6 +88,13 @@ const selectedStyle = ref('')
 const quality: Quality = 'medium'
 const size = ref('square')
 const defaultSizeValues = ['square', 'portrait_3_4', 'story', 'landscape_4_3', 'widescreen']
+const creditCosts = ref<CreditCosts>({
+  square: 1,
+  portrait: 2,
+  story: 2,
+  landscape: 2,
+  widescreen: 2,
+})
 const sizeOptions = ref<SizeOption[]>([
   ...defaultSizeValues.map(makeSizeOption),
 ])
@@ -182,7 +190,7 @@ declare global {
 
 onMounted(async () => {
   restoreGenerationDraft()
-  await Promise.all([loadPromptTemplates(), loadGenerationOptions(), loadCaptcha()])
+  await Promise.all([loadSiteCreditCosts(), loadPromptTemplates(), loadGenerationOptions(), loadCaptcha()])
 })
 
 onUnmounted(() => {
@@ -274,6 +282,36 @@ async function loadGenerationOptions() {
   }
 }
 
+async function loadSiteCreditCosts() {
+  try {
+    const response = await fetchSiteConfig()
+    const costs = response.data.credit_costs
+    if (costs) {
+      creditCosts.value = {
+        square: normalizeCreditCost(costs.square, 1),
+        portrait: normalizeCreditCost(costs.portrait, 2),
+        story: normalizeCreditCost(costs.story, 2),
+        landscape: normalizeCreditCost(costs.landscape, 2),
+        widescreen: normalizeCreditCost(costs.widescreen, 2),
+      }
+      sizeOptions.value = sizeOptions.value.map((item) => ({
+        ...item,
+        credit_cost: creditCostForSize(item.value),
+      }))
+    }
+  } catch {
+    // Generation options still carries credit costs; keep local defaults if site config is unavailable.
+  }
+}
+
+function normalizeCreditCost(value: unknown, fallback: number) {
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue) || numberValue < 1) {
+    return fallback
+  }
+  return Math.ceil(numberValue)
+}
+
 function restoreGenerationDraft() {
   const raw = localStorage.getItem(generationDraftKey)
   if (!raw) {
@@ -321,12 +359,40 @@ function makeSizeOption(value: string): SizeOption {
 }
 
 function creditCostForSize(value: string) {
+  const ratioCost = creditCostForRatioValue(value)
+  if (ratioCost !== null) {
+    return ratioCost
+  }
   const realSize = aspectRatioRealSizes[value] || value
   const [width, height] = realSize.toLowerCase().split('x').map((part) => Number.parseInt(part.trim(), 10))
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     return 1
   }
   return Math.max(1, Math.ceil((width * height) / (1024 * 1024)))
+}
+
+function creditCostForRatioValue(value: string) {
+  switch (value) {
+    case 'square':
+    case '1024x1024':
+      return creditCosts.value.square
+    case 'portrait':
+    case 'portrait_3_4':
+    case '1152x1536':
+      return creditCosts.value.portrait
+    case 'story':
+    case '1008x1792':
+      return creditCosts.value.story
+    case 'landscape':
+    case 'landscape_4_3':
+    case '1536x1152':
+      return creditCosts.value.landscape
+    case 'widescreen':
+    case '1792x1008':
+      return creditCosts.value.widescreen
+    default:
+      return null
+  }
 }
 
 function sizeRatioLabel(value: string) {

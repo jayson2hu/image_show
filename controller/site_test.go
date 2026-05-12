@@ -19,19 +19,30 @@ func TestSiteConfigReturnsPublicSettings(t *testing.T) {
 	if err := model.DB.Create(&model.Setting{Key: "wechat_server_token", Value: "secret-token"}).Error; err != nil {
 		t.Fatalf("create secret setting: %v", err)
 	}
+	if err := model.DB.Create(&model.Setting{Key: "credit_cost_square", Value: "3"}).Error; err != nil {
+		t.Fatalf("create credit cost setting: %v", err)
+	}
 
 	rec := adminRequest(engine, http.MethodGet, "/api/site/config", "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("site config=%d body=%s", rec.Code, rec.Body.String())
 	}
-	var resp map[string]string
+	var resp struct {
+		SiteTitle      string             `json:"site_title"`
+		SEODescription string             `json:"seo_description"`
+		Secret         string             `json:"wechat_server_token"`
+		CreditCosts    map[string]float64 `json:"credit_costs"`
+	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode site config: %v", err)
 	}
-	if resp["site_title"] != "来看看巴" || resp["seo_description"] != "输入提示词生成图片" {
+	if resp.SiteTitle != "来看看巴" || resp.SEODescription != "输入提示词生成图片" {
 		t.Fatalf("unexpected site config: %#v", resp)
 	}
-	if _, ok := resp["wechat_server_token"]; ok {
+	if resp.Secret != "" {
 		t.Fatalf("site config leaked secret: %#v", resp)
+	}
+	if resp.CreditCosts["square"] != 3 || resp.CreditCosts["portrait"] != 2 || resp.CreditCosts["widescreen"] != 2 {
+		t.Fatalf("unexpected credit costs: %#v", resp.CreditCosts)
 	}
 }

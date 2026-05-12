@@ -6,6 +6,15 @@ export interface SiteConfig {
   seo_title: string
   seo_keywords: string
   seo_description: string
+  credit_costs?: CreditCosts
+}
+
+export interface CreditCosts {
+  square: number
+  portrait: number
+  story: number
+  landscape: number
+  widescreen: number
 }
 
 export function fetchSiteConfig() {

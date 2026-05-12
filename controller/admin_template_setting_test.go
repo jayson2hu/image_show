@@ -50,6 +50,8 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 		"items": map[string]string{
 			"register_enabled":                   "false",
 			"register_email_domain_allowlist":    "example.com,company.com",
+			"credit_cost_square":                 "3",
+			"credit_cost_portrait":               "4",
 			"site_title":                         "来看看巴",
 			"site_about":                         "把想法变成一张好图",
 			"seo_title":                          "来看看巴 - AI 图片生成",
@@ -92,6 +94,11 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 			t.Fatalf("missing support setting %s in %#v", key, settingsResp.Items)
 		}
 	}
+	for _, key := range []string{"credit_cost_square", "credit_cost_portrait", "credit_cost_story", "credit_cost_landscape", "credit_cost_widescreen"} {
+		if _, ok := settingsResp.Items[key]; !ok {
+			t.Fatalf("missing credit cost setting %s in %#v", key, settingsResp.Items)
+		}
+	}
 	for _, key := range []string{"manual_recharge_enabled", "manual_recharge_wechat_id", "manual_recharge_wechat_qrcode_url", "manual_recharge_qq", "manual_recharge_note"} {
 		if _, ok := settingsResp.Items[key]; !ok {
 			t.Fatalf("missing manual recharge setting %s in %#v", key, settingsResp.Items)
@@ -109,6 +116,9 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 	}
 	if settingsResp.Items["site_title"] != "来看看巴" || settingsResp.Items["register_email_domain_allowlist"] != "example.com,company.com" {
 		t.Fatalf("unexpected site settings: %#v", settingsResp.Items)
+	}
+	if settingsResp.Items["credit_cost_square"] != "3" || settingsResp.Items["credit_cost_portrait"] != "4" || settingsResp.Items["credit_cost_story"] != "2" {
+		t.Fatalf("unexpected credit cost settings: %#v", settingsResp.Items)
 	}
 	if settingsResp.Items["manual_recharge_wechat_id"] != "image-show-admin" || settingsResp.Items["manual_recharge_qq"] != "654321" {
 		t.Fatalf("unexpected manual recharge settings: %#v", settingsResp.Items)

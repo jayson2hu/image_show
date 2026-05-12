@@ -16,7 +16,67 @@ var (
 	ErrCreditsExpired      = errors.New("credits expired")
 )
 
+const (
+	CreditCostSquareKey     = "credit_cost_square"
+	CreditCostPortraitKey   = "credit_cost_portrait"
+	CreditCostStoryKey      = "credit_cost_story"
+	CreditCostLandscapeKey  = "credit_cost_landscape"
+	CreditCostWidescreenKey = "credit_cost_widescreen"
+)
+
+var defaultRatioCreditCosts = map[string]float64{
+	"square":        1,
+	"portrait_3_4":  2,
+	"story":         2,
+	"landscape_4_3": 2,
+	"widescreen":    2,
+}
+
+var ratioCreditSettingKeys = map[string]string{
+	"square":        CreditCostSquareKey,
+	"portrait_3_4":  CreditCostPortraitKey,
+	"story":         CreditCostStoryKey,
+	"landscape_4_3": CreditCostLandscapeKey,
+	"widescreen":    CreditCostWidescreenKey,
+}
+
+var pixelSizeRatioKeys = map[string]string{
+	"1024x1024": "square",
+	"1152x1536": "portrait_3_4",
+	"1008x1792": "story",
+	"1536x1152": "landscape_4_3",
+	"1792x1008": "widescreen",
+}
+
+func CreditCostsByRatio() map[string]float64 {
+	return map[string]float64{
+		"square":     CostForRatio("square"),
+		"portrait":   CostForRatio("portrait_3_4"),
+		"story":      CostForRatio("story"),
+		"landscape":  CostForRatio("landscape_4_3"),
+		"widescreen": CostForRatio("widescreen"),
+	}
+}
+
+func CostForRatio(ratio string) float64 {
+	ratio = normalizeCreditRatio(ratio)
+	defaultCost, ok := defaultRatioCreditCosts[ratio]
+	if !ok {
+		return 1
+	}
+	value := strings.TrimSpace(model.GetSettingValue(ratioCreditSettingKeys[ratio], strconv.FormatFloat(defaultCost, 'f', 0, 64)))
+	cost, err := strconv.ParseFloat(value, 64)
+	if err != nil || cost < 1 {
+		return defaultCost
+	}
+	return math.Ceil(cost)
+}
+
 func CostForSize(size string) float64 {
+	ratio := normalizeCreditRatio(size)
+	if _, ok := defaultRatioCreditCosts[ratio]; ok {
+		return CostForRatio(ratio)
+	}
 	width, height, ok := parseCreditImageSize(size)
 	if !ok || width <= 0 || height <= 0 {
 		return 1
@@ -43,6 +103,27 @@ func parseCreditImageSize(size string) (int, int, bool) {
 		return 0, 0, false
 	}
 	return width, height, true
+}
+
+func normalizeCreditRatio(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "1:1", "square":
+		return "square"
+	case "3:4", "portrait", "portrait_3_4":
+		return "portrait_3_4"
+	case "9:16", "story":
+		return "story"
+	case "4:3", "landscape", "landscape_4_3":
+		return "landscape_4_3"
+	case "16:9", "widescreen":
+		return "widescreen"
+	default:
+		if ratio, ok := pixelSizeRatioKeys[value]; ok {
+			return ratio
+		}
+		return value
+	}
 }
 
 func GetBalance(userID int64) (float64, error) {

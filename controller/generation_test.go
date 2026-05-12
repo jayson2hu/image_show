@@ -292,6 +292,44 @@ func TestCreateGenerationStillAcceptsMappedPixelSize(t *testing.T) {
 	waitGenerationStatus(t, resp.ID, 3)
 }
 
+func TestCreateGenerationUsesConfiguredRatioCreditCost(t *testing.T) {
+	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
+	token := createGenerationUser(t, 5)
+	if err := model.DB.Create(&model.Setting{Key: "credit_cost_square", Value: "3"}).Error; err != nil {
+		t.Fatalf("create credit cost setting: %v", err)
+	}
+
+	rec := postJSONWithToken(engine, "/api/generations", map[string]string{
+		"prompt": "priced square image",
+		"size":   "square",
+	}, token)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	var generation model.Generation
+	if err := model.DB.First(&generation, resp.ID).Error; err != nil {
+		t.Fatalf("load generation: %v", err)
+	}
+	if generation.CreditsCost != 3 || generation.Quality != "medium" || generation.OutputFormat != "png" || generation.Background != "opaque" {
+		t.Fatalf("unexpected generation pricing/options: %+v", generation)
+	}
+	balance, err := service.GetBalance(*generation.UserID)
+	if err != nil {
+		t.Fatalf("get balance: %v", err)
+	}
+	if balance != 2 {
+		t.Fatalf("expected configured cost 3 deducted, balance=%v", balance)
+	}
+	waitGenerationStatus(t, resp.ID, 3)
+}
+
 func TestCreateGenerationRequiresCaptchaWhenEnabled(t *testing.T) {
 	engine := setupAuthTest(t)
 	enableCaptchaForTest(t)
@@ -342,43 +380,20 @@ func TestCreateGenerationAcceptsValidCaptcha(t *testing.T) {
 	waitGenerationStatus(t, createResp.ID, 3)
 }
 
-func TestCreateGenerationValidatesOutputOptions(t *testing.T) {
+func TestCreateGenerationIgnoresClientOutputOptions(t *testing.T) {
 	engine := setupAuthTest(t)
 	config.AppConfig.MockSub2API = true
 	token := createGenerationUser(t, 3)
 	rec := postJSONWithToken(engine, "/api/generations", map[string]interface{}{
-		"prompt":        "a small house",
-		"quality":       "medium",
-		"size":          "1024x1024",
-		"output_format": "gif",
-	}, token)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected invalid format 400, got %d body=%s", rec.Code, rec.Body.String())
-	}
-
-	rec = postJSONWithToken(engine, "/api/generations", map[string]interface{}{
 		"prompt":             "a small house",
-		"quality":            "medium",
-		"size":               "1024x1024",
-		"output_format":      "jpeg",
-		"background":         "transparent",
-		"output_compression": 101,
-	}, token)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected invalid compression 400, got %d body=%s", rec.Code, rec.Body.String())
-	}
-
-	compression := 80
-	rec = postJSONWithToken(engine, "/api/generations", map[string]interface{}{
-		"prompt":             "a small house",
-		"quality":            "medium",
+		"quality":            "high",
 		"size":               "1024x1024",
 		"output_format":      "webp",
 		"background":         "transparent",
-		"output_compression": compression,
+		"output_compression": 101,
 	}, token)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected valid output options 200, got %d body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("expected client output options to be ignored, got %d body=%s", rec.Code, rec.Body.String())
 	}
 	var resp struct {
 		ID int64 `json:"id"`
@@ -390,7 +405,7 @@ func TestCreateGenerationValidatesOutputOptions(t *testing.T) {
 	if err := model.DB.First(&generation, resp.ID).Error; err != nil {
 		t.Fatalf("load generation: %v", err)
 	}
-	if generation.OutputFormat != "webp" || generation.Background != "transparent" || generation.OutputCompression == nil || *generation.OutputCompression != compression {
+	if generation.Quality != "medium" || generation.OutputFormat != "png" || generation.Background != "opaque" || generation.OutputCompression != nil {
 		t.Fatalf("unexpected output options saved: %+v", generation)
 	}
 	waitGenerationStatus(t, resp.ID, 3)

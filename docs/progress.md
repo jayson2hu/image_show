@@ -1,5 +1,24 @@
 # 开发进度记录
 
+## 2026-05-12 P1-A GPT Image 2 集成：固定输出参数与按比例计费
+
+- 开发目标：
+  - 完成 `docs/tasks-acceptance.md` 中 P1-A 的 G-1 ~ G-8：固定生成质量/格式/背景，按 5 种比例后台可配置扣费，并在首页和后台设置页展示。
+- 完成：
+  - 后端生成接口固定使用 `quality=medium`、`output_format=png`、`background=opaque`，忽略客户端传入的格式、背景和压缩参数。
+  - `service.CostForRatio` / `CreditCostsByRatio` 支持从后台设置读取 5 种比例价格，默认方形 1 积分、其余 2 积分。
+  - `/api/generation/options` 和 `/api/site/config` 返回配置后的积分价格；生成扣费与前端预估共用同一套设置。
+  - 后台设置页“账号与额度”新增 5 个生成积分定价输入，并校验正整数。
+  - 首页加载 `/api/site/config` 的 `credit_costs`，比例选择器、生成按钮和计费提示实时展示预估积分。
+- 自测记录：
+  - `go build ./...`：通过。
+  - `go test ./controller -run "TestGeneration|TestSiteConfig|TestAdminPromptTemplateCRUDAndSettings" -v`：通过。
+  - `go test ./service -v`：通过。
+  - `cd web && pnpm exec vue-tsc --noEmit`：通过。
+  - `cd web && pnpm build`：通过。
+- 验收结论：
+  - P1-A 自动验收通过，可以提交并推送。
+
 ## 2026-05-12 P0 管理后台 D3 最终验证
 
 - 开发目标：

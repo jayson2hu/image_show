@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jayson2hu/image-show/model"
+	"github.com/jayson2hu/image-show/service"
 )
 
 func SiteConfig(c *gin.Context) {
@@ -14,5 +15,6 @@ func SiteConfig(c *gin.Context) {
 		"seo_title":       model.GetSettingValue("seo_title", adminSettingDefaults["seo_title"]),
 		"seo_keywords":    model.GetSettingValue("seo_keywords", adminSettingDefaults["seo_keywords"]),
 		"seo_description": model.GetSettingValue("seo_description", adminSettingDefaults["seo_description"]),
+		"credit_costs":    service.CreditCostsByRatio(),
 	})
 }

@@ -72,11 +72,11 @@ feat(admin): complete dashboard redesign D3 final verification
 
 | ID | 内容 | 工作量 | 状态 |
 |----|------|--------|------|
-| G-1 | `model/models.go` — Generation 新增 `OutputFormat`、`Background` 字段；Quality 始终存 "medium"；GORM AutoMigrate | 小 | 待开发 |
-| G-2 | `controller/admin_template_setting.go` 新增 5 个积分设置键；新建 `service/credit.go` — `CostForRatio(ratio string) int` 从 DB 读取，未配置用默认值 | 小 | 待开发 |
-| G-3 | `controller/generation.go` — 接收 `prompt + ratio`，硬编码 `quality=medium / format=png / background=opaque`，调用 `CostForRatio` 扣费 | 小 | 待开发 |
-| G-4 | `service/generation.go` — 透传固定参数到 OpenAI Images API，存储 `output_format / background` 到 DB | 小 | 待开发 |
-| G-5 | `controller/site.go` — `GET /api/site/config` 扩展返回 `credit_costs: { square, portrait, story, landscape, widescreen }` | 小 | 待开发 |
+| G-1 | `model/models.go` — Generation 新增 `OutputFormat`、`Background` 字段；Quality 始终存 "medium"；GORM AutoMigrate | 小 | 已完成 |
+| G-2 | `controller/admin_template_setting.go` 新增 5 个积分设置键；新建 `service/credit.go` — `CostForRatio(ratio string) int` 从 DB 读取，未配置用默认值 | 小 | 已完成 |
+| G-3 | `controller/generation.go` — 接收 `prompt + ratio`，硬编码 `quality=medium / format=png / background=opaque`，调用 `CostForRatio` 扣费 | 小 | 已完成 |
+| G-4 | `service/generation.go` — 透传固定参数到 OpenAI Images API，存储 `output_format / background` 到 DB | 小 | 已完成 |
+| G-5 | `controller/site.go` — `GET /api/site/config` 扩展返回 `credit_costs: { square, portrait, story, landscape, widescreen }` | 小 | 已完成 |
 
 #### 阶段一自测
 
@@ -97,9 +97,9 @@ go test ./service/... -v
 
 | ID | 内容 | 工作量 | 状态 |
 |----|------|--------|------|
-| G-6 | `web/src/views/Home.vue` — onMounted 读取 `/api/site/config` 的 `credit_costs`；比例选择器旁显示积分；切换比例时实时变化；生成按钮显示预估积分 | 小 | 待开发 |
-| G-7 | `web/src/components/admin/SettingsTab.vue` — 「账号与额度」新增「生成积分定价」区域，5 个输入框对应 5 种比例，旁边显示像素尺寸，校验正整数 ≥ 1 | 小 | 待开发 |
-| G-8 | 构建验证 + 集成测试：`vue-tsc + pnpm build + go test`；端到端生成不同比例图片，确认积分扣费正确、图片为 PNG | 小 | 待开发 |
+| G-6 | `web/src/views/Home.vue` — onMounted 读取 `/api/site/config` 的 `credit_costs`；比例选择器旁显示积分；切换比例时实时变化；生成按钮显示预估积分 | 小 | 已完成 |
+| G-7 | `web/src/components/admin/SettingsTab.vue` — 「账号与额度」新增「生成积分定价」区域，5 个输入框对应 5 种比例，旁边显示像素尺寸，校验正整数 ≥ 1 | 小 | 已完成 |
+| G-8 | 构建验证 + 集成测试：`vue-tsc + pnpm build + go test`；端到端生成不同比例图片，确认积分扣费正确、图片为 PNG | 小 | 已完成 |
 
 #### 阶段二自测
 
@@ -113,13 +113,13 @@ cd web && pnpm exec vue-tsc --noEmit && pnpm build
 
 ### P1-A 整体验收标准
 
-- [ ] 前端 5 种比例选择正常，无质量/格式/透明选项
-- [ ] 切换比例时积分预估实时变化（方形=1，其余=2）
-- [ ] 实际扣费与预估一致
-- [ ] 管理员可在后台修改每种比例积分价格
-- [ ] 生成的图片全部为 PNG 格式
-- [ ] 所有用户（游客/登录）界面完全一致
-- [ ] `go test` 和 `vue-tsc / pnpm build` 全部通过
+- [x] 前端 5 种比例选择正常，无质量/格式/透明选项
+- [x] 切换比例时积分预估实时变化（方形=1，其余=2）
+- [x] 实际扣费与预估一致
+- [x] 管理员可在后台修改每种比例积分价格
+- [x] 生成的图片全部为 PNG 格式
+- [x] 所有用户（游客/登录）界面完全一致
+- [x] `go test` 和 `vue-tsc / pnpm build` 全部通过
 
 ### 提交信息
 
