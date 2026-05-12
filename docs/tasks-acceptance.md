@@ -24,7 +24,7 @@
 |----|------|------|
 | D3-1 | 确认路由入口已切换到新 `AdminLayout`，旧 `AdminDashboard.vue` 不再被引用 | 已完成 |
 | D3-2 | `vue-tsc --noEmit` + `pnpm build` 零错误零警告 | 已完成 |
-| D3-3 | 提交代码并推送 GitHub | 已完成 |
+| D3-3 | 提交代码并推送 GitHub | 已提交，推送待重试 |
 | D3-4 | 更新 `docs/plan-admin-dashboard-redesign.md` 进度表全部标记"已完成" | 已完成 |
 
 ### 自测标准

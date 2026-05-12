@@ -1076,7 +1076,7 @@ const settingGroups = [
 
 - [x] 所有回归测试通过
 - [x] `npm run build` 通过
-- [x] 提交代码，commit message: `feat(admin): complete admin dashboard redesign with component architecture`
+- [x] 提交代码，commit message: `feat(admin): complete admin dashboard redesign with component architecture`（GitHub 推送待重试）
 - [x] 更新本文档状态为"已完成"
 
 ---
@@ -1107,7 +1107,7 @@ const settingGroups = [
 | C | **阶段提交** | 已提交 | 2026-05-07 | 各 Tab 已按小功能分别提交 |
 | D | D1 清理旧代码 | 已完成 | 2026-05-07 | `AdminDashboard.vue` 已改为新布局薄壳 |
 | D | D2 全流程回归 | 已完成 | 2026-05-07 | `vue-tsc`、后端回归、`pnpm build` 通过 |
-| D | D3 最终提交 | 已完成 | 2026-05-12 | `vue-tsc` 和 `pnpm build` 已通过，完成最终验证提交 |
+| D | D3 最终提交 | 已提交 | 2026-05-12 | `vue-tsc` 和 `pnpm build` 已通过，GitHub 推送待重试 |
 
 ---
 
