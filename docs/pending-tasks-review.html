@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Show - 开发执行文档 v3.1</title>
+<style>
+  :root {
+    --violet-50:#f5f3ff;--violet-100:#ede9fe;--violet-200:#ddd6fe;--violet-300:#c4b5fd;--violet-500:#8b5cf6;--violet-600:#7c3aed;--violet-700:#6d28d9;
+    --blue-50:#eff6ff;--blue-500:#3b82f6;--blue-600:#2563eb;
+    --emerald-50:#ecfdf5;--emerald-500:#10b981;--emerald-600:#059669;--emerald-700:#047857;
+    --amber-50:#fffbeb;--amber-500:#f59e0b;--amber-600:#d97706;--amber-700:#b45309;
+    --red-50:#fef2f2;--red-500:#ef4444;--red-600:#dc2626;--red-700:#b91c1c;
+    --slate-50:#f8fafc;--slate-100:#f1f5f9;--slate-200:#e2e8f0;--slate-300:#cbd5e1;
+    --slate-400:#94a3b8;--slate-500:#64748b;--slate-600:#475569;--slate-700:#334155;
+    --slate-800:#1e293b;--slate-900:#0f172a;
+    --green-50:#f0fdf4;--green-600:#16a34a;--green-700:#15803d;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;background:var(--slate-50);color:var(--slate-800);line-height:1.7}
+  .header{background:linear-gradient(135deg,#6d28d9,#2563eb);color:#fff;padding:48px 24px;text-align:center}
+  .header h1{font-size:32px;font-weight:700;letter-spacing:-.5px}
+  .header p{margin-top:12px;font-size:16px;opacity:.85}
+  .header .meta{margin-top:20px;display:flex;justify-content:center;gap:24px;font-size:13px;opacity:.7;flex-wrap:wrap}
+  .container{max-width:1100px;margin:0 auto;padding:0 24px}
+  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin:-40px auto 40px;position:relative;z-index:1}
+  .summary-card{background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.06);border:1px solid var(--slate-200);text-align:center}
+  .summary-card .number{font-size:36px;font-weight:700}
+  .summary-card .label{font-size:13px;color:var(--slate-500);margin-top:4px}
+  .summary-card.p0 .number{color:var(--red-600)}
+  .summary-card.p1 .number{color:var(--amber-600)}
+  .summary-card.p2 .number{color:var(--blue-600)}
+  .summary-card.total .number{color:var(--violet-600)}
+  .summary-card.days .number{color:var(--emerald-600)}
+  .toc{background:#fff;border-radius:16px;padding:28px 32px;box-shadow:0 2px 12px rgba(0,0,0,.04);border:1px solid var(--slate-200);margin-bottom:40px}
+  .toc h2{font-size:18px;margin-bottom:16px;color:var(--slate-900)}
+  .toc ol{padding-left:20px}
+  .toc li{margin-bottom:8px}
+  .toc a{color:var(--violet-600);text-decoration:none;font-size:15px}
+  .toc a:hover{text-decoration:underline}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;margin-left:8px;vertical-align:middle}
+  .badge-p0{background:var(--red-50);color:var(--red-700)}
+  .badge-p1{background:var(--amber-50);color:var(--amber-700)}
+  .badge-p2{background:var(--blue-50);color:var(--blue-600)}
+  .badge-v3{background:var(--green-50);color:var(--green-700)}
+  .section{background:#fff;border-radius:16px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,.04);border:1px solid var(--slate-200);margin-bottom:32px}
+  .section-header{display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid var(--slate-100);flex-wrap:wrap}
+  .section-header .icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .section-header .icon.p0{background:var(--red-50)}
+  .section-header .icon.p1{background:var(--amber-50)}
+  .section-header .icon.p2{background:var(--blue-50)}
+  .section-header h2{font-size:22px;font-weight:700;color:var(--slate-900)}
+  .priority{font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px}
+  .priority-p0{background:var(--red-50);color:var(--red-700)}
+  .priority-p1{background:var(--amber-50);color:var(--amber-700)}
+  .priority-p2{background:var(--blue-50);color:var(--blue-600)}
+  .desc{color:var(--slate-600);font-size:15px;margin-bottom:20px}
+  .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:24px}
+  .info-item{background:var(--slate-50);border-radius:10px;padding:14px 16px}
+  .info-item .info-label{font-size:12px;color:var(--slate-400);text-transform:uppercase;letter-spacing:.5px}
+  .info-item .info-value{font-size:15px;font-weight:600;color:var(--slate-800);margin-top:2px}
+  .task-table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px}
+  .task-table thead{background:var(--slate-50)}
+  .task-table th{padding:10px 14px;text-align:left;font-weight:600;color:var(--slate-600);font-size:12px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--slate-200)}
+  .task-table td{padding:12px 14px;border-bottom:1px solid var(--slate-100);vertical-align:top}
+  .task-table tr:last-child td{border-bottom:none}
+  .task-table tr:hover{background:var(--slate-50)}
+  .task-id{font-family:'SF Mono','Fira Code',monospace;font-size:13px;font-weight:600;color:var(--violet-600);white-space:nowrap}
+  .task-scope{font-size:12px;color:var(--slate-500);margin-top:2px}
+  .phase{margin-bottom:28px}
+  .phase-title{font-size:16px;font-weight:700;color:var(--slate-800);margin-bottom:12px;padding-left:12px;border-left:3px solid var(--violet-500)}
+  .phase-desc{font-size:14px;color:var(--slate-500);margin-bottom:16px;padding-left:15px}
+  .status{display:inline-block;font-size:11px;font-weight:600;padding:2px 10px;border-radius:99px}
+  .status-pending{background:var(--slate-100);color:var(--slate-600)}
+  .status-done{background:var(--emerald-50);color:var(--emerald-700)}
+  .effort{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--slate-500)}
+  .effort-dot{width:8px;height:8px;border-radius:50%}
+  .effort-s .effort-dot{background:var(--emerald-500)}
+  .effort-m .effort-dot{background:var(--amber-500)}
+  .effort-l .effort-dot{background:var(--red-500)}
+  .tech-detail{background:var(--slate-50);border-radius:10px;padding:16px 20px;margin:16px 0;font-size:14px}
+  .tech-detail h4{font-size:13px;font-weight:700;color:var(--slate-700);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+  .tech-detail ul{padding-left:18px;color:var(--slate-600)}
+  .tech-detail li{margin-bottom:4px}
+  .tech-detail code{background:var(--slate-200);padding:1px 6px;border-radius:4px;font-size:13px;font-family:'SF Mono','Fira Code',monospace}
+  .acceptance{border:1px solid var(--emerald-500);border-radius:10px;padding:16px 20px;margin-top:20px;background:var(--emerald-50)}
+  .acceptance h4{font-size:14px;font-weight:700;color:var(--emerald-700);margin-bottom:8px}
+  .acceptance ul{padding-left:18px;color:var(--slate-700);font-size:14px}
+  .acceptance li{margin-bottom:4px}
+  .selftest{border:1px solid var(--blue-500);border-radius:10px;padding:16px 20px;margin-top:16px;background:var(--blue-50)}
+  .selftest h4{font-size:14px;font-weight:700;color:var(--blue-600);margin-bottom:8px}
+  .selftest code{background:#fff;padding:2px 8px;border-radius:4px;font-size:13px;font-family:'SF Mono','Fira Code',monospace;border:1px solid var(--slate-200)}
+  .selftest li{margin-bottom:6px}
+  .commit-msg{border:1px solid var(--violet-300);border-radius:10px;padding:16px 20px;margin-top:16px;background:var(--violet-50)}
+  .commit-msg h4{font-size:14px;font-weight:700;color:var(--violet-700);margin-bottom:8px}
+  .commit-msg code{display:block;background:#fff;padding:10px 14px;border-radius:6px;font-size:13px;font-family:'SF Mono','Fira Code',monospace;border:1px solid var(--violet-200);white-space:pre-wrap}
+  .credit-table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+  .credit-table th{background:var(--violet-50);padding:8px 12px;text-align:center;font-weight:600;color:var(--violet-700);border:1px solid var(--violet-200)}
+  .credit-table td{padding:8px 12px;text-align:center;border:1px solid var(--slate-200)}
+  .credit-table .highlight{background:var(--amber-50);font-weight:600}
+  .decision-record{border:2px solid var(--green-600);border-radius:12px;padding:20px 24px;margin:16px 0;background:var(--green-50)}
+  .decision-record h4{font-size:15px;font-weight:700;color:var(--green-700);margin-bottom:12px}
+  .decision-record .q{margin-bottom:10px;padding:10px 14px;background:#fff;border-radius:8px;border:1px solid var(--green-600);display:flex;gap:12px;align-items:baseline}
+  .decision-record .q-label{font-size:12px;font-weight:700;color:var(--green-700);white-space:nowrap}
+  .decision-record .q-text{font-size:14px;color:var(--slate-700)}
+  .ui-spec{border:2px solid var(--violet-300);border-radius:12px;padding:24px;margin:20px 0;background:linear-gradient(135deg,var(--violet-50),#fff)}
+  .ui-spec h4{font-size:16px;font-weight:700;color:var(--violet-700);margin-bottom:16px}
+  .ui-mockup{background:#fff;border:1px solid var(--slate-200);border-radius:12px;padding:24px;margin:12px 0;position:relative}
+  .ui-mockup .mockup-label{position:absolute;top:-10px;left:16px;background:var(--violet-600);color:#fff;font-size:11px;padding:2px 10px;border-radius:99px}
+  .ui-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+  .ui-card{border:2px solid var(--slate-200);border-radius:12px;padding:16px;text-align:center;transition:all .2s}
+  .ui-card .card-icon{font-size:28px;margin-bottom:8px}
+  .ui-card .card-title{font-size:14px;font-weight:600;color:var(--slate-800)}
+  .ui-card .card-desc{font-size:11px;color:var(--slate-400);margin-top:2px}
+  .ui-card .card-badge{display:inline-block;font-size:10px;background:var(--violet-100);color:var(--violet-600);padding:1px 6px;border-radius:99px;margin-top:6px}
+  .ui-card.selected{border-color:var(--violet-500);background:var(--violet-50);box-shadow:0 0 0 3px rgba(139,92,246,.15)}
+  .timeline{display:flex;gap:0;margin:32px 0 16px;overflow-x:auto}
+  .timeline-phase{flex:1;min-width:120px;position:relative;padding:16px 8px;text-align:center}
+  .timeline-phase::before{content:'';position:absolute;top:30px;left:0;right:0;height:3px;background:var(--slate-200)}
+  .timeline-phase:first-child::before{left:50%}
+  .timeline-phase:last-child::before{right:50%}
+  .timeline-dot{width:16px;height:16px;border-radius:50%;background:var(--violet-500);margin:0 auto 10px;position:relative;z-index:1;border:3px solid #fff;box-shadow:0 0 0 2px var(--violet-500)}
+  .timeline-phase.future .timeline-dot{background:var(--slate-300);box-shadow:0 0 0 2px var(--slate-300)}
+  .timeline-label{font-size:12px;font-weight:600;color:var(--slate-700)}
+  .timeline-time{font-size:11px;color:var(--slate-400);margin-top:2px}
+  .footer{text-align:center;padding:40px 24px;color:var(--slate-400);font-size:13px}
+  .cut{text-decoration:line-through;color:var(--slate-400)}
+  @media print{body{background:#fff}.section{box-shadow:none;break-inside:avoid}.summary-card{box-shadow:none}}
+  @media(max-width:768px){.header h1{font-size:24px}.section{padding:20px}.info-grid{grid-template-columns:1fr}.ui-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.ui-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+  <h1>Image Show - 开发执行文档 v3.1</h1>
+  <p>决策全部落实，质量固定 medium、格式固定 PNG、积分精简，交付 Codex 执行</p>
+  <div class="meta">
+    <span>日期：2026-05-12</span>
+    <span>版本：v3.1（基于 v3 二次精简）</span>
+    <span>执行方式：Codex 逐任务执行 + 自测 + 提交</span>
+  </div>
+</div>
+
+<!-- ===== SUMMARY ===== -->
+<div class="container">
+<div class="summary">
+  <div class="summary-card p0"><div class="number">1</div><div class="label">P0 紧急</div></div>
+  <div class="summary-card p1"><div class="number">2</div><div class="label">P1 核心</div></div>
+  <div class="summary-card p2"><div class="number">2</div><div class="label">P2 增强</div></div>
+  <div class="summary-card total"><div class="number">24</div><div class="label">总任务数</div></div>
+  <div class="summary-card days"><div class="number">7-9</div><div class="label">预估天数</div></div>
+</div>
+
+<!-- ===== v3.1 CHANGES ===== -->
+<div class="section" style="border-left:4px solid var(--green-600)">
+  <div class="section-header">
+    <div class="icon" style="background:var(--green-50);color:var(--green-700);font-weight:700">&#916;</div>
+    <h2>v3.1 精简说明</h2>
+    <span class="badge badge-v3">二次精简</span>
+  </div>
+  <p class="desc">基于 v3 审核反馈，进一步精简前端参数选项，降低用户认知负担。</p>
+  <table class="task-table">
+    <thead><tr><th>变更项</th><th>v3 方案</th><th>v3.1 方案</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>积分</strong></td>
+        <td>非方形 = 3 积分</td>
+        <td><strong>非方形 = 2 积分</strong>（方形=1，竖版/故事版/横版/宽屏=2）</td>
+      </tr>
+      <tr>
+        <td><strong>质量选择</strong></td>
+        <td>登录用户可选 low/medium/high</td>
+        <td><strong>砍掉选择器</strong>，全员固定 medium，后端硬编码</td>
+      </tr>
+      <tr>
+        <td><strong>输出格式</strong></td>
+        <td>登录用户可选 PNG/JPEG/WebP</td>
+        <td><strong>砍掉选择器</strong>，全员固定 PNG，后端硬编码</td>
+      </tr>
+      <tr>
+        <td><strong>游客 vs 登录</strong></td>
+        <td>游客默认配置，登录后开全部</td>
+        <td><strong>所有人完全一致</strong>：5种比例 + 固定 medium + 固定 PNG</td>
+      </tr>
+      <tr>
+        <td><strong>透明背景</strong></td>
+        <td>登录用户可选</td>
+        <td><strong>砍掉</strong>（PNG 固定不透明，保持简洁）</td>
+      </tr>
+      <tr>
+        <td><strong>砍掉的任务</strong></td>
+        <td>—</td>
+        <td>G-7 质量选择器、G-8 格式选择器、G-9 透明开关、G-11 游客降级逻辑（共 4 个任务）</td>
+      </tr>
+      <tr>
+        <td><strong>任务总量</strong></td>
+        <td>29 任务 / 8-11 天</td>
+        <td><strong>24 任务 / 7-9 天</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ===== DECISIONS RECORD ===== -->
+<div class="section">
+  <div class="section-header">
+    <div class="icon" style="background:var(--green-50)">&#10003;</div>
+    <h2>决策确认记录（最终版）</h2>
+  </div>
+  <div class="decision-record">
+    <h4>以下决策已全部确认，开发按此执行，不再变更</h4>
+    <div class="q"><div class="q-label">积分</div><div class="q-text">后台可配置。默认：方形(1:1)=<strong>1积分</strong>，竖版/故事版/横版/宽屏=<strong>2积分</strong></div></div>
+    <div class="q"><div class="q-label">质量</div><div class="q-text">固定 <strong>medium</strong>，不提供用户选项，后端硬编码</div></div>
+    <div class="q"><div class="q-label">格式</div><div class="q-text">固定 <strong>PNG</strong>，不提供用户选项，后端硬编码</div></div>
+    <div class="q"><div class="q-label">透明背景</div><div class="q-text">不提供，全部 <strong>opaque</strong></div></div>
+    <div class="q"><div class="q-label">游客/登录</div><div class="q-text"><strong>完全一致</strong>，所有人看到的选项相同（5种比例 + 积分预估）</div></div>
+    <div class="q"><div class="q-label">Google Imagen</div><div class="q-text"><strong>暂不做</strong>，专注 GPT Image 2</div></div>
+    <div class="q"><div class="q-label">登录页</div><div class="q-text">微信优先 + <strong>保留折叠邮箱登录/注册</strong>（管理员用邮箱登录）</div></div>
+    <div class="q"><div class="q-label">P2 范围</div><div class="q-text"><strong>全部纳入</strong>本轮（场景入口 + 再次生成）</div></div>
+    <div class="q"><div class="q-label">场景 UI</div><div class="q-text">6 个场景不增减，<strong>精心设计交互和视觉</strong></div></div>
+  </div>
+</div>
+
+<!-- ===== TOC ===== -->
+<div class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#p0-admin">P0 管理后台 D3 最终提交</a> <span class="badge badge-p0">P0</span></li>
+    <li><a href="#p1-gpt">P1-A GPT Image 2 集成（精简版）</a> <span class="badge badge-p1">P1</span></li>
+    <li><a href="#p1-login">P1-B 登录注册重设计</a> <span class="badge badge-p1">P1</span></li>
+    <li><a href="#p2-scene">P2-A 首页场景入口</a> <span class="badge badge-p2">P2</span> <span class="badge badge-v3">含交互规范</span></li>
+    <li><a href="#p2-regen">P2-B 历史"再次生成"</a> <span class="badge badge-p2">P2</span></li>
+    <li><a href="#timeline">整体时间线</a></li>
+  </ol>
+</div>
+
+<!-- ================================================================ -->
+<!-- P0: Admin D3 Final Commit -->
+<!-- ================================================================ -->
+<div class="section" id="p0-admin">
+  <div class="section-header">
+    <div class="icon p0">1</div>
+    <div><h2>P0 管理后台 D3 最终提交</h2><span class="priority priority-p0">P0 紧急</span></div>
+  </div>
+  <p class="desc">管理后台重设计（A1-A6、B1-B2、C1-C8、D1-D2）已全部开发完成并自测通过，只差最终构建验证和提交。</p>
+  <div class="info-grid">
+    <div class="info-item"><div class="info-label">工作量</div><div class="info-value">&lt; 0.5 天</div></div>
+    <div class="info-item"><div class="info-label">依赖</div><div class="info-value">无</div></div>
+    <div class="info-item"><div class="info-label">风险</div><div class="info-value">极低</div></div>
+  </div>
+  <table class="task-table">
+    <thead><tr><th style="width:80px">任务</th><th>内容</th><th style="width:80px">状态</th></tr></thead>
+    <tbody>
+      <tr><td><span class="task-id">D3-1</span></td><td>确认路由入口已切换到新 <code>AdminLayout</code>，旧 <code>AdminDashboard.vue</code> 不再被引用</td><td><span class="status status-done">已完成</span></td></tr>
+      <tr><td><span class="task-id">D3-2</span></td><td><code>vue-tsc --noEmit</code> + <code>pnpm build</code> 零错误零警告</td><td><span class="status status-pending">待执行</span></td></tr>
+      <tr><td><span class="task-id">D3-3</span></td><td>提交代码并推送 GitHub</td><td><span class="status status-pending">待执行</span></td></tr>
+      <tr><td><span class="task-id">D3-4</span></td><td>更新 <code>docs/plan-admin-dashboard-redesign.md</code> 进度表全部标记"已完成"</td><td><span class="status status-pending">待执行</span></td></tr>
+    </tbody>
+  </table>
+  <div class="selftest">
+    <h4>自测命令</h4>
+    <ul>
+      <li><code>cd web && pnpm exec vue-tsc --noEmit</code></li>
+      <li><code>cd web && pnpm build</code></li>
+      <li>浏览器访问 <code>/console/admin</code> — 7 个 Tab 均可正常切换</li>
+    </ul>
+  </div>
+  <div class="acceptance">
+    <h4>验收标准</h4>
+    <ul>
+      <li>构建产物无错误无警告</li>
+      <li>/console/admin 所有 Tab 功能正常</li>
+      <li>文档进度表全部"已完成"</li>
+    </ul>
+  </div>
+  <div class="commit-msg">
+    <h4>建议提交信息</h4>
+    <code>feat(admin): complete dashboard redesign D3 final verification
+
+- verify vue-tsc and build pass with zero errors
+- update plan-admin-dashboard-redesign.md to completed</code>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- P1-A: GPT Image 2 (Simplified) -->
+<!-- ================================================================ -->
+<div class="section" id="p1-gpt">
+  <div class="section-header">
+    <div class="icon p1">2</div>
+    <div>
+      <h2>P1-A GPT Image 2 集成（精简版）</h2>
+      <span class="priority priority-p1">P1 核心功能</span>
+      <span class="badge badge-v3">v3.1 精简</span>
+    </div>
+  </div>
+  <p class="desc">
+    将比例制尺寸集成到前后端，积分后台可配置（像素越高越贵）。
+    质量固定 medium、格式固定 PNG、背景固定不透明 — 前端无需新增选项，后端硬编码即可。
+  </p>
+
+  <div class="info-grid">
+    <div class="info-item"><div class="info-label">工作量</div><div class="info-value"><span class="effort effort-m"><span class="effort-dot"></span></span> 3-4 天</div></div>
+    <div class="info-item"><div class="info-label">涉及文件</div><div class="info-value">前后端 8-10 文件</div></div>
+    <div class="info-item"><div class="info-label">依赖</div><div class="info-value">P0 先完成</div></div>
+    <div class="info-item"><div class="info-label">风险</div><div class="info-value">低</div></div>
+  </div>
+
+  <!-- Fixed params summary -->
+  <div class="tech-detail" style="border:2px solid var(--emerald-500);background:var(--emerald-50)">
+    <h4 style="color:var(--emerald-700)">固定参数（所有用户、所有场景）</h4>
+    <ul style="color:var(--slate-700)">
+      <li><strong>quality</strong> = <code>"medium"</code> — 后端硬编码，不暴露给前端</li>
+      <li><strong>output_format</strong> = <code>"png"</code> — 后端硬编码，不暴露给前端</li>
+      <li><strong>background</strong> = <code>"opaque"</code> — 后端硬编码，不暴露给前端</li>
+      <li>前端只需传 <code>prompt</code> + <code>ratio</code>（比例名），后端自动补全其余参数</li>
+    </ul>
+  </div>
+
+  <!-- Credits -->
+  <h3 style="font-size:17px;font-weight:700;margin:24px 0 12px;color:var(--slate-900)">积分定价</h3>
+  <table class="credit-table">
+    <thead><tr><th>比例</th><th>显示名</th><th>实际像素</th><th>像素总量</th><th>默认积分</th><th>后台设置键</th></tr></thead>
+    <tbody>
+      <tr><td>1:1</td><td>方形</td><td>1024 &times; 1024</td><td>1,048,576</td><td class="highlight">1</td><td><code>credit_cost_square</code></td></tr>
+      <tr><td>3:4</td><td>竖版</td><td>1152 &times; 1536</td><td>1,769,472</td><td class="highlight">2</td><td><code>credit_cost_portrait</code></td></tr>
+      <tr><td>9:16</td><td>故事版</td><td>1008 &times; 1792</td><td>1,806,336</td><td class="highlight">2</td><td><code>credit_cost_story</code></td></tr>
+      <tr><td>4:3</td><td>横版</td><td>1536 &times; 1152</td><td>1,769,472</td><td class="highlight">2</td><td><code>credit_cost_landscape</code></td></tr>
+      <tr><td>16:9</td><td>宽屏</td><td>1792 &times; 1008</td><td>1,806,336</td><td class="highlight">2</td><td><code>credit_cost_widescreen</code></td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:13px;color:var(--slate-500);margin-top:4px">* 管理员可在后台「账号与额度」随时调整积分价格</p>
+
+  <!-- Phase 1: Backend -->
+  <div class="phase" style="margin-top:28px">
+    <div class="phase-title">阶段一：后端改造</div>
+    <div class="phase-desc">模型字段、积分可配置、Controller 硬编码固定参数、Service 透传</div>
+    <table class="task-table">
+      <thead><tr><th style="width:80px">任务</th><th>内容</th><th style="width:90px">工作量</th><th style="width:80px">状态</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="task-id">G-1</span></td>
+          <td>
+            <strong>Generation 模型字段扩展</strong>
+            <div class="task-scope">
+              <code>model/models.go</code> — Generation 结构体新增：<br>
+              &bull; <code>OutputFormat string</code>（记录用，始终存 "png"）<br>
+              &bull; <code>Background string</code>（记录用，始终存 "opaque"）<br>
+              &bull; Quality 字段已有，改为始终存 "medium"（当前已是 medium）<br>
+              &bull; GORM AutoMigrate 自动加列，老数据不受影响
+            </div>
+          </td>
+          <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+          <td><span class="status status-pending">待开发</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id">G-2</span></td>
+          <td>
+            <strong>积分改为后台可配置</strong>
+            <div class="task-scope">
+              <code>controller/admin_template_setting.go</code> — <code>adminSettingDefaults</code> 新增 5 个设置键（见积分表）<br>
+              <code>service/credit.go</code>（新建）— <code>CostForRatio(ratio string) int</code> 从 DB 读取设置并返回积分值，未配置时用默认值
+            </div>
+          </td>
+          <td><span class="effort effort-m"><span class="effort-dot"></span> 中</span></td>
+          <td><span class="status status-pending">待开发</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id">G-3</span></td>
+          <td>
+            <strong>Controller 硬编码固定参数 + 积分调用</strong>
+            <div class="task-scope">
+              <code>controller/generation.go</code> —<br>
+              &bull; 删除 <code>const standardImageQuality = "medium"</code>，改用显式硬编码<br>
+              &bull; 生成请求固定：quality="medium", output_format="png", background="opaque"<br>
+              &bull; 前端只需传 prompt + ratio（比例名如 square/portrait_3_4 等）<br>
+              &bull; 积分扣费改为调用 <code>CostForRatio(ratio)</code><br>
+              &bull; SSE 进度推送中包含实际扣费积分数
+            </div>
+          </td>
+          <td><span class="effort effort-m"><span class="effort-dot"></span> 中</span></td>
+          <td><span class="status status-pending">待开发</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id">G-4</span></td>
+          <td>
+            <strong>Service 层透传到 API</strong>
+            <div class="task-scope">
+              <code>service/image_options.go</code> — 确认 ImageOptions 包含 OutputFormat、Background<br>
+              <code>service/sub2api.go</code> — imageGenerationRequest 已有字段，确保 quality="medium", output_format="png", background="opaque" 正确填入 API 请求体
+            </div>
+          </td>
+          <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+          <td><span class="status status-pending">待开发</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id">G-5</span></td>
+          <td>
+            <strong>积分公开接口</strong>
+            <div class="task-scope">
+              <code>controller/site.go</code>（或现有 site config）— <code>GET /api/site/config</code> 扩展返回：<br>
+              <code>credit_costs: { square: 1, portrait: 2, story: 2, landscape: 2, widescreen: 2 }</code><br>
+              前端读取此配置显示积分预估
+            </div>
+          </td>
+          <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+          <td><span class="status status-pending">待开发</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="selftest">
+      <h4>阶段一自测</h4>
+      <ul>
+        <li><code>go build ./...</code> — 编译通过</li>
+        <li><code>go test ./controller/... -v -run TestGeneration</code> — 通过</li>
+        <li><code>go test ./service/... -v</code> — 通过</li>
+        <li>POST /api/generation 只传 prompt + ratio → 成功生成，API 请求含 quality=medium, format=png, background=opaque</li>
+        <li>积分扣费：方形扣1、竖版扣2</li>
+        <li>GET /api/site/config 返回 credit_costs</li>
+        <li>后台修改 credit_cost_square=3 → 扣费变为3</li>
+      </ul>
+    </div>
+    <div class="commit-msg">
+      <h4>建议提交信息</h4>
+      <code>feat(generation): configurable per-ratio credits and fixed quality/format
+
+- extend Generation model with OutputFormat and Background fields
+- add per-ratio credit cost settings (admin configurable)
+- hardcode quality=medium, format=png, background=opaque
+- expose credit costs in /api/site/config for frontend
+- default: square=1 credit, others=2 credits</code>
+    </div>
+  </div>
+
+  <!-- Phase 2: Frontend -->
+  <div class="phase">
+    <div class="phase-title">阶段二：前端积分预估 + 后台配置 UI</div>
+    <div class="phase-desc">前端无需新增参数选择器，只需更新积分预估显示和后台积分配置入口</div>
+    <table class="task-table">
+      <thead><tr><th style="width:80px">任务</th><th>内容</th><th style="width:90px">工作量</th><th style="width:80px">状态</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="task-id">G-6</span></td>
+          <td>
+            <strong>前端积分预估联动</strong>
+            <div class="task-scope">
+              <code>web/src/views/Home.vue</code> —<br>
+              &bull; onMounted 从 <code>/api/site/config</code> 读取 credit_costs<br>
+              &bull; 比例选择器旁边或下方显示积分数：如 "1 积分" / "2 积分"<br>
+              &bull; 切换比例时积分实时变化<br>
+              &bull; 生成按钮上也显示预估积分数
+            </div>
+          </td>
+          <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+          <td><span class="status status-pending">待开发</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id">G-7</span></td>
+          <td>
+            <strong>后台积分定价配置 UI</strong>
+            <div class="task-scope">
+              <code>web/src/components/admin/SettingsTab.vue</code> —<br>
+              &bull; 「账号与额度」分组新增「生成积分定价」区域<br>
+              &bull; 5 个输入框分别对应 5 种比例<br>
+              &bull; 每个输入框旁显示对应像素尺寸（如 "1024&times;1024"）<br>
+              &bull; 输入校验：正整数 &ge; 1
+            </div>
+          </td>
+          <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+          <td><span class="status status-pending">待开发</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id">G-8</span></td>
+          <td>
+            <strong>构建验证 + 集成测试</strong>
+            <div class="task-scope">
+              &bull; <code>vue-tsc --noEmit</code> + <code>pnpm build</code> 通过<br>
+              &bull; <code>go test ./... -v</code> 通过<br>
+              &bull; 端到端：生成不同比例图片，确认积分扣费正确、图片为 PNG 格式
+            </div>
+          </td>
+          <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+          <td><span class="status status-pending">待开发</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="selftest">
+      <h4>阶段二自测</h4>
+      <ul>
+        <li><code>cd web && pnpm exec vue-tsc --noEmit && pnpm build</code></li>
+        <li>首页切换比例，积分预估实时变化（方形1、其余2）</li>
+        <li>后台修改积分价格 → 前端刷新后生效</li>
+        <li>实际扣费与预估一致</li>
+      </ul>
+    </div>
+    <div class="commit-msg">
+      <h4>建议提交信息</h4>
+      <code>feat(home,admin): credit estimation display and admin pricing UI
+
+- Home.vue reads credit costs from /api/site/config
+- real-time credit preview when switching aspect ratios
+- admin settings: per-ratio credit pricing with pixel reference
+- integration test: all ratios generate correctly with proper deduction</code>
+    </div>
+  </div>
+
+  <div class="acceptance">
+    <h4>P1-A 整体验收标准</h4>
+    <ul>
+      <li>前端 5 种比例选择正常，无质量/格式/透明选项</li>
+      <li>切换比例时积分预估实时变化（方形=1，其余=2）</li>
+      <li>实际扣费与预估一致</li>
+      <li>管理员可在后台修改每种比例积分价格</li>
+      <li>生成的图片全部为 PNG 格式</li>
+      <li>所有用户（游客/登录）看到的界面完全一致</li>
+      <li>go test 和 vue-tsc/pnpm build 通过</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- P1-B: Login Redesign -->
+<!-- ================================================================ -->
+<div class="section" id="p1-login">
+  <div class="section-header">
+    <div class="icon p1">3</div>
+    <div><h2>P1-B 登录注册重设计</h2><span class="priority priority-p1">P1 核心功能</span></div>
+  </div>
+  <p class="desc">
+    微信优先的单页面登录。页面加载自动展示微信二维码，邮箱登录/注册作为底部折叠次要入口（管理员通过此入口登录）。
+  </p>
+
+  <div class="info-grid">
+    <div class="info-item"><div class="info-label">工作量</div><div class="info-value">2-3 天</div></div>
+    <div class="info-item"><div class="info-label">后端改动</div><div class="info-value">无（复用现有 API）</div></div>
+    <div class="info-item"><div class="info-label">风险</div><div class="info-value">低</div></div>
+  </div>
+
+  <div class="ui-spec">
+    <h4>交互设计规范</h4>
+    <div class="ui-mockup">
+      <div class="mockup-label">页面布局</div>
+      <div style="max-width:360px;margin:16px auto;text-align:center">
+        <div style="background:linear-gradient(135deg,#6d28d9,#2563eb);border-radius:16px;padding:32px 24px;color:#fff">
+          <div style="font-size:24px;font-weight:700;margin-bottom:4px">Image Show</div>
+          <div style="font-size:14px;opacity:.7">AI 图片创作平台</div>
+        </div>
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-top:-12px;position:relative;z-index:1">
+          <div style="font-size:16px;font-weight:600;margin-bottom:16px;color:#334155">微信扫码登录</div>
+          <div style="width:180px;height:180px;background:#f1f5f9;border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;border:2px dashed #cbd5e1">二维码区域</div>
+          <div style="display:flex;gap:8px;margin-bottom:16px">
+            <input style="flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px" placeholder="输入验证码" disabled>
+            <button style="background:linear-gradient(135deg,#6d28d9,#2563eb);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;cursor:pointer">登录</button>
+          </div>
+          <div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-top:16px">
+            <div style="font-size:13px;color:#8b5cf6;cursor:pointer">已有邮箱账号？邮箱登录 &#9662;</div>
+            <div style="margin-top:12px;padding:16px;background:#f8fafc;border-radius:10px;border:1px dashed #e2e8f0">
+              <div style="font-size:12px;color:#64748b;margin-bottom:8px">Tab 切换：「邮箱登录」|「邮箱注册」</div>
+              <div style="font-size:11px;color:#94a3b8">登录 Tab: email + password</div>
+              <div style="font-size:11px;color:#94a3b8">注册 Tab: email + password + 验证码</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tech-detail" style="margin-top:16px">
+      <h4>交互流程</h4>
+      <ul>
+        <li><strong>页面加载</strong> → 自动调 <code>GET /api/auth/wechat/qrcode</code> 获取二维码</li>
+        <li><strong>主区域</strong> → 二维码 + 验证码输入框 + 登录按钮（始终可见）</li>
+        <li><strong>折叠区域</strong> → 底部 "已有邮箱账号？邮箱登录" 文字链 → 点击展开</li>
+        <li><strong>展开后</strong> → Tab 切换：「登录」(email+password) | 「注册」(email+password+邮箱验证码)</li>
+        <li><strong>降级处理</strong> → 微信 API 返回 enabled=false 或网络错误 → 隐藏二维码，自动展开邮箱，顶部提示"微信登录暂不可用"</li>
+        <li><strong>登录成功</strong> → 跳转首页，fetchUser 更新状态</li>
+      </ul>
+    </div>
+  </div>
+
+  <table class="task-table">
+    <thead><tr><th style="width:80px">任务</th><th>内容</th><th style="width:90px">工作量</th><th style="width:80px">状态</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="task-id">L-1</span></td>
+        <td>
+          <strong>重写 Login.vue — 微信优先布局</strong>
+          <div class="task-scope">
+            <code>web/src/views/Login.vue</code> —<br>
+            &bull; 顶部品牌区（渐变背景 + 标题 + 副标题）<br>
+            &bull; 主卡片：微信二维码 + 验证码输入 + 登录按钮<br>
+            &bull; 底部折叠区："已有邮箱账号？" 点击展开<br>
+            &bull; onMounted 自动请求二维码，加载中显示 skeleton
+          </div>
+        </td>
+        <td><span class="effort effort-m"><span class="effort-dot"></span> 中</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+      <tr>
+        <td><span class="task-id">L-2</span></td>
+        <td>
+          <strong>邮箱折叠区 — 登录 + 注册 Tab</strong>
+          <div class="task-scope">
+            &bull; Tab 切换：「邮箱登录」|「邮箱注册」<br>
+            &bull; 登录 Tab：email + password + 提交<br>
+            &bull; 注册 Tab：email + password + 邮箱验证码 + 发送验证码按钮 + 提交<br>
+            &bull; 折叠动画：max-height transition 300ms ease
+          </div>
+        </td>
+        <td><span class="effort effort-m"><span class="effort-dot"></span> 中</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+      <tr>
+        <td><span class="task-id">L-3</span></td>
+        <td>
+          <strong>微信降级处理</strong>
+          <div class="task-scope">
+            API 返回 enabled=false 或请求失败 → 隐藏二维码 → 自动展开邮箱区域 → 顶部提示条
+          </div>
+        </td>
+        <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+      <tr>
+        <td><span class="task-id">L-4</span></td>
+        <td>
+          <strong>路由与导航更新</strong>
+          <div class="task-scope">
+            &bull; <code>router/index.ts</code>：<code>/register</code> → <code>redirect: '/login'</code><br>
+            &bull; <code>App.vue</code>：导航 "登录 / 注册" → "登录"<br>
+            &bull; <code>Register.vue</code>：清空内容，仅做 redirect 兜底
+          </div>
+        </td>
+        <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+      <tr>
+        <td><span class="task-id">L-5</span></td>
+        <td>
+          <strong>样式与动效打磨</strong>
+          <div class="task-scope">
+            全站一致圆角（12/16px）、渐变按钮、折叠展开动画、二维码 skeleton、input focus 紫色边框、按钮 hover/active
+          </div>
+        </td>
+        <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="selftest">
+    <h4>自测</h4>
+    <ul>
+      <li><code>cd web && pnpm exec vue-tsc --noEmit && pnpm build</code></li>
+      <li>/login 自动加载微信二维码</li>
+      <li>验证码输入 + 登录可用</li>
+      <li>点击"邮箱登录"展开折叠区，Tab 切换正常</li>
+      <li>邮箱登录/注册均可成功</li>
+      <li>/register 自动跳转到 /login</li>
+      <li>导航显示"登录"</li>
+      <li>微信关闭时邮箱自动展开</li>
+    </ul>
+  </div>
+  <div class="acceptance">
+    <h4>验收标准</h4>
+    <ul>
+      <li>/login 自动加载微信二维码，验证码登录可用</li>
+      <li>邮箱折叠区含登录和注册 Tab</li>
+      <li>管理员可通过邮箱入口正常登录</li>
+      <li>/register 重定向 /login</li>
+      <li>微信不可用时自动降级到邮箱</li>
+    </ul>
+  </div>
+  <div class="commit-msg">
+    <h4>建议提交信息</h4>
+    <code>feat(auth): redesign login page with WeChat-first layout
+
+- WeChat QR code auto-loads on page open
+- email login/register as collapsible secondary entry with tab switch
+- graceful fallback when WeChat unavailable
+- /register redirects to /login, nav shows "登录"</code>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- P2-A: Scene Entry -->
+<!-- ================================================================ -->
+<div class="section" id="p2-scene">
+  <div class="section-header">
+    <div class="icon p2">4</div>
+    <div>
+      <h2>P2-A 首页场景入口</h2>
+      <span class="priority priority-p2">P2 体验增强</span>
+      <span class="badge badge-v3">含交互规范</span>
+    </div>
+  </div>
+  <p class="desc">在首页提供场景化快捷入口，降低用户创作门槛。点击场景自动填充提示词 + 切换推荐比例。重点打磨 UI 交互体验。</p>
+
+  <div class="info-grid">
+    <div class="info-item"><div class="info-label">工作量</div><div class="info-value">2-3 天</div></div>
+    <div class="info-item"><div class="info-label">依赖</div><div class="info-value">P1-A 完成后效果最佳</div></div>
+    <div class="info-item"><div class="info-label">后端改动</div><div class="info-value">小（模板分类扩展）</div></div>
+  </div>
+
+  <div class="ui-spec">
+    <h4>场景入口交互设计规范</h4>
+
+    <div class="ui-mockup">
+      <div class="mockup-label">桌面端 — 3 列网格</div>
+      <p style="font-size:13px;color:var(--slate-500);margin-bottom:16px">在提示词输入框下方、生成按钮上方展示。</p>
+      <div class="ui-grid">
+        <div class="ui-card selected">
+          <div class="card-icon">&#128248;</div>
+          <div class="card-title">小红书封面</div>
+          <div class="card-desc">精致生活 / 美食 / 穿搭</div>
+          <div class="card-badge">3:4 竖版 &middot; 2积分</div>
+        </div>
+        <div class="ui-card">
+          <div class="card-icon">&#128722;</div>
+          <div class="card-title">商品展示图</div>
+          <div class="card-desc">白底 / 场景化产品</div>
+          <div class="card-badge">1:1 方形 &middot; 1积分</div>
+        </div>
+        <div class="ui-card">
+          <div class="card-icon">&#128100;</div>
+          <div class="card-title">社交头像</div>
+          <div class="card-desc">人物 / 动漫头像</div>
+          <div class="card-badge">1:1 方形 &middot; 1积分</div>
+        </div>
+        <div class="ui-card">
+          <div class="card-icon">&#127912;</div>
+          <div class="card-title">海报设计</div>
+          <div class="card-desc">活动 / 促销 / 艺术海报</div>
+          <div class="card-badge">3:4 竖版 &middot; 2积分</div>
+        </div>
+        <div class="ui-card">
+          <div class="card-icon">&#128247;</div>
+          <div class="card-title">手机壁纸</div>
+          <div class="card-desc">风景 / 抽象 / 治愈系</div>
+          <div class="card-badge">9:16 故事版 &middot; 2积分</div>
+        </div>
+        <div class="ui-card">
+          <div class="card-icon">&#10024;</div>
+          <div class="card-title">自由创作</div>
+          <div class="card-desc">自由发挥你的想象力</div>
+          <div class="card-badge">1:1 方形 &middot; 1积分</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tech-detail" style="margin-top:16px">
+      <h4>卡片交互规范</h4>
+      <ul>
+        <li><strong>默认态</strong> — 白底 + 1px 边框(slate-200) + 12px 圆角 + 微阴影(0 2px 8px rgba(0,0,0,.04))</li>
+        <li><strong>Hover</strong> — border → violet-300，scale(1.02)，阴影加深，图标 translateY(-2px) 微跳</li>
+        <li><strong>选中态</strong> — 2px border violet-500 + 背景 violet-50 + 外发光 box-shadow 0 0 0 3px rgba(139,92,246,.15) + 左上角小勾标记</li>
+        <li><strong>点击反馈</strong> — 0.15s scale(0.97→1) 弹性回弹</li>
+        <li><strong>再次点击已选中卡片</strong> — 取消选中，清空提示词，恢复默认比例(1:1)</li>
+        <li><strong>transition</strong> — all 0.2s cubic-bezier(0.4, 0, 0.2, 1)</li>
+      </ul>
+    </div>
+
+    <div class="tech-detail">
+      <h4>提示词填充动画</h4>
+      <ul>
+        <li>点击场景 → 输入框聚焦 → 模板文字以打字机效果逐字出现（40ms/字 + 光标闪烁）</li>
+        <li>打字完成 → 光标移到末尾，用户可继续编辑</li>
+        <li>输入框已有内容 → 先 0.15s fade out 清空，再填入新内容</li>
+        <li>「自由创作」→ 不填充提示词，仅切换比例(1:1)，输入框获焦 + placeholder "描述你想要的图片..."</li>
+      </ul>
+    </div>
+
+    <div class="tech-detail">
+      <h4>响应式布局</h4>
+      <ul>
+        <li><strong>&ge;1024px 桌面</strong> — 3 列网格，gap 16px</li>
+        <li><strong>768-1023px 平板</strong> — 2 列网格，gap 12px</li>
+        <li><strong>&lt;768px 手机</strong> — 横向滚动卡片（scroll-snap-type: x mandatory），每次显示 2.3 张，露出第三张边缘引导滑动</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="font-size:17px;font-weight:700;margin:24px 0 12px;color:var(--slate-900)">场景数据</h3>
+  <table class="credit-table">
+    <thead><tr><th>场景</th><th>图标</th><th>推荐比例</th><th>积分</th><th>提示词模板方向</th></tr></thead>
+    <tbody>
+      <tr><td>小红书封面</td><td>&#128248;</td><td>3:4 竖版</td><td>2</td><td>精致生活/美食/穿搭风格封面</td></tr>
+      <tr><td>商品展示图</td><td>&#128722;</td><td>1:1 方形</td><td>1</td><td>白底/场景化商品展示</td></tr>
+      <tr><td>社交头像</td><td>&#128100;</td><td>1:1 方形</td><td>1</td><td>精致人物/动漫风格头像</td></tr>
+      <tr><td>海报设计</td><td>&#127912;</td><td>3:4 竖版</td><td>2</td><td>活动/促销/艺术创意海报</td></tr>
+      <tr><td>手机壁纸</td><td>&#128247;</td><td>9:16 故事版</td><td>2</td><td>风景/抽象/治愈系壁纸</td></tr>
+      <tr><td>自由创作</td><td>&#10024;</td><td>1:1 方形</td><td>1</td><td>（不填充，用户自由输入）</td></tr>
+    </tbody>
+  </table>
+
+  <table class="task-table" style="margin-top:24px">
+    <thead><tr><th style="width:80px">任务</th><th>内容</th><th style="width:90px">工作量</th><th style="width:80px">状态</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="task-id">S-1</span></td>
+        <td>
+          <strong>场景模板数据设计</strong>
+          <div class="task-scope">
+            <code>model/models.go</code> — PromptTemplate 新增 <code>Category string</code>（"style" / "scene"）<br>
+            <code>controller/generation.go</code> — <code>GET /api/generation/scenes</code> 返回 category=scene 的模板列表<br>
+            含字段：name, icon, prompt_template, recommended_ratio, description
+          </div>
+        </td>
+        <td><span class="effort effort-m"><span class="effort-dot"></span> 中</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+      <tr>
+        <td><span class="task-id">S-2</span></td>
+        <td>
+          <strong>SceneCard 组件</strong>
+          <div class="task-scope">
+            <code>web/src/components/SceneCard.vue</code>（新建）—<br>
+            &bull; props: scene 数据、selected 状态<br>
+            &bull; 渲染图标 + 标题 + 描述 + 比例badge + 积分<br>
+            &bull; hover / selected / click 状态按规范实现<br>
+            &bull; emit: select 事件
+          </div>
+        </td>
+        <td><span class="effort effort-m"><span class="effort-dot"></span> 中</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+      <tr>
+        <td><span class="task-id">S-3</span></td>
+        <td>
+          <strong>首页集成 + 打字机动画</strong>
+          <div class="task-scope">
+            <code>web/src/views/Home.vue</code> —<br>
+            &bull; 提示词输入框下方插入场景网格<br>
+            &bull; 点击 → 打字机效果填充提示词 + 切换比例 + 更新积分预估<br>
+            &bull; 再次点击取消选中<br>
+            &bull; 响应式：桌面3列 / 平板2列 / 手机横滑<br>
+            &bull; onMounted 调用 <code>/api/generation/scenes</code>
+          </div>
+        </td>
+        <td><span class="effort effort-m"><span class="effort-dot"></span> 中</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+      <tr>
+        <td><span class="task-id">S-4</span></td>
+        <td>
+          <strong>后台场景管理</strong>
+          <div class="task-scope">
+            <code>web/src/components/admin/TemplatesTab.vue</code> —<br>
+            &bull; 模板 Tab 支持 category 筛选（全部/风格/场景）<br>
+            &bull; scene 类型额外显示 icon 和 recommended_ratio 字段<br>
+            &bull; 新增/编辑弹窗加 category 选择
+          </div>
+        </td>
+        <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="selftest">
+    <h4>自测</h4>
+    <ul>
+      <li><code>go test ./... -v</code> — 场景 API 通过</li>
+      <li><code>cd web && pnpm exec vue-tsc --noEmit && pnpm build</code></li>
+      <li>首页显示 6 个场景卡片</li>
+      <li>点击"小红书封面" → 打字机填入提示词 + 切换 3:4 + 积分显示 2</li>
+      <li>再次点击 → 取消选中，提示词清空，恢复 1:1</li>
+      <li>"自由创作" → 不填充提示词，切到 1:1，输入框聚焦</li>
+      <li>Hover：边框变色 + 微缩放 + 图标微跳</li>
+      <li>手机端横滑正常，snap 定位准确</li>
+      <li>后台可管理 scene 类型模板</li>
+    </ul>
+  </div>
+  <div class="acceptance">
+    <h4>验收标准</h4>
+    <ul>
+      <li>首页展示场景卡片网格，交互动效流畅</li>
+      <li>点击填充提示词（打字机效果）+ 切换比例 + 积分联动</li>
+      <li>"自由创作"不填充提示词</li>
+      <li>选中态、hover 态、点击反馈完整</li>
+      <li>响应式：桌面3列 / 平板2列 / 手机横滑</li>
+      <li>后台可管理场景模板</li>
+    </ul>
+  </div>
+  <div class="commit-msg">
+    <h4>建议提交信息</h4>
+    <code>feat(home): add scene entry cards with typewriter prompt fill
+
+- 6 scene cards with icons, descriptions, ratio badges, credit display
+- typewriter animation for prompt fill on click
+- hover/selected/click states with smooth transitions
+- responsive: 3-col desktop, 2-col tablet, scroll mobile
+- admin template management supports scene category</code>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- P2-B: History Regenerate -->
+<!-- ================================================================ -->
+<div class="section" id="p2-regen">
+  <div class="section-header">
+    <div class="icon p2">5</div>
+    <div><h2>P2-B 历史"再次生成"</h2><span class="priority priority-p2">P2 体验增强</span></div>
+  </div>
+  <p class="desc">用户在历史页一键带参数回首页重新生成。不自动触发，需用户确认后手动点击生成按钮。</p>
+
+  <div class="info-grid">
+    <div class="info-item"><div class="info-label">工作量</div><div class="info-value">0.5-1 天</div></div>
+    <div class="info-item"><div class="info-label">后端改动</div><div class="info-value">无</div></div>
+    <div class="info-item"><div class="info-label">风险</div><div class="info-value">极低</div></div>
+  </div>
+
+  <table class="task-table">
+    <thead><tr><th style="width:80px">任务</th><th>内容</th><th style="width:90px">工作量</th><th style="width:80px">状态</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="task-id">R-1</span></td>
+        <td>
+          <strong>History.vue 添加"再次生成"按钮</strong>
+          <div class="task-scope">
+            <code>web/src/views/History.vue</code> — 每张卡片 hover 显示悬浮操作栏，含"再次生成"按钮（紫色渐变小按钮）
+          </div>
+        </td>
+        <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+      <tr>
+        <td><span class="task-id">R-2</span></td>
+        <td>
+          <strong>路由参数传递</strong>
+          <div class="task-scope">
+            点击 → <code>router.push({ name: 'home', query: { prompt, ratio } })</code>（quality/format 已固定，无需传）
+          </div>
+        </td>
+        <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+      <tr>
+        <td><span class="task-id">R-3</span></td>
+        <td>
+          <strong>Home.vue 接收回填</strong>
+          <div class="task-scope">
+            <code>Home.vue</code> — onMounted 检查 route.query → 回填 prompt + ratio → 清除 URL query（replace 模式）→ Toast "已回填历史参数，确认后点击生成" → <strong>不自动触发生成</strong>
+          </div>
+        </td>
+        <td><span class="effort effort-s"><span class="effort-dot"></span> 小</span></td>
+        <td><span class="status status-pending">待开发</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="selftest">
+    <h4>自测</h4>
+    <ul>
+      <li><code>cd web && pnpm exec vue-tsc --noEmit && pnpm build</code></li>
+      <li>历史页 hover 卡片出现"再次生成"</li>
+      <li>点击 → 跳转首页，提示词和比例已回填</li>
+      <li>未自动触发生成</li>
+      <li>URL query 已清除</li>
+    </ul>
+  </div>
+  <div class="acceptance">
+    <h4>验收标准</h4>
+    <ul>
+      <li>历史页每张卡片 hover 有"再次生成"按钮</li>
+      <li>跳转首页后提示词和比例已回填</li>
+      <li>不自动触发生成</li>
+      <li>Toast 提示"已回填参数"</li>
+    </ul>
+  </div>
+  <div class="commit-msg">
+    <h4>建议提交信息</h4>
+    <code>feat(history): add regenerate button to history cards
+
+- hover overlay with regenerate button on history cards
+- route to home with prompt and ratio query params
+- Home.vue reads query and fills form without auto-generating</code>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- Timeline -->
+<!-- ================================================================ -->
+<div class="section" id="timeline">
+  <div class="section-header">
+    <div class="icon" style="background:var(--violet-50)">6</div>
+    <h2>整体时间线</h2>
+  </div>
+
+  <div class="timeline">
+    <div class="timeline-phase"><div class="timeline-dot"></div><div class="timeline-label">P0<br>后台提交</div><div class="timeline-time">第 1 天</div></div>
+    <div class="timeline-phase"><div class="timeline-dot"></div><div class="timeline-label">P1-A 后端<br>积分+参数</div><div class="timeline-time">第 1-2 天</div></div>
+    <div class="timeline-phase"><div class="timeline-dot"></div><div class="timeline-label">P1-A 前端<br>积分预估</div><div class="timeline-time">第 3 天</div></div>
+    <div class="timeline-phase"><div class="timeline-dot"></div><div class="timeline-label">P1-B<br>登录重设计</div><div class="timeline-time">第 3-5 天</div></div>
+    <div class="timeline-phase"><div class="timeline-dot"></div><div class="timeline-label">P2-A<br>场景入口</div><div class="timeline-time">第 5-7 天</div></div>
+    <div class="timeline-phase"><div class="timeline-dot"></div><div class="timeline-label">P2-B<br>再次生成</div><div class="timeline-time">第 7-8 天</div></div>
+  </div>
+
+  <div class="tech-detail" style="margin-top:24px">
+    <h4>Codex 执行顺序</h4>
+    <table class="credit-table">
+      <thead><tr><th style="width:60px">顺序</th><th>计划</th><th>任务 ID</th><th style="width:80px">任务数</th><th style="width:90px">天数</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>P0 管理后台提交</td><td>D3-1 ~ D3-4</td><td>4</td><td>0.5</td></tr>
+        <tr><td>2</td><td>P1-A 后端改造</td><td>G-1 ~ G-5</td><td>5</td><td>1.5-2</td></tr>
+        <tr><td>3</td><td>P1-A 前端 + 后台</td><td>G-6 ~ G-8</td><td>3</td><td>1</td></tr>
+        <tr><td>4</td><td>P1-B 登录重设计</td><td>L-1 ~ L-5</td><td>5</td><td>2-3</td></tr>
+        <tr><td>5</td><td>P2-A 场景入口</td><td>S-1 ~ S-4</td><td>4</td><td>2-3</td></tr>
+        <tr><td>6</td><td>P2-B 再次生成</td><td>R-1 ~ R-3</td><td>3</td><td>0.5-1</td></tr>
+        <tr style="font-weight:700;background:var(--violet-50)"><td></td><td>合计</td><td></td><td>24</td><td>7-9 天</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tech-detail">
+    <h4>每个任务执行流程</h4>
+    <ul>
+      <li><strong>1. 开发</strong> — 按任务描述中的文件路径和内容实现</li>
+      <li><strong>2. 自测</strong> — 执行对应阶段的自测命令，确保全部通过</li>
+      <li><strong>3. 提交</strong> — 按建议 commit message 提交 + push</li>
+      <li><strong>4. 记录</strong> — 更新 docs/progress.md 记录完成状态</li>
+    </ul>
+  </div>
+</div>
+
+</div><!-- container -->
+
+<div class="footer">
+  <p>Image Show 开发执行文档 v3.1 — 2026-05-12 — Codex 逐任务执行</p>
+  <p style="margin-top:8px;font-size:12px;color:var(--slate-300)">
+    质量固定 medium &middot; 格式固定 PNG &middot; 方形1积分/其余2积分 &middot; 所有用户体验一致 &middot; 24 任务 / 7-9 天
+  </p>
+</div>
+
+</body>
+</html>
