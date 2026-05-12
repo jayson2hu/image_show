@@ -12,7 +12,7 @@
   - `cd web && pnpm exec vue-tsc --noEmit`：通过。
   - `cd web && pnpm build`：通过，构建产物无错误。
 - 验收结论：
-  - P0 管理后台 D3 最终验证通过，本地提交已完成；GitHub 推送因网络返回 `Empty reply from server`，待网络恢复后重试。
+  - P0 管理后台 D3 最终验证通过，已通过本地代理完成 GitHub 推送。
 
 ## 2026-05-08 管理后台站点配置与个人中心体验优化计划
 
