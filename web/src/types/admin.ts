@@ -58,6 +58,9 @@ export interface PromptTemplate {
   category: TemplateCategory | string
   label: string
   prompt: string
+  icon?: string
+  recommended_ratio?: string
+  description?: string
   sort_order: number
   status: number
 }
@@ -145,4 +148,4 @@ export interface AdminUserForm {
   credits: number
 }
 
-export type TemplateCategory = 'style' | 'sample' | 'default' | 'repair'
+export type TemplateCategory = 'style' | 'sample' | 'scene' | 'default' | 'repair'

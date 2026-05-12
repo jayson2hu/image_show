@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jayson2hu/image-show/model"
@@ -9,11 +10,14 @@ import (
 )
 
 type promptTemplateRequest struct {
-	Category  string `json:"category" binding:"required"`
-	Label     string `json:"label" binding:"required"`
-	Prompt    string `json:"prompt" binding:"required"`
-	SortOrder int    `json:"sort_order"`
-	Status    int    `json:"status"`
+	Category         string `json:"category" binding:"required"`
+	Label            string `json:"label" binding:"required"`
+	Prompt           string `json:"prompt"`
+	Icon             string `json:"icon"`
+	RecommendedRatio string `json:"recommended_ratio"`
+	Description      string `json:"description"`
+	SortOrder        int    `json:"sort_order"`
+	Status           int    `json:"status"`
 }
 
 type settingsRequest struct {
@@ -79,6 +83,10 @@ func AdminCreatePromptTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
+	if !validPromptTemplateRequest(req) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "prompt is required"})
+		return
+	}
 	template := promptTemplateFromRequest(req)
 	if err := model.DB.Create(&template).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create prompt template"})
@@ -97,8 +105,11 @@ func AdminUpdatePromptTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	updates := promptTemplateFromRequest(req)
-	if err := model.DB.Model(&model.PromptTemplate{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+	if !validPromptTemplateRequest(req) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "prompt is required"})
+		return
+	}
+	if err := model.DB.Model(&model.PromptTemplate{}).Where("id = ?", id).Updates(promptTemplateUpdateMap(req)).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update prompt template"})
 		return
 	}
@@ -209,10 +220,34 @@ func promptTemplateFromRequest(req promptTemplateRequest) model.PromptTemplate {
 		status = 1
 	}
 	return model.PromptTemplate{
-		Category:  req.Category,
-		Label:     req.Label,
-		Prompt:    req.Prompt,
-		SortOrder: req.SortOrder,
-		Status:    status,
+		Category:         req.Category,
+		Label:            req.Label,
+		Prompt:           req.Prompt,
+		Icon:             req.Icon,
+		RecommendedRatio: req.RecommendedRatio,
+		Description:      req.Description,
+		SortOrder:        req.SortOrder,
+		Status:           status,
 	}
+}
+
+func promptTemplateUpdateMap(req promptTemplateRequest) map[string]interface{} {
+	template := promptTemplateFromRequest(req)
+	return map[string]interface{}{
+		"category":          template.Category,
+		"label":             template.Label,
+		"prompt":            template.Prompt,
+		"icon":              template.Icon,
+		"recommended_ratio": template.RecommendedRatio,
+		"description":       template.Description,
+		"sort_order":        template.SortOrder,
+		"status":            template.Status,
+	}
+}
+
+func validPromptTemplateRequest(req promptTemplateRequest) bool {
+	if strings.TrimSpace(req.Category) == "scene" && strings.TrimSpace(req.Label) == "自由创作" {
+		return true
+	}
+	return strings.TrimSpace(req.Prompt) != ""
 }

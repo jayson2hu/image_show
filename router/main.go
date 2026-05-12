@@ -43,6 +43,7 @@ func Register(r *gin.Engine) {
 	api.GET("/site/config", controller.SiteConfig)
 	api.GET("/captcha/config", controller.CaptchaConfig)
 	api.GET("/generation/options", middleware.OptionalAuth(), controller.GenerationOptions)
+	api.GET("/generation/scenes", controller.GenerationScenes)
 	api.GET("/support/contact", controller.SupportContact)
 	api.GET("/announcement", controller.ActiveAnnouncement)
 	api.GET("/announcements", middleware.OptionalAuth(), controller.UserAnnouncements)

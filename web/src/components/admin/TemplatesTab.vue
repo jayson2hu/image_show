@@ -16,11 +16,12 @@ const category = ref('')
 const modalOpen = ref(false)
 const editingTemplate = ref<PromptTemplate | null>(null)
 const deleteTarget = ref<PromptTemplate | null>(null)
-const form = ref<PromptTemplate>({ id: 0, category: 'style', label: '', prompt: '', sort_order: 0, status: 1 })
+const form = ref<PromptTemplate>({ id: 0, category: 'style', label: '', prompt: '', icon: '', recommended_ratio: '', description: '', sort_order: 0, status: 1 })
 
 const categories = [
   { value: '', label: '全部模板' },
   { value: 'style', label: '风格' },
+  { value: 'scene', label: '场景' },
   { value: 'sample', label: '样例' },
   { value: 'default', label: '默认' },
   { value: 'repair', label: '修复' },
@@ -44,7 +45,7 @@ async function loadTemplates() {
 
 function openCreate() {
   editingTemplate.value = null
-  form.value = { id: 0, category: 'style', label: '', prompt: '', sort_order: 0, status: 1 }
+  form.value = { id: 0, category: 'style', label: '', prompt: '', icon: '', recommended_ratio: '', description: '', sort_order: 0, status: 1 }
   modalOpen.value = true
 }
 
@@ -98,7 +99,7 @@ function categoryLabel(value: string) {
       <div>
         <p class="text-sm font-medium text-teal">Templates</p>
         <h2 class="mt-1 text-2xl font-semibold text-slate-950">提示词模板</h2>
-        <p class="mt-2 text-sm text-slate-500">维护前台风格、样例和默认提示词。</p>
+        <p class="mt-2 text-sm text-slate-500">维护前台风格、场景、样例和默认提示词。</p>
       </div>
       <div class="flex gap-2">
         <select v-model="category" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/20">
@@ -121,8 +122,10 @@ function categoryLabel(value: string) {
             <div class="flex flex-wrap items-center gap-2">
               <h3 class="truncate text-lg font-semibold text-slate-950">{{ item.label }}</h3>
               <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">{{ categoryLabel(item.category) }}</span>
+              <span v-if="item.category === 'scene' && item.recommended_ratio" class="rounded-full bg-violet-50 px-2.5 py-1 text-xs text-violet-700">{{ item.recommended_ratio }}</span>
               <span class="rounded-full px-2.5 py-1 text-xs" :class="item.status === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'">{{ item.status === 1 ? '启用' : '禁用' }}</span>
             </div>
+            <p v-if="item.category === 'scene' && (item.icon || item.description)" class="mt-2 text-xs text-slate-400">{{ item.icon }} {{ item.description }}</p>
             <p class="mt-2 line-clamp-3 text-sm leading-6 text-slate-500">{{ item.prompt }}</p>
           </div>
           <span class="shrink-0 rounded-full bg-slate-50 px-2.5 py-1 text-xs text-slate-500">排序 {{ item.sort_order }}</span>
@@ -143,6 +146,7 @@ function categoryLabel(value: string) {
               <span class="text-sm font-medium text-slate-700">分类</span>
               <select v-model="form.category" class="template-input">
                 <option value="style">风格</option>
+                <option value="scene">场景</option>
                 <option value="sample">样例</option>
                 <option value="default">默认</option>
                 <option value="repair">修复</option>
@@ -164,9 +168,29 @@ function categoryLabel(value: string) {
             <span class="text-sm font-medium text-slate-700">名称</span>
             <input v-model="form.label" class="template-input" required />
           </label>
+          <div v-if="form.category === 'scene'" class="grid gap-3 sm:grid-cols-3">
+            <label>
+              <span class="text-sm font-medium text-slate-700">图标</span>
+              <input v-model="form.icon" class="template-input" placeholder="📸" />
+            </label>
+            <label>
+              <span class="text-sm font-medium text-slate-700">推荐比例</span>
+              <select v-model="form.recommended_ratio" class="template-input">
+                <option value="square">1:1 方形</option>
+                <option value="portrait_3_4">3:4 竖版</option>
+                <option value="story">9:16 故事版</option>
+                <option value="landscape_4_3">4:3 横版</option>
+                <option value="widescreen">16:9 宽屏</option>
+              </select>
+            </label>
+            <label>
+              <span class="text-sm font-medium text-slate-700">描述</span>
+              <input v-model="form.description" class="template-input" placeholder="场景用途说明" />
+            </label>
+          </div>
           <label>
             <span class="text-sm font-medium text-slate-700">提示词</span>
-            <textarea v-model="form.prompt" class="template-input min-h-36 py-3" required></textarea>
+            <textarea v-model="form.prompt" class="template-input min-h-36 py-3" :required="form.category !== 'scene' || form.label !== '自由创作'"></textarea>
           </label>
         </div>
         <div class="mt-6 flex justify-end gap-2">

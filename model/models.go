@@ -91,28 +91,31 @@ type Setting struct {
 }
 
 type PromptTemplate struct {
-	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
-	Category  string    `gorm:"size:32;index" json:"category"`
-	Label     string    `gorm:"size:64" json:"label"`
-	Prompt    string    `gorm:"type:text" json:"prompt"`
-	SortOrder int       `gorm:"default:0" json:"sort_order"`
-	Status    int       `gorm:"default:1" json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID               int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	Category         string    `gorm:"size:32;index" json:"category"`
+	Label            string    `gorm:"size:64" json:"label"`
+	Prompt           string    `gorm:"type:text" json:"prompt"`
+	Icon             string    `gorm:"size:16" json:"icon"`
+	RecommendedRatio string    `gorm:"size:32" json:"recommended_ratio"`
+	Description      string    `gorm:"size:256" json:"description"`
+	SortOrder        int       `gorm:"default:0" json:"sort_order"`
+	Status           int       `gorm:"default:1" json:"status"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type Announcement struct {
-	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
-	Title     string    `gorm:"size:128" json:"title"`
-	Content   string    `gorm:"type:text" json:"content"`
-	Status    int       `gorm:"default:1;index" json:"status"`
-	NotifyMode string   `gorm:"size:16;default:silent;index" json:"notify_mode"`
-	Target    string    `gorm:"size:16;default:all;index" json:"target"`
-	SortOrder int       `gorm:"default:0;index" json:"sort_order"`
-	StartsAt  *time.Time `gorm:"index" json:"starts_at"`
-	EndsAt    *time.Time `gorm:"index" json:"ends_at"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         int64      `gorm:"primaryKey;autoIncrement" json:"id"`
+	Title      string     `gorm:"size:128" json:"title"`
+	Content    string     `gorm:"type:text" json:"content"`
+	Status     int        `gorm:"default:1;index" json:"status"`
+	NotifyMode string     `gorm:"size:16;default:silent;index" json:"notify_mode"`
+	Target     string     `gorm:"size:16;default:all;index" json:"target"`
+	SortOrder  int        `gorm:"default:0;index" json:"sort_order"`
+	StartsAt   *time.Time `gorm:"index" json:"starts_at"`
+	EndsAt     *time.Time `gorm:"index" json:"ends_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
 type AnnouncementRead struct {

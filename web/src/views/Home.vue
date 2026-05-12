@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import api from '@/api'
 import { fetchSiteConfig, type CreditCosts } from '@/api/site'
 import CreditExhaustedGuide from '@/components/CreditExhaustedGuide.vue'
 import GenerationProgress from '@/components/GenerationProgress.vue'
+import SceneCard from '@/components/SceneCard.vue'
+import { useToast } from '@/composables/useToast'
 import { useUserStore } from '@/stores/user'
 import { downloadImage } from '@/utils/download'
 
@@ -56,11 +59,13 @@ interface SamplePrompt {
 }
 
 interface ScenarioPrompt {
-  id: string
-  title: string
-  prompt: string
-  size: string
-  style: string
+  id: string | number
+  name: string
+  icon: string
+  description: string
+  prompt_template: string
+  recommended_ratio: string
+  credit_cost: number
 }
 
 interface PromptTemplate {
@@ -79,7 +84,11 @@ interface GenerationDraft {
 
 const generationDraftKey = 'image_show_generation_draft'
 const userStore = useUserStore()
+const route = useRoute()
+const router = useRouter()
+const toast = useToast()
 const prompt = ref('')
+const promptInput = ref<HTMLTextAreaElement | null>(null)
 const generationMode = ref<GenerationMode>('generate')
 const isImageEditEnabled = false
 const sourceImageFile = ref<File | null>(null)
@@ -116,6 +125,8 @@ const isFullscreenOpen = ref(false)
 const fullscreenEl = ref<HTMLElement | null>(null)
 const isBillingGuideOpen = ref(false)
 const resultNotice = ref('')
+const selectedSceneId = ref<string | number | null>(null)
+const typewriterTimer = ref<number | null>(null)
 
 const defaultStylePresets: StylePreset[] = [
   { id: 'style-realistic', name: '写实', prompt: '写实摄影风格，细节丰富，自然光影，真实材质，高质量商业摄影' },
@@ -132,11 +143,12 @@ const defaultSamplePrompts: SamplePrompt[] = [
   { id: 'sample-abstract', title: '抽象艺术', prompt: '流动的光影和透明几何结构，紫蓝渐变，细腻颗粒质感，现代抽象艺术海报' },
 ]
 const defaultScenarioPrompts: ScenarioPrompt[] = [
-  { id: 'scenario-redbook-cover', title: '小红书封面', prompt: '小红书封面图，主题是春季穿搭灵感，明亮干净的构图，留出醒目标题空间，适合手机竖屏浏览', size: 'story', style: 'style-realistic' },
-  { id: 'scenario-product', title: '商品展示图', prompt: '电商商品展示图，一瓶高级香薰蜡烛放在干净台面上，主体突出，真实材质，商业摄影光影，适合商品主图', size: 'square', style: 'style-realistic' },
-  { id: 'scenario-avatar', title: '头像', prompt: '精致头像，一位温和自信的年轻创作者，主体居中，背景简洁，有辨识度，适合作为社交平台头像', size: 'square', style: 'style-anime' },
-  { id: 'scenario-poster', title: '海报', prompt: '活动宣传海报视觉，主题是周末咖啡市集，层次清晰，保留文字排版空间，温暖自然的画面氛围', size: 'portrait_3_4', style: 'style-realistic' },
-  { id: 'scenario-wallpaper', title: '壁纸', prompt: '高清壁纸画面，星空下的安静湖泊和远山，构图开阔，细节丰富，视觉舒适，适合手机屏幕背景', size: 'story', style: 'style-fantasy' },
+  { id: 'scene-redbook-cover', name: '小红书封面', icon: '📸', description: '精致生活、穿搭、美食风格封面', prompt_template: '小红书封面图，精致生活方式视觉，一眼能看懂主题，清晰大标题留白，明亮干净的构图，适合手机竖屏浏览', recommended_ratio: 'portrait_3_4', credit_cost: 2 },
+  { id: 'scene-product', name: '商品展示图', icon: '🛒', description: '白底或场景化商品展示', prompt_template: '电商商品展示图，主体突出，干净背景，真实材质，高级商业摄影光影，适合商品主图', recommended_ratio: 'square', credit_cost: 1 },
+  { id: 'scene-avatar', name: '社交头像', icon: '👤', description: '精致人物或动漫风格头像', prompt_template: '精致社交头像，主体居中，五官清晰，背景简洁，有辨识度，适合作为社交平台头像', recommended_ratio: 'square', credit_cost: 1 },
+  { id: 'scene-poster', name: '海报设计', icon: '🎨', description: '活动、促销、艺术创意海报', prompt_template: '活动宣传海报视觉，主题突出，层次清晰，保留文字排版空间，适合促销活动和创意传播', recommended_ratio: 'portrait_3_4', credit_cost: 2 },
+  { id: 'scene-wallpaper', name: '手机壁纸', icon: '📷', description: '风景、抽象、治愈系壁纸', prompt_template: '高清手机壁纸画面，风景治愈氛围，视觉舒适，构图开阔，细节丰富，适合手机屏幕背景', recommended_ratio: 'story', credit_cost: 2 },
+  { id: 'scene-free', name: '自由创作', icon: '✨', description: '不填充提示词，自由输入', prompt_template: '', recommended_ratio: 'square', credit_cost: 1 },
 ]
 const stylePresets = ref<StylePreset[]>([...defaultStylePresets])
 const samplePrompts = ref<SamplePrompt[]>([...defaultSamplePrompts])
@@ -190,11 +202,13 @@ declare global {
 
 onMounted(async () => {
   restoreGenerationDraft()
-  await Promise.all([loadSiteCreditCosts(), loadPromptTemplates(), loadGenerationOptions(), loadCaptcha()])
+  applyRoutePrefill()
+  await Promise.all([loadSiteCreditCosts(), loadPromptTemplates(), loadScenes(), loadGenerationOptions(), loadCaptcha()])
 })
 
 onUnmounted(() => {
   clearSourceImage()
+  clearTypewriter()
 })
 
 watch(
@@ -223,7 +237,6 @@ async function loadPromptTemplates() {
     const items: PromptTemplate[] = Array.isArray(response.data.items) ? response.data.items : []
     const styles = items.filter((item) => item.category === 'style')
     const samples = items.filter((item) => item.category === 'sample')
-    const scenarios = items.filter((item) => item.category === 'scenario')
     if (styles.length > 0) {
       stylePresets.value = styles.map((item) => ({
         id: `style-${item.id || item.label}`,
@@ -238,22 +251,29 @@ async function loadPromptTemplates() {
         prompt: item.prompt,
       }))
     }
-    if (scenarios.length > 0) {
-      scenarioPrompts.value = scenarios.map((item, index) => {
-        const fallback = defaultScenarioPrompts[index % defaultScenarioPrompts.length]
-        return {
-          id: `scenario-${item.id || item.label}`,
-          title: item.label,
-          prompt: item.prompt,
-          size: fallback.size,
-          style: fallback.style,
-        }
-      })
-    }
   } catch {
     stylePresets.value = [...defaultStylePresets]
     samplePrompts.value = [...defaultSamplePrompts]
-    scenarioPrompts.value = [...defaultScenarioPrompts]
+  }
+}
+
+async function loadScenes() {
+  try {
+    const response = await api.get('/generation/scenes')
+    const items = Array.isArray(response.data.items) ? response.data.items : []
+    if (items.length > 0) {
+      scenarioPrompts.value = items.map((item: any) => ({
+        id: item.id || item.name,
+        name: item.name,
+        icon: item.icon || '✨',
+        description: item.description || '',
+        prompt_template: item.prompt_template || '',
+        recommended_ratio: item.recommended_ratio || 'square',
+        credit_cost: Number(item.credit_cost) || creditCostForSize(item.recommended_ratio || 'square'),
+      }))
+    }
+  } catch {
+    scenarioPrompts.value = defaultScenarioPrompts.map((item) => ({ ...item, credit_cost: creditCostForSize(item.recommended_ratio) }))
   }
 }
 
@@ -424,16 +444,70 @@ function useSample(sample: SamplePrompt) {
   prompt.value = sample.prompt
 }
 
-function useScenario(scenario: ScenarioPrompt) {
-  prompt.value = scenario.prompt
-  if (sizeOptions.value.some((item) => item.value === scenario.size)) {
-    size.value = scenario.size
-  }
-  if (stylePresets.value.some((item) => item.id === scenario.style)) {
-    selectedStyle.value = scenario.style
-  } else {
+async function useScenario(scenario: ScenarioPrompt) {
+  clearTypewriter()
+  if (selectedSceneId.value === scenario.id) {
+    selectedSceneId.value = null
+    prompt.value = ''
     selectedStyle.value = ''
+    size.value = 'square'
+    await focusPrompt()
+    return
   }
+  selectedSceneId.value = scenario.id
+  selectedStyle.value = ''
+  if (sizeOptions.value.some((item) => item.value === scenario.recommended_ratio)) {
+    size.value = scenario.recommended_ratio
+  }
+  await focusPrompt()
+  if (!scenario.prompt_template) {
+    prompt.value = ''
+    return
+  }
+  prompt.value = ''
+  await new Promise((resolve) => window.setTimeout(resolve, 150))
+  typePrompt(scenario.prompt_template)
+}
+
+function typePrompt(value: string) {
+  let index = 0
+  clearTypewriter()
+  typewriterTimer.value = window.setInterval(() => {
+    prompt.value = value.slice(0, index + 1)
+    index += 1
+    if (index >= value.length) {
+      clearTypewriter()
+    }
+  }, 40)
+}
+
+function clearTypewriter() {
+  if (typewriterTimer.value !== null) {
+    window.clearInterval(typewriterTimer.value)
+    typewriterTimer.value = null
+  }
+}
+
+async function focusPrompt() {
+  await nextTick()
+  promptInput.value?.focus()
+}
+
+function applyRoutePrefill() {
+  const queryPrompt = typeof route.query.prompt === 'string' ? route.query.prompt : ''
+  const queryRatio = typeof route.query.ratio === 'string' ? route.query.ratio : ''
+  if (!queryPrompt && !queryRatio) {
+    return
+  }
+  if (queryPrompt) {
+    prompt.value = queryPrompt
+  }
+  if (queryRatio) {
+    size.value = queryRatio
+  }
+  selectedSceneId.value = null
+  router.replace({ name: 'home' })
+  toast.info('已回填历史参数，确认后点击生成')
 }
 
 function buildPrompt() {
@@ -925,6 +999,7 @@ function resetCaptcha() {
             <label for="prompt" class="mb-2 block text-gray-900">{{ generationMode === 'edit' ? '编辑描述' : '提示词' }}</label>
             <textarea
               id="prompt"
+              ref="promptInput"
               v-model="prompt"
               class="home-input h-32 w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-transparent focus:ring-2 focus:ring-violet-500"
               :placeholder="generationMode === 'edit' ? '描述你想要怎样修改这张图片，例如：把背景换成星空，保留人物姿势...' : '描述你想要生成的图片，例如：一只在星空下的猫咪，水彩画风格...'"
@@ -934,21 +1009,19 @@ function resetCaptcha() {
           <section v-if="generationMode === 'generate'" class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
             <div class="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h3 class="text-sm font-semibold text-gray-900">不知道怎么写？先选一个用途</h3>
-                <p class="mt-1 text-xs text-gray-500">会自动带入提示词、推荐比例和风格，你还可以继续修改。</p>
+                <h3 class="text-sm font-semibold text-gray-900">场景入口</h3>
+                <p class="mt-1 text-xs text-gray-500">点击后自动填充提示词、切换推荐比例并同步积分预估。</p>
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-2">
-              <button
+            <div class="scene-scroll grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <SceneCard
                 v-for="scenario in scenarioPrompts"
                 :key="scenario.id"
-                class="home-button min-h-12 rounded-xl border border-white bg-white px-3 py-2 text-left text-sm text-gray-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
-                type="button"
+                :scene="scenario"
+                :selected="selectedSceneId === scenario.id"
+                :ratio-label="formatSizeOption(sizeOptions.find((item) => item.value === scenario.recommended_ratio), scenario.recommended_ratio)"
                 @click="useScenario(scenario)"
-              >
-                <span class="block font-medium">{{ scenario.title }}</span>
-                <span class="mt-0.5 block text-xs text-gray-400">{{ formatSizeOption(sizeOptions.find((item) => item.value === scenario.size), scenario.size) }}</span>
-              </button>
+              />
             </div>
           </section>
 
@@ -1131,5 +1204,14 @@ function resetCaptcha() {
 
 .panel-toggle-nudge {
   animation: nudge-expand 1.5s ease-in-out 2;
+}
+
+@media (max-width: 767px) {
+  .scene-scroll {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 0.25rem;
+  }
 }
 </style>

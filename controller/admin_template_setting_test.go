@@ -28,11 +28,14 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 	}
 
 	update := adminJSON(engine, http.MethodPut, "/api/admin/prompt-templates/"+jsonNumber(template.ID), map[string]interface{}{
-		"category":   "repair",
-		"label":      "Repair",
-		"prompt":     "repair details",
-		"sort_order": 2,
-		"status":     2,
+		"category":          "scene",
+		"label":             "自由创作",
+		"prompt":            "",
+		"icon":              "✨",
+		"recommended_ratio": "square",
+		"description":       "不填充提示词",
+		"sort_order":        2,
+		"status":            2,
 	}, token)
 	if update.Code != http.StatusOK {
 		t.Fatalf("update template=%d body=%s", update.Code, update.Body.String())
@@ -40,6 +43,15 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 	list := adminRequest(engine, http.MethodGet, "/api/admin/prompt-templates", token)
 	if list.Code != http.StatusOK {
 		t.Fatalf("list template=%d body=%s", list.Code, list.Body.String())
+	}
+	var listResp struct {
+		Items []model.PromptTemplate `json:"items"`
+	}
+	if err := json.Unmarshal(list.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("decode templates: %v", err)
+	}
+	if len(listResp.Items) != 1 || listResp.Items[0].Category != "scene" || listResp.Items[0].Prompt != "" || listResp.Items[0].RecommendedRatio != "square" {
+		t.Fatalf("unexpected updated scene template: %#v", listResp.Items)
 	}
 	del := adminRequest(engine, http.MethodDelete, "/api/admin/prompt-templates/"+jsonNumber(template.ID), token)
 	if del.Code != http.StatusOK {

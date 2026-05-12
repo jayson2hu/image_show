@@ -237,10 +237,10 @@ feat(auth): redesign login page with WeChat-first layout
 
 | ID | 内容 | 工作量 | 状态 |
 |----|------|--------|------|
-| S-1 | `model/models.go` — PromptTemplate 新增 `Category string`（"style"/"scene"）；`controller/generation.go` — `GET /api/generation/scenes` 返回 category=scene 模板列表（含 name/icon/prompt_template/recommended_ratio/description） | 中 | 待开发 |
-| S-2 | 新建 `web/src/components/SceneCard.vue` — props: scene数据、selected状态；渲染图标+标题+描述+比例badge+积分；hover/selected/click 状态；emit: select 事件 | 中 | 待开发 |
-| S-3 | `web/src/views/Home.vue` — 提示词输入框下方插入场景网格；点击打字机填充+切换比例+更新积分；再次点击取消；响应式布局；onMounted 调用 `/api/generation/scenes` | 中 | 待开发 |
-| S-4 | `web/src/components/admin/TemplatesTab.vue` — 模板 Tab 支持 category 筛选（全部/风格/场景）；scene 类型额外显示 icon 和 recommended_ratio；新增/编辑弹窗加 category 选择 | 小 | 待开发 |
+| S-1 | `model/models.go` — PromptTemplate 新增 `Category string`（"style"/"scene"）；`controller/generation.go` — `GET /api/generation/scenes` 返回 category=scene 模板列表（含 name/icon/prompt_template/recommended_ratio/description） | 中 | 已完成 |
+| S-2 | 新建 `web/src/components/SceneCard.vue` — props: scene数据、selected状态；渲染图标+标题+描述+比例badge+积分；hover/selected/click 状态；emit: select 事件 | 中 | 已完成 |
+| S-3 | `web/src/views/Home.vue` — 提示词输入框下方插入场景网格；点击打字机填充+切换比例+更新积分；再次点击取消；响应式布局；onMounted 调用 `/api/generation/scenes` | 中 | 已完成 |
+| S-4 | `web/src/components/admin/TemplatesTab.vue` — 模板 Tab 支持 category 筛选（全部/风格/场景）；scene 类型额外显示 icon 和 recommended_ratio；新增/编辑弹窗加 category 选择 | 小 | 已完成 |
 
 ### 自测标准
 
@@ -259,12 +259,12 @@ cd web && pnpm exec vue-tsc --noEmit && pnpm build
 
 ### 验收标准
 
-- [ ] 首页展示场景卡片网格，交互动效流畅
-- [ ] 点击填充提示词（打字机效果）+ 切换比例 + 积分联动
-- [ ] "自由创作"不填充提示词
-- [ ] 选中态、hover 态、点击反馈完整
-- [ ] 响应式：桌面 3 列 / 平板 2 列 / 手机横滑
-- [ ] 后台可管理场景模板
+- [x] 首页展示场景卡片网格，交互动效流畅
+- [x] 点击填充提示词（打字机效果）+ 切换比例 + 积分联动
+- [x] "自由创作"不填充提示词
+- [x] 选中态、hover 态、点击反馈完整
+- [x] 响应式：桌面 3 列 / 平板 2 列 / 手机横滑
+- [x] 后台可管理场景模板
 
 ### 提交信息
 
@@ -287,9 +287,9 @@ feat(home): add scene entry cards with typewriter prompt fill
 
 | ID | 内容 | 工作量 | 状态 |
 |----|------|--------|------|
-| R-1 | `web/src/views/History.vue` — 每张卡片 hover 显示悬浮操作栏，含"再次生成"按钮（紫色渐变小按钮） | 小 | 待开发 |
-| R-2 | 点击 → `router.push({ name: 'home', query: { prompt, ratio } })`（quality/format 已固定，无需传） | 小 | 待开发 |
-| R-3 | `Home.vue` — onMounted 检查 `route.query` → 回填 prompt + ratio → 清除 URL query（replace 模式）→ Toast "已回填历史参数，确认后点击生成" → **不自动触发生成** | 小 | 待开发 |
+| R-1 | `web/src/views/History.vue` — 每张卡片 hover 显示悬浮操作栏，含"再次生成"按钮（紫色渐变小按钮） | 小 | 已完成 |
+| R-2 | 点击 → `router.push({ name: 'home', query: { prompt, ratio } })`（quality/format 已固定，无需传） | 小 | 已完成 |
+| R-3 | `Home.vue` — onMounted 检查 `route.query` → 回填 prompt + ratio → 清除 URL query（replace 模式）→ Toast "已回填历史参数，确认后点击生成" → **不自动触发生成** | 小 | 已完成 |
 
 ### 自测标准
 
@@ -304,10 +304,10 @@ cd web && pnpm exec vue-tsc --noEmit && pnpm build
 
 ### 验收标准
 
-- [ ] 历史页每张卡片 hover 有"再次生成"按钮
-- [ ] 跳转首页后提示词和比例已回填
-- [ ] 不自动触发生成
-- [ ] Toast 提示"已回填参数"
+- [x] 历史页每张卡片 hover 有"再次生成"按钮
+- [x] 跳转首页后提示词和比例已回填
+- [x] 不自动触发生成
+- [x] Toast 提示"已回填参数"
 
 ### 提交信息
 

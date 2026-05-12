@@ -52,8 +52,6 @@ const sizeOptions = [
   { value: '1152x1536', label: '竖版 3:4' },
 ]
 
-const generationDraftKey = 'image_show_generation_draft'
-
 async function load(reset = false) {
   if (loading.value) {
     return
@@ -154,16 +152,18 @@ async function copyPrompt(item: Generation) {
 }
 
 async function reuseGeneration(item: Generation) {
-  localStorage.setItem(
-    generationDraftKey,
-    JSON.stringify({
-      prompt: item.prompt || '',
-      selectedStyle: '',
-      size: item.size || 'square',
-      generationMode: 'generate',
-    }),
-  )
-  await router.push('/')
+  await router.push({ name: 'home', query: { prompt: item.prompt || '', ratio: ratioValueForSize(item.size) } })
+}
+
+function ratioValueForSize(value: string) {
+  const map: Record<string, string> = {
+    '1024x1024': 'square',
+    '1152x1536': 'portrait_3_4',
+    '1008x1792': 'story',
+    '1536x1152': 'landscape_4_3',
+    '1792x1008': 'widescreen',
+  }
+  return map[value] || value || 'square'
 }
 
 function fmtTime(value: string) {
@@ -252,10 +252,17 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <article v-for="item in items" :key="item.id" class="overflow-hidden rounded border border-slate-200 bg-white">
-        <button class="block aspect-square w-full bg-slate-100" type="button" @click="openDetail(item)">
+      <article v-for="item in items" :key="item.id" class="group overflow-hidden rounded border border-slate-200 bg-white">
+        <div class="relative aspect-square w-full bg-slate-100">
+        <button class="block size-full" type="button" @click="openDetail(item)">
           <img v-if="imageSrc(item)" :src="imageSrc(item)" class="h-full w-full object-cover" alt="生成图片" loading="lazy" decoding="async" />
         </button>
+          <div class="pointer-events-none absolute inset-x-3 bottom-3 flex translate-y-2 justify-end opacity-0 transition duration-200 group-hover:translate-y-0 group-hover:opacity-100">
+            <button class="pointer-events-auto rounded-full bg-gradient-to-r from-violet-600 to-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-violet-900/20" type="button" @click="reuseGeneration(item)">
+              再次生成
+            </button>
+          </div>
+        </div>
         <div class="space-y-2 p-3 text-sm">
           <div class="flex items-center justify-between text-slate-600">
             <span>#{{ item.id }} · {{ statusText(item.status) }}</span>
@@ -266,7 +273,6 @@ onBeforeUnmount(() => {
           <div class="flex gap-2">
             <button class="rounded border border-slate-300 px-2 py-1" type="button" @click="openDetail(item)">查看</button>
             <button class="rounded border border-slate-300 px-2 py-1" type="button" @click="copyPrompt(item)">复制提示词</button>
-            <button class="rounded border border-teal/30 px-2 py-1 text-teal" type="button" @click="reuseGeneration(item)">再次生成</button>
             <button class="rounded border border-slate-300 px-2 py-1" type="button" @click="download(imageSrc(item), item.id)">下载</button>
             <button class="rounded border border-red-200 px-2 py-1 text-red-600" type="button" @click="deleteItem(item)">删除</button>
           </div>

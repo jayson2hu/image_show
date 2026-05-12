@@ -5,7 +5,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jayson2hu/image-show/model"
+	"github.com/jayson2hu/image-show/service"
 )
+
+type sceneTemplateResponse struct {
+	ID               int64   `json:"id"`
+	Name             string  `json:"name"`
+	Icon             string  `json:"icon"`
+	Description      string  `json:"description"`
+	PromptTemplate   string  `json:"prompt_template"`
+	RecommendedRatio string  `json:"recommended_ratio"`
+	CreditCost       float64 `json:"credit_cost"`
+}
 
 func PromptTemplates(c *gin.Context) {
 	var templates []model.PromptTemplate
@@ -16,6 +27,37 @@ func PromptTemplates(c *gin.Context) {
 		templates = defaultPromptTemplates()
 	}
 	c.JSON(http.StatusOK, gin.H{"items": templates})
+}
+
+func GenerationScenes(c *gin.Context) {
+	var templates []model.PromptTemplate
+	if model.DB != nil {
+		_ = model.DB.Where("status = ? AND category = ?", 1, "scene").Order("sort_order ASC, id ASC").Find(&templates).Error
+	}
+	if len(templates) == 0 {
+		for _, item := range defaultPromptTemplates() {
+			if item.Category == "scene" {
+				templates = append(templates, item)
+			}
+		}
+	}
+	items := make([]sceneTemplateResponse, 0, len(templates))
+	for _, template := range templates {
+		ratio := template.RecommendedRatio
+		if ratio == "" {
+			ratio = "square"
+		}
+		items = append(items, sceneTemplateResponse{
+			ID:               template.ID,
+			Name:             template.Label,
+			Icon:             template.Icon,
+			Description:      template.Description,
+			PromptTemplate:   template.Prompt,
+			RecommendedRatio: ratio,
+			CreditCost:       service.CostForSize(ratio),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
 func defaultPromptTemplates() []model.PromptTemplate {
@@ -30,10 +72,11 @@ func defaultPromptTemplates() []model.PromptTemplate {
 		{Category: "sample", Label: "赛博朋克城市", Prompt: "未来城市夜景，湿润街道反射霓虹灯，密集高楼与飞行交通，赛博朋克风格，强烈蓝紫色光影", SortOrder: 21, Status: 1},
 		{Category: "sample", Label: "水彩小屋", Prompt: "森林中的小木屋，清晨薄雾，温暖阳光穿过树叶，柔和水彩画风格，安静治愈氛围", SortOrder: 22, Status: 1},
 		{Category: "sample", Label: "抽象艺术", Prompt: "流动的光影和透明几何结构，紫蓝渐变，细腻颗粒质感，现代抽象艺术海报", SortOrder: 23, Status: 1},
-		{Category: "scenario", Label: "小红书封面", Prompt: "小红书封面图，一眼能看懂主题，清晰大标题留白，明亮干净的构图，适合手机竖屏浏览", SortOrder: 40, Status: 1},
-		{Category: "scenario", Label: "商品展示图", Prompt: "电商商品展示图，主体突出，干净背景，真实材质，高级商业摄影光影，适合商品主图", SortOrder: 41, Status: 1},
-		{Category: "scenario", Label: "头像", Prompt: "精致头像，主体居中，五官清晰，背景简洁，有辨识度，适合作为社交平台头像", SortOrder: 42, Status: 1},
-		{Category: "scenario", Label: "海报", Prompt: "宣传海报视觉，主题突出，层次清晰，保留文字排版空间，适合活动宣传和内容配图", SortOrder: 43, Status: 1},
-		{Category: "scenario", Label: "壁纸", Prompt: "高清壁纸画面，视觉舒适，构图开阔，细节丰富，适合手机或电脑屏幕背景", SortOrder: 44, Status: 1},
+		{Category: "scene", Label: "小红书封面", Icon: "📸", Description: "精致生活、穿搭、美食风格封面", Prompt: "小红书封面图，精致生活方式视觉，一眼能看懂主题，清晰大标题留白，明亮干净的构图，适合手机竖屏浏览", RecommendedRatio: "portrait_3_4", SortOrder: 40, Status: 1},
+		{Category: "scene", Label: "商品展示图", Icon: "🛒", Description: "白底或场景化商品展示", Prompt: "电商商品展示图，主体突出，干净背景，真实材质，高级商业摄影光影，适合商品主图", RecommendedRatio: "square", SortOrder: 41, Status: 1},
+		{Category: "scene", Label: "社交头像", Icon: "👤", Description: "精致人物或动漫风格头像", Prompt: "精致社交头像，主体居中，五官清晰，背景简洁，有辨识度，适合作为社交平台头像", RecommendedRatio: "square", SortOrder: 42, Status: 1},
+		{Category: "scene", Label: "海报设计", Icon: "🎨", Description: "活动、促销、艺术创意海报", Prompt: "活动宣传海报视觉，主题突出，层次清晰，保留文字排版空间，适合促销活动和创意传播", RecommendedRatio: "portrait_3_4", SortOrder: 43, Status: 1},
+		{Category: "scene", Label: "手机壁纸", Icon: "📷", Description: "风景、抽象、治愈系壁纸", Prompt: "高清手机壁纸画面，风景治愈氛围，视觉舒适，构图开阔，细节丰富，适合手机屏幕背景", RecommendedRatio: "story", SortOrder: 44, Status: 1},
+		{Category: "scene", Label: "自由创作", Icon: "✨", Description: "不填充提示词，自由输入", Prompt: "", RecommendedRatio: "square", SortOrder: 45, Status: 1},
 	}
 }

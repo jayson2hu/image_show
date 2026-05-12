@@ -1,5 +1,25 @@
 # 开发进度记录
 
+## 2026-05-13 P2-A/P2-B 场景入口与历史再次生成
+
+- 开发目标：
+  - 完成 `docs/tasks-acceptance.md` 中剩余 P2-A S-1 ~ S-4 和 P2-B R-1 ~ R-3。
+- 完成：
+  - `PromptTemplate` 增加场景元数据字段：`icon`、`recommended_ratio`、`description`，并保留 `category=scene` 作为场景模板分类。
+  - 新增 `GET /api/generation/scenes`，默认返回 6 个场景卡片，包含图标、描述、提示词模板、推荐比例和积分。
+  - 新增 `SceneCard.vue`，支持 hover、选中、点击反馈、比例 badge 和积分显示。
+  - 首页接入场景网格，桌面 3 列、平板 2 列、手机横向 snap；点击场景会聚焦输入框、切换比例并打字机填充提示词。
+  - “自由创作”场景只切换 1:1 并聚焦输入框，不填充提示词；再次点击已选场景会取消选择并恢复 1:1。
+  - 后台模板管理支持场景分类，scene 类型可编辑图标、推荐比例和描述。
+  - 历史页图片卡片 hover 显示“再次生成”悬浮按钮，跳转首页时通过 query 回填提示词和比例，不自动触发生成。
+- 自测记录：
+  - `go test ./controller -run "TestPromptTemplates|TestGenerationScenes|TestAdminPromptTemplateCRUDAndSettings" -v`：通过。
+  - `go test ./...`：通过。
+  - `cd web && pnpm exec vue-tsc --noEmit`：通过。
+  - `cd web && pnpm build`：通过。
+- 验收结论：
+  - P2-A/P2-B 自动验收通过，剩余任务已完成，可以提交并推送。
+
 ## 2026-05-12 P1-B 登录注册重设计
 
 - 开发目标：
