@@ -1,5 +1,20 @@
 # 开发进度记录
 
+## 2026-05-13 个人中心与后台站点账户运维文档状态复验
+
+- 复验目标：
+  - 处理 `docs/plan-admin-site-account-ops.md` 文件头仍为“待开发”的状态滞后。
+  - 复核 `docs/plan-user-account-center.md` 与 `docs/dev-plan-user-account-center.md` 对应的个人中心功能是否已落地。
+- 复验结论：
+  - 后台站点配置与个人中心体验优化计划 A-E 进度表均为已完成，已将文件头状态同步为“已完成（2026-05-13 复验通过）”。
+  - 个人中心相关接口、页面、头像上传和测试已存在并通过复验，已将产品方案与开发方案状态同步为“已完成（2026-05-13 复验通过）”。
+  - `docs/pending-tasks-review.html` 是旧待办评审快照，未作为当前主进度依据，本次未修改。
+- 验收命令：
+  - `go test ./controller -run "TestAccount" -v`
+  - `go test ./...`
+  - `cd web && pnpm exec vue-tsc --noEmit`
+  - `cd web && pnpm build`
+
 ## 2026-05-13 P2-A/P2-B 场景入口与历史再次生成
 
 - 开发目标：

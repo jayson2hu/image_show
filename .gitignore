@@ -2,10 +2,12 @@ data/
 image-show
 image-show.exe
 image-show-dev.exe
+image-show-current.exe
 *.log
 *~
 .env
 .claude/
+tmp/
 web/node_modules/
 web/.pnpm-store/
 web/dist/*
