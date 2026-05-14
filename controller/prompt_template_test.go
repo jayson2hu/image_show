@@ -16,17 +16,25 @@ func TestPromptTemplatesDefaultIncludesHomeCategories(t *testing.T) {
 	var response struct {
 		Items []struct {
 			Category string `json:"category"`
+			Label    string `json:"label"`
 		} `json:"items"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode prompt templates: %v", err)
 	}
 	seen := map[string]bool{}
+	seenStyle := map[string]bool{}
 	for _, item := range response.Items {
 		seen[item.Category] = true
+		if item.Category == "style" {
+			seenStyle[item.Label] = true
+		}
 	}
 	if !seen["style"] || !seen["sample"] || !seen["scene"] {
 		t.Fatalf("expected default style, sample and scene templates, got %#v", seen)
+	}
+	if !seenStyle["插画"] {
+		t.Fatalf("expected default illustration style, got %#v", seenStyle)
 	}
 }
 

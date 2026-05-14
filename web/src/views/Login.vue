@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import api from '@/api'
+import { fetchSiteConfig } from '@/api/site'
 import { useUserStore } from '@/stores/user'
 
 type EmailTab = 'login' | 'register'
@@ -26,6 +27,7 @@ const registerPassword = ref('')
 const registerCode = ref('')
 const emailLoading = ref(false)
 const codeSending = ref(false)
+const registerEnabled = ref(true)
 const error = ref('')
 const info = ref('')
 
@@ -33,8 +35,21 @@ const wechatUnavailable = computed(() => wechatLoaded.value && !wechatEnabled.va
 const emailPanelMaxHeight = computed(() => (emailExpanded.value ? '520px' : '0px'))
 
 onMounted(() => {
+  loadSiteConfig()
   loadWechatLogin()
 })
+
+async function loadSiteConfig() {
+  try {
+    const response = await fetchSiteConfig()
+    registerEnabled.value = response.data.register_enabled !== false
+    if (!registerEnabled.value && emailTab.value === 'register') {
+      emailTab.value = 'login'
+    }
+  } catch {
+    registerEnabled.value = true
+  }
+}
 
 async function loadWechatLogin() {
   error.value = ''
@@ -59,7 +74,7 @@ async function loadWechatLogin() {
 }
 
 function fallbackToEmail() {
-  fallbackNotice.value = '微信登录暂不可用，请使用邮箱登录或注册。'
+  fallbackNotice.value = registerEnabled.value ? '微信登录暂不可用，请使用邮箱登录或注册。' : '微信登录暂不可用，请使用邮箱登录。'
   emailExpanded.value = true
 }
 
@@ -99,6 +114,10 @@ async function submitEmailLogin() {
 async function sendRegisterCode() {
   error.value = ''
   info.value = ''
+  if (!registerEnabled.value) {
+    error.value = '当前暂未开放注册，请联系管理员。'
+    return
+  }
   if (!registerEmail.value.trim()) {
     error.value = '请先输入注册邮箱'
     return
@@ -117,6 +136,10 @@ async function sendRegisterCode() {
 async function submitEmailRegister() {
   error.value = ''
   info.value = ''
+  if (!registerEnabled.value) {
+    error.value = '当前暂未开放注册，请联系管理员。'
+    return
+  }
   emailLoading.value = true
   try {
     await userStore.register(registerEmail.value.trim(), registerPassword.value, registerCode.value.trim())
@@ -134,6 +157,11 @@ function toggleEmailPanel() {
 }
 
 function switchEmailTab(tab: EmailTab) {
+  if (tab === 'register' && !registerEnabled.value) {
+    error.value = '当前暂未开放注册，请联系管理员。'
+    info.value = ''
+    return
+  }
   emailTab.value = tab
   emailExpanded.value = true
   error.value = ''
@@ -210,8 +238,11 @@ function switchEmailTab(tab: EmailTab) {
                 <button class="rounded-lg px-3 py-2 text-sm font-semibold transition" :class="emailTab === 'login' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:text-violet-700'" type="button" @click="switchEmailTab('login')">
                   邮箱登录
                 </button>
-                <button class="rounded-lg px-3 py-2 text-sm font-semibold transition" :class="emailTab === 'register' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:text-violet-700'" type="button" @click="switchEmailTab('register')">
+                <button v-if="registerEnabled" class="rounded-lg px-3 py-2 text-sm font-semibold transition" :class="emailTab === 'register' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:text-violet-700'" type="button" @click="switchEmailTab('register')">
                   邮箱注册
+                </button>
+                <button v-else class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-400" type="button" disabled>
+                  注册已关闭
                 </button>
               </div>
 

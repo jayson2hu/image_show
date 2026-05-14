@@ -50,7 +50,14 @@ func TestAdminPromptTemplateCRUDAndSettings(t *testing.T) {
 	if err := json.Unmarshal(list.Body.Bytes(), &listResp); err != nil {
 		t.Fatalf("decode templates: %v", err)
 	}
-	if len(listResp.Items) != 1 || listResp.Items[0].Category != "scene" || listResp.Items[0].Prompt != "" || listResp.Items[0].RecommendedRatio != "square" {
+	var updated *model.PromptTemplate
+	for i := range listResp.Items {
+		if listResp.Items[i].ID == template.ID {
+			updated = &listResp.Items[i]
+			break
+		}
+	}
+	if updated == nil || updated.Category != "scene" || updated.Prompt != "" || updated.RecommendedRatio != "square" {
 		t.Fatalf("unexpected updated scene template: %#v", listResp.Items)
 	}
 	del := adminRequest(engine, http.MethodDelete, "/api/admin/prompt-templates/"+jsonNumber(template.ID), token)

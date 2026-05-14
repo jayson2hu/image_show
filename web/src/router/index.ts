@@ -32,9 +32,6 @@ router.beforeEach(async (to) => {
     if (isAdmin) {
       return { name: 'admin' }
     }
-    if (userStore.user && !isAdmin) {
-      return { name: 'home' }
-    }
   }
   if ((to.name === 'credits' || to.name === 'account') && !userStore.token) {
     return { name: 'login' }

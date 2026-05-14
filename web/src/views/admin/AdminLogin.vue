@@ -15,15 +15,15 @@ async function submitAdminLogin() {
   error.value = ''
   loading.value = true
   try {
-    await userStore.login(email.value, password.value)
+    await userStore.login(email.value.trim(), password.value)
     if ((userStore.user?.role || 0) < 10) {
       userStore.logout()
-      error.value = '当前账号不是管理员，请使用用户登录入口'
+      error.value = '当前账号不是管理员，请使用管理员账号登录。'
       return
     }
     await router.push('/console/admin')
   } catch {
-    error.value = '管理员账号或密码不正确'
+    error.value = '管理员邮箱或密码不正确。'
   } finally {
     loading.value = false
   }

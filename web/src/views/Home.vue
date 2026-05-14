@@ -135,6 +135,7 @@ const defaultStylePresets: StylePreset[] = [
   { id: 'style-cyberpunk', name: '赛博朋克', prompt: '赛博朋克风格，霓虹灯光，未来城市质感，高对比光影，雨夜氛围' },
   { id: 'style-watercolor', name: '水彩', prompt: '水彩画风格，柔和笔触，温暖色调，纸张纹理，轻盈通透' },
   { id: 'style-abstract', name: '抽象', prompt: '抽象艺术风格，流动光影，紫蓝渐变，几何节奏，现代视觉表达' },
+  { id: 'style-illustration', name: '插画', prompt: '现代商业插画风格，清晰轮廓，柔和配色，细腻纹理，画面干净有层次，适合封面、海报和内容配图' },
 ]
 const defaultSamplePrompts: SamplePrompt[] = [
   { id: 'sample-fantasy', title: '幻想风景', prompt: '沙漠中的神秘传送门，远处有漂浮的古代遗迹，超现实主义场景，金色夕阳，电影级构图，4K 高清细节' },

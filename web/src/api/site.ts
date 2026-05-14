@@ -6,6 +6,7 @@ export interface SiteConfig {
   seo_title: string
   seo_keywords: string
   seo_description: string
+  register_enabled?: boolean
   credit_costs?: CreditCosts
 }
 

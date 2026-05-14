@@ -149,14 +149,16 @@ func TestRegisterDisabled(t *testing.T) {
 	if err := model.DB.Create(&model.Setting{Key: "register_enabled", Value: "false"}).Error; err != nil {
 		t.Fatalf("create setting: %v", err)
 	}
-	if err := service.SendVerificationCode(email); err != nil {
-		t.Fatalf("send code: %v", err)
+
+	sendCode := postJSON(engine, "/api/auth/send-code", map[string]string{"email": email})
+	if sendCode.Code != http.StatusForbidden {
+		t.Fatalf("expected send-code 403 when registration disabled, got %d body=%s", sendCode.Code, sendCode.Body.String())
 	}
 
 	rec := postJSON(engine, "/api/auth/register", map[string]string{
 		"email":    email,
 		"password": "password123",
-		"code":     service.PeekVerificationCode(email),
+		"code":     "123456",
 	})
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d body=%s", rec.Code, rec.Body.String())

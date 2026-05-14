@@ -68,6 +68,7 @@ func defaultPromptTemplates() []model.PromptTemplate {
 		{Category: "style", Label: "赛博朋克", Prompt: "赛博朋克风格，霓虹灯光，未来城市质感，高对比光影，雨夜氛围", SortOrder: 4, Status: 1},
 		{Category: "style", Label: "水彩", Prompt: "水彩画风格，柔和笔触，温暖色调，纸张纹理，轻盈通透", SortOrder: 5, Status: 1},
 		{Category: "style", Label: "抽象", Prompt: "抽象艺术风格，流动光影，紫蓝渐变，几何节奏，现代视觉表达", SortOrder: 6, Status: 1},
+		{Category: "style", Label: "插画", Prompt: "现代商业插画风格，清晰轮廓，柔和配色，细腻纹理，画面干净有层次，适合封面、海报和内容配图", SortOrder: 7, Status: 1},
 		{Category: "sample", Label: "幻想风景", Prompt: "沙漠中的神秘传送门，远处有漂浮的古代遗迹，超现实主义场景，金色夕阳，电影级构图，4K 高清细节", SortOrder: 20, Status: 1},
 		{Category: "sample", Label: "赛博朋克城市", Prompt: "未来城市夜景，湿润街道反射霓虹灯，密集高楼与飞行交通，赛博朋克风格，强烈蓝紫色光影", SortOrder: 21, Status: 1},
 		{Category: "sample", Label: "水彩小屋", Prompt: "森林中的小木屋，清晨薄雾，温暖阳光穿过树叶，柔和水彩画风格，安静治愈氛围", SortOrder: 22, Status: 1},

@@ -48,4 +48,9 @@ func TestInitDBSQLiteMigratesTables(t *testing.T) {
 			t.Fatalf("missing table for %T", model)
 		}
 	}
+
+	var illustration PromptTemplate
+	if err := DB.Where("category = ? AND label = ?", "style", "插画").First(&illustration).Error; err != nil {
+		t.Fatalf("default illustration prompt template not seeded: %v", err)
+	}
 }

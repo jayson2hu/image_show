@@ -32,6 +32,10 @@ func SendCode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
+	if !model.RegisterEnabled() {
+		c.JSON(http.StatusForbidden, gin.H{"error": "当前暂未开放注册，请联系管理员。"})
+		return
+	}
 	if err := service.SendVerificationCode(req.Email); err != nil {
 		if errors.Is(err, service.ErrVerificationTooFrequent) {
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "please wait before requesting another code"})
