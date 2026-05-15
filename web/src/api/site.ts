@@ -8,6 +8,8 @@ export interface SiteConfig {
   seo_description: string
   register_enabled?: boolean
   credit_costs?: CreditCosts
+  greeting_text?: string
+  guest_free_credits?: number
 }
 
 export interface CreditCosts {
