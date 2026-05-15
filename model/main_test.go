@@ -36,6 +36,7 @@ func TestInitDBSQLiteMigratesTables(t *testing.T) {
 	models := []interface{}{
 		&User{},
 		&Generation{},
+		&Conversation{},
 		&CreditLog{},
 		&LoginLog{},
 		&Channel{},

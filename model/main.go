@@ -37,6 +37,7 @@ func InitDB() error {
 	if err := db.AutoMigrate(
 		&User{},
 		&Generation{},
+		&Conversation{},
 		&CreditLog{},
 		&LoginLog{},
 		&Channel{},
