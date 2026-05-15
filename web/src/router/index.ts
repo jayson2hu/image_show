@@ -6,7 +6,9 @@ import Home from '@/views/Home.vue'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'home', component: Home },
+    { path: '/', name: 'chat', component: () => import('@/views/Chat.vue') },
+    { path: '/chat', redirect: '/' },
+    { path: '/classic', name: 'classic', component: Home },
     { path: '/login', name: 'login', component: () => import('@/views/Login.vue') },
     { path: '/register', name: 'register', redirect: '/login' },
     { path: '/console/admin/login', name: 'admin-login', component: () => import('@/views/admin/AdminLogin.vue') },
