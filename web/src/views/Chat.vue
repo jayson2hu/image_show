@@ -27,7 +27,7 @@ onMounted(() => {
 <template>
   <div class="flex h-screen w-screen overflow-hidden bg-mist">
     <SessionList />
-    <main class="flex min-w-0 flex-1 flex-col">
+    <main class="flex min-w-0 flex-1 flex-col transition-all duration-200">
       <ChatHeader />
       <ChatEmptyState v-if="isEmpty" class="flex-1" />
       <template v-else>

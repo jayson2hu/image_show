@@ -12,10 +12,11 @@ const userStore = useUserStore()
 const router = useRouter()
 const route = useRoute()
 const isHome = computed(() => route.name === 'home' || route.path === '/')
+const isClassic = computed(() => route.name === 'classic')
 const isAdmin = computed(() => (userStore.user?.role || 0) >= 10)
 const isAdminArea = computed(() => route.path.startsWith('/console/admin'))
 const isAdminConsole = computed(() => route.name === 'admin')
-const isFullBleed = computed(() => isHome.value || isAdminConsole.value)
+const isFullBleed = computed(() => isHome.value || isClassic.value || isAdminConsole.value)
 const roleLabel = computed(() => (isAdmin.value ? '管理员' : userStore.user ? '普通用户' : '未登录'))
 const siteConfig = ref<SiteConfig>({
   site_title: '来看看巴',

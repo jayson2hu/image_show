@@ -789,7 +789,16 @@ function resetCaptcha() {
 </script>
 
 <template>
-  <section class="home-shell h-auto min-h-[calc(100vh-65px)] overflow-hidden bg-gray-50 text-gray-950 transition-colors dark:bg-slate-950 dark:text-slate-100 lg:h-[calc(100vh-65px)]">
+  <section class="home-shell h-auto min-h-[calc(100vh-65px)] w-full overflow-hidden bg-gray-50 text-gray-950 transition-colors dark:bg-slate-950 dark:text-slate-100 lg:h-[calc(100vh-65px)]">
+    <RouterLink
+      class="fixed right-4 top-20 z-40 inline-flex items-center gap-1.5 rounded-lg border border-teal/30 bg-teal/5 px-3 py-1.5 text-sm font-medium text-teal shadow-sm transition hover:bg-teal/10 sm:right-6"
+      to="/"
+    >
+      <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m13 3-8 10h6l-1 8 8-10h-6l1-8Z" />
+      </svg>
+      <span>切换新版</span>
+    </RouterLink>
     <div class="flex h-full min-h-[calc(100vh-65px)] flex-col lg:flex-row">
       <main class="home-main min-h-[560px] flex-1 overflow-y-auto bg-gray-50 p-5 transition-colors dark:bg-slate-950 sm:p-8 lg:h-[calc(100vh-65px)]">
         <div v-if="generationId" class="-m-5 flex h-[calc(100vh-65px)] min-h-[560px] flex-col sm:-m-8">
