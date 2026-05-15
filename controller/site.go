@@ -2,6 +2,8 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jayson2hu/image-show/model"
@@ -17,7 +19,16 @@ func SiteConfig(c *gin.Context) {
 		"seo_description":    model.GetSettingValue("seo_description", adminSettingDefaults["seo_description"]),
 		"register_enabled":   model.RegisterEnabled(),
 		"credit_costs":       service.CreditCostsByRatio(),
-		"greeting_text":      model.GetSettingValue("greeting_text", ""),
-		"guest_free_credits": 5,
+		"greeting_text":      model.GetSettingValue("greeting_text", adminSettingDefaults["greeting_text"]),
+		"guest_free_credits": guestFreeCredits(),
 	})
+}
+
+func guestFreeCredits() int {
+	value := strings.TrimSpace(model.GetSettingValue("guest_free_credits", adminSettingDefaults["guest_free_credits"]))
+	credits, err := strconv.Atoi(value)
+	if err != nil || credits < 0 {
+		return 5
+	}
+	return credits
 }

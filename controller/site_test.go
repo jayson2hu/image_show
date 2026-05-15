@@ -25,6 +25,12 @@ func TestSiteConfigReturnsPublicSettings(t *testing.T) {
 	if err := model.DB.Create(&model.Setting{Key: "register_enabled", Value: "false"}).Error; err != nil {
 		t.Fatalf("create register setting: %v", err)
 	}
+	if err := model.DB.Create(&model.Setting{Key: "greeting_text", Value: "欢迎使用AI创作"}).Error; err != nil {
+		t.Fatalf("create greeting setting: %v", err)
+	}
+	if err := model.DB.Create(&model.Setting{Key: "guest_free_credits", Value: "7"}).Error; err != nil {
+		t.Fatalf("create guest credits setting: %v", err)
+	}
 
 	rec := adminRequest(engine, http.MethodGet, "/api/site/config", "")
 	if rec.Code != http.StatusOK {
@@ -36,6 +42,8 @@ func TestSiteConfigReturnsPublicSettings(t *testing.T) {
 		Secret          string             `json:"wechat_server_token"`
 		RegisterEnabled bool               `json:"register_enabled"`
 		CreditCosts     map[string]float64 `json:"credit_costs"`
+		GreetingText    string             `json:"greeting_text"`
+		GuestCredits    int                `json:"guest_free_credits"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode site config: %v", err)
@@ -51,5 +59,8 @@ func TestSiteConfigReturnsPublicSettings(t *testing.T) {
 	}
 	if resp.CreditCosts["square"] != 3 || resp.CreditCosts["portrait"] != 2 || resp.CreditCosts["widescreen"] != 2 {
 		t.Fatalf("unexpected credit costs: %#v", resp.CreditCosts)
+	}
+	if resp.GreetingText != "欢迎使用AI创作" || resp.GuestCredits != 7 {
+		t.Fatalf("unexpected chat config: %#v", resp)
 	}
 }
