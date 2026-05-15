@@ -1,0 +1,619 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat UI 优化方案审核稿 v2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        ink: '#17202a',
+        mist: '#eef4f7',
+        coral: '#e56f5a',
+        teal: '#177e89',
+      }
+    }
+  }
+}
+</script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans">
+
+<!-- 顶部导航 -->
+<nav class="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 px-6 py-3">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <h1 class="text-lg font-bold text-ink">Chat UI 优化方案 - 审核稿 v2</h1>
+    <div class="flex gap-3 text-sm flex-wrap">
+      <a href="#p1" class="text-teal hover:underline">1.新建按钮</a>
+      <a href="#p2" class="text-teal hover:underline">2.重命名</a>
+      <a href="#p3" class="text-teal hover:underline">3.分层配置</a>
+      <a href="#p4" class="text-teal hover:underline">4.附图上传</a>
+      <a href="#p5" class="text-teal hover:underline">5.侧边栏</a>
+      <a href="#p6" class="text-teal hover:underline">6.游客积分</a>
+      <a href="#p7" class="text-teal hover:underline">7.回新版</a>
+      <a href="#p8" class="text-teal hover:underline">8.经典版全屏</a>
+    </div>
+  </div>
+</nav>
+
+<main class="max-w-7xl mx-auto pt-20 pb-16 px-6 space-y-16">
+
+<!-- ===== 优化点1: 新建创作按钮 ===== -->
+<section id="p1" class="scroll-mt-20">
+  <div class="mb-4">
+    <span class="inline-block bg-teal/10 text-teal text-xs font-bold px-3 py-1 rounded-full">优化点 1</span>
+    <h2 class="mt-2 text-2xl font-bold text-ink">新建创作按钮 - 类似ChatGPT简洁风格</h2>
+    <p class="mt-1 text-sm text-slate-500">将原来的纯文字按钮改为 + 图标按钮，更简洁直观</p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+    <!-- 旧版 -->
+    <div>
+      <p class="text-xs font-medium text-slate-400 mb-2">BEFORE（当前）</p>
+      <div class="border-2 border-dashed border-slate-200 rounded-2xl bg-white p-4">
+        <div class="w-64 border-r border-slate-200 bg-white/90 p-3">
+          <button class="rounded-lg bg-ink px-3 py-2 text-left text-sm font-semibold text-white w-full">新建创作</button>
+          <div class="mt-4 space-y-1">
+            <div class="w-full rounded-lg px-3 py-2 text-left text-sm bg-mist text-ink">
+              <span class="block truncate font-medium">赛博朋克城市</span>
+              <span class="mt-0.5 block text-xs text-slate-400">3 条消息</span>
+            </div>
+            <div class="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-600">
+              <span class="block truncate font-medium">水彩风景</span>
+              <span class="mt-0.5 block text-xs text-slate-400">1 条消息</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 新版 -->
+    <div>
+      <p class="text-xs font-medium text-teal mb-2">AFTER（优化后）</p>
+      <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-white p-4">
+        <div class="w-64 border-r border-slate-200 bg-white/90 p-3">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-sm font-semibold text-ink">对话列表</span>
+            <button class="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 hover:border-teal hover:bg-teal/5 transition" title="新建创作">
+              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+          <div class="space-y-1">
+            <div class="w-full rounded-lg px-3 py-2 text-left text-sm bg-mist text-ink">
+              <span class="block truncate font-medium">赛博朋克城市</span>
+              <span class="mt-0.5 block text-xs text-slate-400">3 条消息</span>
+            </div>
+            <div class="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-600">
+              <span class="block truncate font-medium">水彩风景</span>
+              <span class="mt-0.5 block text-xs text-slate-400">1 条消息</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ===== 优化点2: 对话重命名 ===== -->
+<section id="p2" class="scroll-mt-20">
+  <div class="mb-4">
+    <span class="inline-block bg-teal/10 text-teal text-xs font-bold px-3 py-1 rounded-full">优化点 2</span>
+    <h2 class="mt-2 text-2xl font-bold text-ink">对话重命名 - 自动命名 + 手动编辑</h2>
+    <p class="mt-1 text-sm text-slate-500">首次发送消息后自动生成简要命名（取prompt前12字）；支持右键菜单重命名和删除</p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+    <!-- 自动命名 -->
+    <div>
+      <p class="text-xs font-medium text-teal mb-2">自动命名（发送首条消息后）</p>
+      <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-white p-4">
+        <div class="w-64 p-3 space-y-1">
+          <div class="w-full rounded-lg px-3 py-2 text-left text-sm bg-mist text-ink relative">
+            <span class="block truncate font-medium">赛博朋克夜景城市</span>
+            <span class="mt-0.5 block text-xs text-slate-400">1 条消息</span>
+            <span class="absolute top-1 right-2 text-[10px] text-teal bg-teal/10 px-1.5 py-0.5 rounded">自动</span>
+          </div>
+          <div class="mt-3 p-2 bg-slate-50 rounded-lg text-xs text-slate-500">
+            <p>规则：取 prompt 前 12 个字作为标题</p>
+            <p class="mt-1">如 "未来城市夜景，湿润街道反射霓虹灯"</p>
+            <p class="mt-1">→ 标题 = "未来城市夜景，湿润街道..."</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 手动重命名 -->
+    <div>
+      <p class="text-xs font-medium text-teal mb-2">手动重命名（右键菜单 / 更多按钮）</p>
+      <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-white p-4">
+        <div class="w-64 p-3 space-y-2">
+          <div class="w-full rounded-lg px-3 py-2 text-left text-sm bg-mist text-ink relative group">
+            <span class="block truncate font-medium">赛博朋克夜景城市</span>
+            <span class="mt-0.5 block text-xs text-slate-400">3 条消息</span>
+            <button class="absolute top-2 right-2 opacity-70 hover:opacity-100">
+              <svg class="w-4 h-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg>
+            </button>
+          </div>
+          <!-- 弹出菜单 -->
+          <div class="ml-8 w-36 bg-white rounded-lg shadow-lg border border-slate-200 py-1 text-sm">
+            <button class="w-full px-3 py-1.5 text-left hover:bg-slate-50 flex items-center gap-2">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              重命名
+            </button>
+            <button class="w-full px-3 py-1.5 text-left hover:bg-slate-50 text-red-500 flex items-center gap-2">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              删除
+            </button>
+          </div>
+          <!-- 编辑状态 -->
+          <div class="mt-3 pt-3 border-t border-dashed border-slate-200">
+            <p class="text-xs text-slate-400 mb-1">编辑状态：</p>
+            <div class="w-full rounded-lg px-3 py-2 text-left text-sm border-2 border-teal bg-white">
+              <input type="text" value="赛博朋克夜景城市" class="w-full text-sm font-medium text-ink outline-none bg-transparent" />
+              <div class="flex gap-1 mt-1">
+                <button class="text-[10px] bg-teal text-white px-2 py-0.5 rounded">确认</button>
+                <button class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">取消</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ===== 优化点3: 海报设计分层配置 ===== -->
+<section id="p3" class="scroll-mt-20">
+  <div class="mb-4">
+    <span class="inline-block bg-teal/10 text-teal text-xs font-bold px-3 py-1 rounded-full">优化点 3</span>
+    <h2 class="mt-2 text-2xl font-bold text-ink">海报设计 - 分层/比例/风格配置优化</h2>
+    <p class="mt-1 text-sm text-slate-500">关闭对话框上方的自动分层提示；底部工具栏的「分层」按钮作为开关，开启后要求模型进行分层生成；风格可选「无」（让模型自行决定）；比例提供选项（后台可配置）；质量隐藏</p>
+  </div>
+
+  <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-white p-6">
+    <p class="text-xs font-medium text-teal mb-3">优化后的 Composer 工具栏</p>
+    <!-- 模拟Composer -->
+    <div class="max-w-3xl mx-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <textarea class="min-h-20 w-full resize-none rounded-xl border-0 bg-transparent px-3 py-2 text-sm leading-6 text-ink outline-none" placeholder="描述你想生成的画面..." readonly>活动宣传海报视觉，主题突出，层次清晰</textarea>
+
+      <div class="flex flex-wrap items-center gap-2 px-2 pb-1 pt-2 border-t border-slate-100">
+        <!-- 风格选择（含"无"选项） -->
+        <div class="relative">
+          <button class="rounded-full bg-mist px-3 py-1.5 text-xs font-medium text-ink flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+            风格：无
+            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <!-- 下拉面板 -->
+          <div class="absolute top-full left-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-10">
+            <button class="w-full px-3 py-1.5 text-left text-xs hover:bg-mist text-teal font-medium">✓ 无（模型决定）</button>
+            <button class="w-full px-3 py-1.5 text-left text-xs hover:bg-mist">写实</button>
+            <button class="w-full px-3 py-1.5 text-left text-xs hover:bg-mist">动漫</button>
+            <button class="w-full px-3 py-1.5 text-left text-xs hover:bg-mist">幻想</button>
+            <button class="w-full px-3 py-1.5 text-left text-xs hover:bg-mist">赛博朋克</button>
+            <button class="w-full px-3 py-1.5 text-left text-xs hover:bg-mist">水彩</button>
+            <button class="w-full px-3 py-1.5 text-left text-xs hover:bg-mist">插画</button>
+            <p class="px-3 py-1 text-[10px] text-slate-400 border-t border-slate-100 mt-1">选项由后台配置管理</p>
+          </div>
+        </div>
+
+        <!-- 比例选择 -->
+        <div class="relative">
+          <button class="rounded-full bg-mist px-3 py-1.5 text-xs font-medium text-ink flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+            3:4 竖版
+            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+          </button>
+        </div>
+
+        <!-- 分层开关（底部工具栏，可切换开/关） -->
+        <button class="rounded-full px-3 py-1.5 text-xs font-medium bg-coral text-white flex items-center gap-1.5">
+          <span class="relative flex h-3 w-6 items-center rounded-full bg-white/30 p-0.5">
+            <span class="absolute right-0.5 h-2 w-2 rounded-full bg-white"></span>
+          </span>
+          分层 · 开
+        </button>
+
+        <!-- 附图按钮 -->
+        <button class="rounded-full bg-mist px-3 py-1.5 text-xs font-medium text-ink flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+          附图
+        </button>
+
+        <span class="ml-auto text-xs font-medium text-slate-500">本次 7 积分</span>
+        <button class="flex w-8 h-8 items-center justify-center rounded-full bg-teal text-white">↑</button>
+      </div>
+    </div>
+
+    <!-- 分层关闭状态对比 -->
+    <div class="mt-4 max-w-3xl mx-auto">
+      <p class="text-xs text-slate-400 mb-2">分层关闭状态：</p>
+      <div class="flex items-center gap-2 px-2">
+        <button class="rounded-full px-3 py-1.5 text-xs font-medium bg-mist text-ink flex items-center gap-1.5">
+          <span class="relative flex h-3 w-6 items-center rounded-full bg-slate-300 p-0.5">
+            <span class="absolute left-0.5 h-2 w-2 rounded-full bg-white"></span>
+          </span>
+          分层 · 关
+        </button>
+        <span class="text-[11px] text-slate-400">← 关闭时为灰色，不会要求模型分层</span>
+      </div>
+    </div>
+
+    <!-- 说明 -->
+    <div class="mt-4 grid grid-cols-3 gap-3 text-xs">
+      <div class="bg-slate-50 rounded-lg p-3">
+        <p class="font-medium text-ink mb-1">风格选项</p>
+        <p class="text-slate-500">可选「无」让模型自行决定风格；其他选项从后台配置获取</p>
+      </div>
+      <div class="bg-slate-50 rounded-lg p-3">
+        <p class="font-medium text-ink mb-1">比例选项</p>
+        <p class="text-slate-500">从后台配置获取，前端有 fallback 默认值</p>
+      </div>
+      <div class="bg-slate-50 rounded-lg p-3">
+        <p class="font-medium text-ink mb-1">分层开关</p>
+        <p class="text-slate-500">开启 = 要求模型分层生成；关闭 = 普通生成。上方提示已移除</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ===== 优化点4: 附图上传 ===== -->
+<section id="p4" class="scroll-mt-20">
+  <div class="mb-4">
+    <span class="inline-block bg-teal/10 text-teal text-xs font-bold px-3 py-1 rounded-full">优化点 4</span>
+    <h2 class="mt-2 text-2xl font-bold text-ink">附图上传 - 支持图片上传</h2>
+    <p class="mt-1 text-sm text-slate-500">点击附图按钮后展开上传区域；可以单纯上传图片供模型参考/解析/修复；用户通过提示词描述想做的操作</p>
+  </div>
+
+  <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-white p-6">
+    <div class="max-w-3xl mx-auto">
+      <!-- 附图展开状态 -->
+      <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <textarea class="min-h-16 w-full resize-none rounded-xl border-0 bg-transparent px-3 py-2 text-sm leading-6 text-ink outline-none" placeholder="描述你想对图片做的操作..." readonly>把这张老照片修复为高清，保持原有色调</textarea>
+
+        <!-- 附图上传区域 -->
+        <div class="mx-2 mb-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-4">
+          <div class="flex items-start gap-4">
+            <!-- 已上传图片预览 -->
+            <div class="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-200 shrink-0">
+              <div class="w-full h-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
+                <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              </div>
+              <button class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px]">×</button>
+            </div>
+            <!-- 上传说明 -->
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-2">
+                <button class="text-xs bg-teal/10 text-teal px-2.5 py-1 rounded-lg font-medium hover:bg-teal/20 transition">
+                  <span class="flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    选择图片
+                  </span>
+                </button>
+                <span class="text-[11px] text-slate-400">支持 JPG/PNG/WebP，最大 10MB</span>
+              </div>
+              <p class="text-[11px] text-slate-500">上传图片后，在提示词中描述你想做的操作（如修复、风格化、参考构图等）</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 未上传时的空状态 -->
+        <div class="mx-2 mb-2 mt-3 pt-3 border-t border-dashed border-slate-200">
+          <p class="text-xs text-slate-400 mb-2">未上传时（点击附图按钮展开）：</p>
+          <div class="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
+            <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 16l4-4a3 3 0 014.243 0L15 16m-2-2l1.586-1.586a2 2 0 012.828 0L21 16M3 12V6a3 3 0 013-3h12a3 3 0 013 3v12a3 3 0 01-3 3H6a3 3 0 01-3-3v-6z"/></svg>
+            <p class="text-xs text-slate-400">点击或拖拽上传图片</p>
+            <p class="text-[10px] text-slate-300 mt-1">支持 JPG/PNG/WebP，最大 10MB</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 px-2 pb-1">
+          <button class="rounded-full bg-mist px-3 py-1.5 text-xs font-medium text-ink">风格：无</button>
+          <button class="rounded-full bg-mist px-3 py-1.5 text-xs font-medium text-ink">1:1 方图</button>
+          <button class="rounded-full bg-teal/10 border border-teal/30 px-3 py-1.5 text-xs font-medium text-teal flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+            附图 ✓
+          </button>
+          <span class="ml-auto text-xs font-medium text-slate-500">本次 2 积分</span>
+          <button class="flex w-8 h-8 items-center justify-center rounded-full bg-teal text-white">↑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ===== 优化点5: 侧边栏收起 ===== -->
+<section id="p5" class="scroll-mt-20">
+  <div class="mb-4">
+    <span class="inline-block bg-teal/10 text-teal text-xs font-bold px-3 py-1 rounded-full">优化点 5</span>
+    <h2 class="mt-2 text-2xl font-bold text-ink">侧边栏收起 - 窄条图标模式</h2>
+    <p class="mt-1 text-sm text-slate-500">侧边栏可收起为窄条，只显示图标；点击展开按钮恢复</p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+    <!-- 展开状态 -->
+    <div>
+      <p class="text-xs font-medium text-teal mb-2">展开状态（默认）</p>
+      <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-mist p-0 flex h-72 overflow-hidden">
+        <div class="w-60 border-r border-slate-200 bg-white/90 p-3 flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-semibold text-ink">对话列表</span>
+            <div class="flex items-center gap-1">
+              <button class="flex items-center justify-center w-7 h-7 rounded-lg hover:bg-slate-100" title="新建创作">
+                <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <button class="flex items-center justify-center w-7 h-7 rounded-lg hover:bg-slate-100" title="收起侧边栏">
+                <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 space-y-1 overflow-y-auto">
+            <div class="w-full rounded-lg px-3 py-2 text-left text-sm bg-mist text-ink">
+              <span class="block truncate font-medium">赛博朋克夜景</span>
+              <span class="mt-0.5 block text-xs text-slate-400">3 条消息</span>
+            </div>
+            <div class="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-600">
+              <span class="block truncate font-medium">水彩小屋</span>
+              <span class="mt-0.5 block text-xs text-slate-400">1 条消息</span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-200 mt-2">
+            <div class="flex items-center gap-2 px-1">
+              <div class="w-6 h-6 rounded-full bg-teal/20 flex items-center justify-center text-[10px] text-teal font-bold">U</div>
+              <span class="text-xs text-slate-500 truncate">余 5 积分</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex-1 flex items-center justify-center text-slate-300 text-sm">主内容区</div>
+      </div>
+    </div>
+
+    <!-- 收起状态 -->
+    <div>
+      <p class="text-xs font-medium text-teal mb-2">收起状态（窄条图标）</p>
+      <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-mist p-0 flex h-72 overflow-hidden">
+        <div class="w-14 border-r border-slate-200 bg-white/90 py-3 flex flex-col items-center">
+          <button class="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-slate-100 mb-2" title="展开侧边栏">
+            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 5l7 7-7 7M6 5l7 7-7 7"/></svg>
+          </button>
+          <button class="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 hover:border-teal mb-4" title="新建创作">
+            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <div class="flex-1 space-y-2 overflow-y-auto">
+            <button class="w-8 h-8 rounded-lg bg-mist flex items-center justify-center text-xs font-bold text-ink" title="赛博朋克夜景">赛</button>
+            <button class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500" title="水彩小屋">水</button>
+          </div>
+          <div class="pt-2 border-t border-slate-200 mt-2">
+            <div class="w-8 h-8 rounded-full bg-teal/20 flex items-center justify-center text-xs text-teal font-bold">U</div>
+          </div>
+        </div>
+        <div class="flex-1 flex items-center justify-center text-slate-300 text-sm">主内容区（更宽）</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ===== 优化点6: 游客积分 ===== -->
+<section id="p6" class="scroll-mt-20">
+  <div class="mb-4">
+    <span class="inline-block bg-teal/10 text-teal text-xs font-bold px-3 py-1 rounded-full">优化点 6</span>
+    <h2 class="mt-2 text-2xl font-bold text-ink">游客默认积分 - 后台配置，默认5积分</h2>
+    <p class="mt-1 text-sm text-slate-500">游客进入Chat页面即可使用默认积分；积分数量由后台配置；欢迎标语也由后台配置</p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+    <!-- 游客状态 -->
+    <div>
+      <p class="text-xs font-medium text-teal mb-2">游客首次进入 Chat 页面</p>
+      <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-white p-6">
+        <div class="text-center max-w-md mx-auto">
+          <h3 class="text-lg font-semibold text-ink">你好，准备好创作了吗？</h3>
+          <p class="text-[10px] text-slate-400 mt-0.5">↑ 此标语由后台配置</p>
+          <p class="mt-1 text-sm text-slate-500">输入一句话，或选下方的场景快速开始</p>
+
+          <!-- 积分提示 -->
+          <div class="mt-4 inline-flex items-center gap-2 bg-teal/5 border border-teal/20 rounded-full px-4 py-2">
+            <svg class="w-4 h-4 text-teal" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span class="text-sm text-teal font-medium">体验积分：<strong>5</strong></span>
+          </div>
+
+          <p class="mt-2 text-xs text-slate-400">注册后可获得更多积分，作品会保存在历史记录里</p>
+
+          <!-- 场景卡片 -->
+          <div class="mt-4 flex flex-wrap justify-center gap-2">
+            <span class="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs ring-1 ring-slate-200">📸 小红书封面 <span class="text-slate-400">2积分</span></span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs ring-1 ring-slate-200">🛒 商品展示 <span class="text-slate-400">1积分</span></span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs ring-1 ring-slate-200">🎨 海报设计 <span class="text-coral text-[10px]">分层5积分</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 积分用完 -->
+    <div>
+      <p class="text-xs font-medium text-teal mb-2">游客积分用完后</p>
+      <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-white p-6">
+        <div class="text-center max-w-sm mx-auto">
+          <div class="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-ink">体验积分已用完</h3>
+          <p class="mt-2 text-sm text-slate-500">注册账号即可获得更多积分，还能保存你的创作历史</p>
+          <div class="mt-4 flex gap-3 justify-center">
+            <button class="px-4 py-2 bg-teal text-white text-sm font-medium rounded-lg">注册账号</button>
+            <button class="px-4 py-2 border border-slate-200 text-sm font-medium rounded-lg text-slate-600">登录</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 后台配置说明 -->
+  <div class="mt-4 bg-slate-50 rounded-xl p-4 text-xs text-slate-600">
+    <p class="font-medium text-ink mb-1">后台配置项：</p>
+    <ul class="list-disc list-inside space-y-1">
+      <li><code class="bg-white px-1 rounded">guest_free_credits</code> - 游客默认积分数（默认 5）</li>
+      <li><code class="bg-white px-1 rounded">greeting_text</code> - 欢迎标语文案（如"你好，准备好创作了吗？"）</li>
+      <li>通过 fingerprint 识别游客身份，防止重复领取</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ===== 优化点7: 经典版回新版 ===== -->
+<section id="p7" class="scroll-mt-20">
+  <div class="mb-4">
+    <span class="inline-block bg-teal/10 text-teal text-xs font-bold px-3 py-1 rounded-full">优化点 7</span>
+    <h2 class="mt-2 text-2xl font-bold text-ink">经典版 → 新版入口按钮</h2>
+    <p class="mt-1 text-sm text-slate-500">在经典版页面顶部添加明显的「切换新版」按钮</p>
+  </div>
+
+  <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-white p-0 overflow-hidden">
+    <!-- 模拟经典版顶部 -->
+    <div class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h1 class="text-base font-bold text-ink">AI 图片生成</h1>
+        <span class="text-xs text-slate-400">经典版</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="/" class="inline-flex items-center gap-1.5 rounded-lg border border-teal/30 bg-teal/5 px-3 py-1.5 text-sm font-medium text-teal hover:bg-teal/10 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          切换新版
+        </a>
+        <button class="text-sm text-slate-500 hover:text-ink">登录</button>
+      </div>
+    </div>
+    <div class="h-24 flex items-center justify-center text-slate-300 text-sm">经典版页面内容（保持原有风格不变）...</div>
+  </div>
+
+  <div class="mt-3 text-xs text-slate-500 bg-slate-50 rounded-lg p-3">
+    <p><strong>实现：</strong>在 Home.vue 顶部添加 <code>&lt;RouterLink to="/"&gt;切换新版&lt;/RouterLink&gt;</code>，与 ChatHeader 中的「切换经典版」形成双向导航。</p>
+  </div>
+</section>
+
+<!-- ===== 优化点8: 经典版全屏修复 ===== -->
+<section id="p8" class="scroll-mt-20">
+  <div class="mb-4">
+    <span class="inline-block bg-teal/10 text-teal text-xs font-bold px-3 py-1 rounded-full">优化点 8</span>
+    <h2 class="mt-2 text-2xl font-bold text-ink">经典版全屏显示修复</h2>
+    <p class="mt-1 text-sm text-slate-500">修复经典版在 Edge 浏览器中页面没有撑满窗口的问题（仅修复布局，不改动经典版其他风格）</p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+    <!-- 问题 -->
+    <div>
+      <p class="text-xs font-medium text-red-500 mb-2">BUG（当前问题）</p>
+      <div class="border-2 border-dashed border-red-200 rounded-2xl bg-slate-100 p-4 flex items-center justify-center h-56 relative">
+        <div class="w-40 h-full bg-white rounded-lg shadow border border-slate-200 flex flex-col">
+          <div class="p-2 border-b border-slate-100 text-[10px] text-slate-500">经典版</div>
+          <div class="flex-1 p-2 text-[9px] text-slate-400">
+            <p>页面被限制在窄宽度</p>
+            <p class="mt-1">两侧大量留白</p>
+            <p class="mt-1">像手机模式</p>
+          </div>
+        </div>
+        <span class="absolute left-6 top-1/2 -translate-y-1/2 text-[10px] text-red-400 font-medium">← 留白</span>
+        <span class="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] text-red-400 font-medium">留白 →</span>
+      </div>
+    </div>
+    <!-- 修复后 -->
+    <div>
+      <p class="text-xs font-medium text-teal mb-2">FIX（修复后 - 撑满浏览器）</p>
+      <div class="border-2 border-dashed border-teal/30 rounded-2xl bg-slate-100 p-0 h-56 overflow-hidden">
+        <div class="w-full h-full bg-white flex flex-col">
+          <div class="p-3 border-b border-slate-200 flex items-center justify-between">
+            <span class="text-xs font-bold text-ink">AI 图片生成</span>
+            <span class="text-[10px] text-teal">切换新版</span>
+          </div>
+          <div class="flex-1 flex">
+            <div class="flex-1 p-3 text-[10px] text-slate-500">
+              <p class="font-medium text-ink">提示词输入区</p>
+              <div class="mt-2 h-6 bg-slate-50 rounded border border-slate-200"></div>
+              <div class="mt-2 flex gap-1 flex-wrap">
+                <span class="px-1.5 py-0.5 bg-slate-100 rounded text-[8px]">写实</span>
+                <span class="px-1.5 py-0.5 bg-slate-100 rounded text-[8px]">动漫</span>
+                <span class="px-1.5 py-0.5 bg-slate-100 rounded text-[8px]">幻想</span>
+              </div>
+            </div>
+            <div class="w-1/2 bg-slate-50 border-l border-slate-200 p-3 flex items-center justify-center">
+              <div class="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center text-[9px] text-slate-400">结果</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 bg-slate-50 rounded-xl p-4 text-xs text-slate-600">
+    <p class="font-medium text-ink mb-2">修复方案（仅修布局，不改风格）：</p>
+    <ul class="list-disc list-inside space-y-1">
+      <li>确保根容器使用 <code>w-full min-h-screen</code>，移除可能的 max-width 限制</li>
+      <li>检查 <code>index.html</code> 的 viewport meta 是否标准</li>
+      <li>排查是否有 CSS 错误地应用了移动端宽度约束</li>
+    </ul>
+    <p class="mt-2 text-red-500 font-medium">注意：经典版其他风格和交互保持不变，仅修复全屏显示问题。</p>
+  </div>
+</section>
+
+
+<!-- ===== 总览 ===== -->
+<section class="border-t border-slate-200 pt-12">
+  <h2 class="text-2xl font-bold text-ink mb-6">整体改动总览</h2>
+  <div class="grid grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="w-8 h-8 bg-teal/10 rounded-lg flex items-center justify-center text-teal font-bold text-sm mb-2">1</div>
+      <p class="text-sm font-medium text-ink">新建按钮</p>
+      <p class="text-xs text-slate-500 mt-1">+ 图标按钮，简洁风格</p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="w-8 h-8 bg-teal/10 rounded-lg flex items-center justify-center text-teal font-bold text-sm mb-2">2</div>
+      <p class="text-sm font-medium text-ink">对话重命名</p>
+      <p class="text-xs text-slate-500 mt-1">自动命名 + 右键编辑</p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="w-8 h-8 bg-teal/10 rounded-lg flex items-center justify-center text-teal font-bold text-sm mb-2">3</div>
+      <p class="text-sm font-medium text-ink">分层/风格/比例</p>
+      <p class="text-xs text-slate-500 mt-1">底部开关 + 风格可选无 + 后台配置</p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="w-8 h-8 bg-teal/10 rounded-lg flex items-center justify-center text-teal font-bold text-sm mb-2">4</div>
+      <p class="text-sm font-medium text-ink">附图上传</p>
+      <p class="text-xs text-slate-500 mt-1">纯上传，提示词描述操作</p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="w-8 h-8 bg-teal/10 rounded-lg flex items-center justify-center text-teal font-bold text-sm mb-2">5</div>
+      <p class="text-sm font-medium text-ink">侧边栏收起</p>
+      <p class="text-xs text-slate-500 mt-1">窄条图标模式</p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="w-8 h-8 bg-teal/10 rounded-lg flex items-center justify-center text-teal font-bold text-sm mb-2">6</div>
+      <p class="text-sm font-medium text-ink">游客积分</p>
+      <p class="text-xs text-slate-500 mt-1">默认5积分 + 标语后台配置</p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="w-8 h-8 bg-teal/10 rounded-lg flex items-center justify-center text-teal font-bold text-sm mb-2">7</div>
+      <p class="text-sm font-medium text-ink">回新版入口</p>
+      <p class="text-xs text-slate-500 mt-1">经典版顶部明显按钮</p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200">
+      <div class="w-8 h-8 bg-teal/10 rounded-lg flex items-center justify-center text-teal font-bold text-sm mb-2">8</div>
+      <p class="text-sm font-medium text-ink">经典版全屏</p>
+      <p class="text-xs text-slate-500 mt-1">仅修布局，不改风格</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-400">
+  <p>Chat UI 优化方案审核稿 v2 · 请审核后反馈修改意见</p>
+</footer>
+
+</body>
+</html>
