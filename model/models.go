@@ -45,6 +45,20 @@ type Generation struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
+type Conversation struct {
+	ID         int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID     int64     `gorm:"index;not null" json:"user_id"`
+	Title      string    `gorm:"size:128" json:"title"`
+	LastMsgAt  time.Time `gorm:"index" json:"last_msg_at"`
+	MsgCount   int       `gorm:"default:0" json:"msg_count"`
+	TotalCost  float64   `gorm:"type:numeric;default:0" json:"total_cost"`
+	IsLayered  bool      `gorm:"default:false;index" json:"is_layered"`
+	IsDeleted  bool      `gorm:"default:false;index" json:"is_deleted"`
+	ShareToken string    `gorm:"size:64;index" json:"share_token"`
+	CreatedAt  time.Time `gorm:"index" json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type CreditLog struct {
 	ID         int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID     int64     `gorm:"index" json:"user_id"`
