@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { createConversation, deleteConversation, listConversations, renameConversation } from '@/api/conversation'
 import { createMessage, listMessages, type CreateMessagePayload } from '@/api/message'
 import type { Conversation, Message } from '@/api/types'
+import { useUserStore } from '@/stores/user'
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed'
 
@@ -23,6 +24,13 @@ export const useConversationStore = defineStore('conversation', {
   },
   actions: {
     async loadConversations() {
+      const userStore = useUserStore()
+      if (!userStore.token) {
+        this.list = []
+        this.currentId = null
+        this.messages = {}
+        return
+      }
       this.loading = true
       try {
         const response = await listConversations({ q: this.searchQuery || undefined })
@@ -43,6 +51,10 @@ export const useConversationStore = defineStore('conversation', {
       return conversation
     },
     async ensureConversation() {
+      const userStore = useUserStore()
+      if (!userStore.token) {
+        throw new Error('login_required')
+      }
       if (this.currentId) return this.currentId
       if (this.list.length > 0) {
         await this.selectConversation(this.list[0].id)

@@ -5,6 +5,7 @@ import api from '@/api'
 import { useToast } from '@/composables/useToast'
 import { useComposerStore } from '@/stores/composer'
 import { useConversationStore } from '@/stores/conversation'
+import { useUserStore } from '@/stores/user'
 
 type Option = {
   value: string
@@ -36,6 +37,7 @@ const fallbackRatios: Option[] = [
 
 const composerStore = useComposerStore()
 const conversationStore = useConversationStore()
+const userStore = useUserStore()
 const toast = useToast()
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -178,6 +180,10 @@ async function send() {
     composerStore.focusInput()
     return
   }
+  if (!userStore.token) {
+    toast.error('请先登录后再生成图片')
+    return
+  }
   try {
     await conversationStore.sendMessage({
       prompt,
@@ -192,6 +198,10 @@ async function send() {
     showUploader.value = false
     composerStore.reset()
   } catch (error: any) {
+    if (error.message === 'login_required') {
+      toast.error('请先登录后再生成图片')
+      return
+    }
     toast.error(error.response?.data?.message || error.response?.data?.error || '发送失败')
   }
 }

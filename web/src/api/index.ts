@@ -21,7 +21,9 @@ api.interceptors.response.use(
       localStorage.removeItem('token')
       window.dispatchEvent(new CustomEvent('auth:unauthorized'))
       const loginPath = window.location.pathname.startsWith('/console/admin') ? '/console/admin/login' : '/login'
-      if (window.location.pathname !== loginPath) {
+      const protectedPath = ['/account', '/credits', '/history'].some((path) => window.location.pathname.startsWith(path))
+      const protectedAdminPath = window.location.pathname.startsWith('/console/admin') && window.location.pathname !== '/console/admin/login'
+      if ((protectedPath || protectedAdminPath) && window.location.pathname !== loginPath) {
         window.location.href = loginPath
       }
     }
