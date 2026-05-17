@@ -269,12 +269,9 @@ func CreateGeneration(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "fingerprint required for free trial"})
 			return
 		}
-		anonymousID, ok := service.CheckTrialEligible(common.GetRealIP(c), fingerprint)
-		if !ok {
-			c.JSON(http.StatusPaymentRequired, gin.H{
-				"error":   "free_trial_exhausted",
-				"message": "免费试用次数已用完，注册登录后可获得更多积分",
-			})
+		anonymousID := service.TrialAnonymousID(common.GetRealIP(c), fingerprint)
+		if err := service.EnsureAnonymousGenerationQuota(anonymousID, false); err != nil {
+			handleGenerationQuotaError(c, err)
 			return
 		}
 		req.AnonymousID = anonymousID
@@ -283,11 +280,14 @@ func CreateGeneration(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create generation"})
 			return
 		}
-		service.MarkTrialUsed(anonymousID)
 		c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status, "anonymous_id": anonymousID})
 		return
 	}
 
+	if err := service.EnsureUserGenerationQuota(*userID, false); err != nil {
+		handleGenerationQuotaError(c, err)
+		return
+	}
 	generation, err := service.CreateGeneration(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), userID, req.AnonymousID, options)
 	if err != nil {
 		if errors.Is(err, service.ErrInsufficientCredits) {
@@ -362,7 +362,18 @@ func CreateImageEdit(c *gin.Context) {
 		}
 	}
 	if userID == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "please login to edit images"})
+		fingerprint := c.GetHeader("X-Fingerprint")
+		if fingerprint == "" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "fingerprint required for free trial"})
+			return
+		}
+		req.AnonymousID = service.TrialAnonymousID(common.GetRealIP(c), fingerprint)
+		if err := service.EnsureAnonymousGenerationQuota(req.AnonymousID, false); err != nil {
+			handleGenerationQuotaError(c, err)
+			return
+		}
+	} else if err := service.EnsureUserGenerationQuota(*userID, false); err != nil {
+		handleGenerationQuotaError(c, err)
 		return
 	}
 
@@ -380,6 +391,24 @@ func CreateImageEdit(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id": generation.ID, "status": generation.Status})
+}
+
+func handleGenerationQuotaError(c *gin.Context, err error) {
+	if errors.Is(err, service.ErrGenerationQuotaExceeded) {
+		c.JSON(http.StatusPaymentRequired, gin.H{
+			"error":   "free_trial_exhausted",
+			"message": "生成次数已用完，请登录或联系管理员增加额度",
+		})
+		return
+	}
+	if errors.Is(err, service.ErrLayeredGenerationQuotaExceeded) {
+		c.JSON(http.StatusPaymentRequired, gin.H{
+			"error":   "layered_quota_exhausted",
+			"message": "分层生成次数已用完，请登录或联系管理员增加额度",
+		})
+		return
+	}
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check generation quota"})
 }
 
 const defaultEnabledImageSizes = "square,portrait_3_4,story,landscape_4_3,widescreen"

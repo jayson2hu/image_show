@@ -86,6 +86,10 @@ func createJSONMessage(c *gin.Context, conversation model.Conversation) {
 	req.Size = realSize
 
 	userID := currentUserID(c)
+	if err := service.EnsureUserGenerationQuota(userID, req.Layered); err != nil {
+		handleGenerationQuotaError(c, err)
+		return
+	}
 	message := model.Message{
 		ConversationID: conversation.ID,
 		UserID:         userID,
@@ -134,6 +138,11 @@ func createMultipartMessage(c *gin.Context, conversation model.Conversation) {
 		return
 	}
 	req.Size = realSize
+	userID := currentUserID(c)
+	if err := service.EnsureUserGenerationQuota(userID, req.Layered); err != nil {
+		handleGenerationQuotaError(c, err)
+		return
+	}
 
 	file, header, err := c.Request.FormFile("image")
 	if err != nil {
@@ -159,7 +168,6 @@ func createMultipartMessage(c *gin.Context, conversation model.Conversation) {
 		return
 	}
 
-	userID := currentUserID(c)
 	message := model.Message{
 		ConversationID: conversation.ID,
 		UserID:         userID,

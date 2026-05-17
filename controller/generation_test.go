@@ -454,22 +454,33 @@ func TestCreateImageEditRejectsUnsupportedFileType(t *testing.T) {
 	}
 }
 
-func TestCreateImageEditRequiresLogin(t *testing.T) {
+func TestCreateImageEditAllowsAnonymousWithQuota(t *testing.T) {
 	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
 
 	rec := postMultipartEditWithToken(engine, "", map[string]string{
 		"prompt":  "make it brighter",
 		"quality": "low",
 		"size":    "1024x1024",
 	}, "image", "source.png", "image/png", testPNGBytes)
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401, got %d body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected anonymous edit to pass, got %d body=%s", rec.Code, rec.Body.String())
 	}
+	var createResp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &createResp); err != nil {
+		t.Fatalf("decode create edit: %v", err)
+	}
+	waitGenerationStatus(t, createResp.ID, 3)
 }
 
-func TestAnonymousTrialOnceUsesStandardQuality(t *testing.T) {
+func TestAnonymousGenerationQuotaUsesConfiguredLimit(t *testing.T) {
 	engine := setupAuthTest(t)
 	config.AppConfig.MockSub2API = true
+	if err := model.DB.Create(&model.Setting{Key: "guest_generation_limit", Value: "2"}).Error; err != nil {
+		t.Fatalf("create guest limit setting: %v", err)
+	}
 
 	first := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
 		"prompt":  "trial image",
@@ -500,20 +511,26 @@ func TestAnonymousTrialOnceUsesStandardQuality(t *testing.T) {
 		"quality": "low",
 		"size":    "1024x1024",
 	}, "fp-1")
-	if second.Code != http.StatusPaymentRequired {
+	if second.Code != http.StatusOK {
 		t.Fatalf("second trial status=%d body=%s", second.Code, second.Body.String())
 	}
-	assertJSONError(t, second, "free_trial_exhausted")
-	if strings.Contains(second.Body.String(), "free trial used") || strings.Contains(second.Body.String(), "please register") {
-		t.Fatalf("trial exhausted response should not expose legacy message: %s", second.Body.String())
+	var secondResp struct {
+		ID int64 `json:"id"`
 	}
-	var secondBody map[string]string
-	if err := json.Unmarshal(second.Body.Bytes(), &secondBody); err != nil {
-		t.Fatalf("decode second trial body: %v", err)
+	if err := json.Unmarshal(second.Body.Bytes(), &secondResp); err != nil {
+		t.Fatalf("decode second trial: %v", err)
 	}
-	if secondBody["message"] == "" {
-		t.Fatalf("expected friendly message in second trial body: %s", second.Body.String())
+	waitGenerationStatus(t, secondResp.ID, 3)
+
+	exhausted := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
+		"prompt":  "trial image",
+		"quality": "low",
+		"size":    "1024x1024",
+	}, "fp-1")
+	if exhausted.Code != http.StatusPaymentRequired {
+		t.Fatalf("exhausted trial status=%d body=%s", exhausted.Code, exhausted.Body.String())
 	}
+	assertJSONError(t, exhausted, "free_trial_exhausted")
 
 	third := postJSONWithFingerprint(engine, "/api/generations", map[string]string{
 		"prompt":  "trial image",
@@ -530,6 +547,39 @@ func TestAnonymousTrialOnceUsesStandardQuality(t *testing.T) {
 		t.Fatalf("decode third trial: %v", err)
 	}
 	waitGenerationStatus(t, thirdResp.ID, 3)
+}
+
+func TestLoggedInGenerationQuotaUsesConfiguredLimit(t *testing.T) {
+	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
+	token := createGenerationUser(t, 3)
+	if err := model.DB.Create(&model.Setting{Key: "user_generation_limit", Value: "1"}).Error; err != nil {
+		t.Fatalf("create user limit setting: %v", err)
+	}
+
+	first := postJSONWithToken(engine, "/api/generations", map[string]string{
+		"prompt": "first image",
+		"size":   "square",
+	}, token)
+	if first.Code != http.StatusOK {
+		t.Fatalf("first generation status=%d body=%s", first.Code, first.Body.String())
+	}
+	var firstResp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(first.Body.Bytes(), &firstResp); err != nil {
+		t.Fatalf("decode first generation: %v", err)
+	}
+	waitGenerationStatus(t, firstResp.ID, 3)
+
+	second := postJSONWithToken(engine, "/api/generations", map[string]string{
+		"prompt": "second image",
+		"size":   "square",
+	}, token)
+	if second.Code != http.StatusPaymentRequired {
+		t.Fatalf("expected quota error, got %d body=%s", second.Code, second.Body.String())
+	}
+	assertJSONError(t, second, "free_trial_exhausted")
 }
 
 func TestCreateGenerationInsufficientCredits(t *testing.T) {
@@ -798,6 +848,7 @@ func postMultipartEditWithToken(engine http.Handler, token string, fields map[st
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	req.Header.Set("X-Real-IP", "1.2.3.4")
+	req.Header.Set("X-Fingerprint", "multipart-fp")
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, req)
 	return rec

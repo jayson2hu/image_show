@@ -172,3 +172,46 @@ func TestCreateMultipartMessageCreatesImageEditGeneration(t *testing.T) {
 	}
 	waitGenerationStatus(t, createResp.GenerationID, 3)
 }
+
+func TestCreateMessageEnforcesLayeredQuota(t *testing.T) {
+	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
+	token := createGenerationUser(t, 5)
+	userID := tokenUserID(t, token)
+	if err := model.DB.Create(&model.Setting{Key: "user_layered_generation_limit", Value: "1"}).Error; err != nil {
+		t.Fatalf("create layered quota setting: %v", err)
+	}
+
+	conversation := model.Conversation{UserID: userID, Title: "layered chat", LastMsgAt: time.Now()}
+	if err := model.DB.Create(&conversation).Error; err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+
+	first := adminJSON(engine, http.MethodPost, "/api/conversations/"+strconv.FormatInt(conversation.ID, 10)+"/messages", map[string]interface{}{
+		"prompt":      "layered first",
+		"size":        "square",
+		"layered":     true,
+		"layer_count": 4,
+	}, token)
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first layered message status=%d body=%s", first.Code, first.Body.String())
+	}
+	var firstResp struct {
+		GenerationID int64 `json:"generation_id"`
+	}
+	if err := json.Unmarshal(first.Body.Bytes(), &firstResp); err != nil {
+		t.Fatalf("decode first response: %v", err)
+	}
+	waitGenerationStatus(t, firstResp.GenerationID, 3)
+
+	second := adminJSON(engine, http.MethodPost, "/api/conversations/"+strconv.FormatInt(conversation.ID, 10)+"/messages", map[string]interface{}{
+		"prompt":      "layered second",
+		"size":        "square",
+		"layered":     true,
+		"layer_count": 4,
+	}, token)
+	if second.Code != http.StatusPaymentRequired {
+		t.Fatalf("expected layered quota error, got %d body=%s", second.Code, second.Body.String())
+	}
+	assertJSONError(t, second, "layered_quota_exhausted")
+}

@@ -29,7 +29,7 @@ const groups = [
     id: 'account',
     title: '账号与额度',
     description: '新用户赠送积分、生成积分定价和额度用完后的联系提示。',
-    keys: ['register_gift_credits', 'credit_cost_square', 'credit_cost_portrait', 'credit_cost_story', 'credit_cost_landscape', 'credit_cost_widescreen', 'credit_exhausted_message', 'credit_exhausted_wechat_qrcode_url', 'credit_exhausted_qq'],
+    keys: ['register_gift_credits', 'guest_generation_limit', 'guest_layered_generation_limit', 'user_generation_limit', 'user_layered_generation_limit', 'credit_cost_square', 'credit_cost_portrait', 'credit_cost_story', 'credit_cost_landscape', 'credit_cost_widescreen', 'credit_exhausted_message', 'credit_exhausted_wechat_qrcode_url', 'credit_exhausted_qq'],
   },
   {
     id: 'manual-recharge',
@@ -192,6 +192,12 @@ function settingLabel(key: string) {
     monitor_daily_credit_threshold: '每日积分告警阈值',
     monitor_alert_last_date: '最近告警日期',
   })
+  Object.assign(map, {
+    guest_generation_limit: '游客生成次数',
+    guest_layered_generation_limit: '游客分层生成次数',
+    user_generation_limit: '登录用户生成次数',
+    user_layered_generation_limit: '登录用户分层生成次数',
+  })
   return map[key] || key
 }
 
@@ -237,6 +243,12 @@ function settingHelp(key: string) {
     avatar_max_size_mb: '例如：2 表示最大 2MB。后端会限制最高 10MB，避免上传过大文件。',
     avatar_allowed_types: '例如：jpg,jpeg,png,webp。多个格式用英文逗号或换行分隔。',
   })
+  Object.assign(map, {
+    guest_generation_limit: '控制未登录访客可免费生成的总次数，默认 5。',
+    guest_layered_generation_limit: '控制未登录访客可使用分层生成的次数，默认 1。',
+    user_generation_limit: '控制登录用户可生成的总次数，默认 100。',
+    user_layered_generation_limit: '控制登录用户可使用分层生成的次数，默认 10。',
+  })
   return map[key] || ''
 }
 
@@ -259,7 +271,7 @@ function inputType(key: string) {
 }
 
 function isPositiveIntegerSetting(key: string) {
-  return key.startsWith('credit_cost_')
+  return key.startsWith('credit_cost_') || key.endsWith('_generation_limit')
 }
 
 function settingPlaceholder(key: string) {
@@ -271,6 +283,10 @@ function settingPlaceholder(key: string) {
     seo_description: '输入提示词，选择比例，持续查看生成进度，直到作品完成。',
     register_email_domain_allowlist: 'qq.com\ngmail.com\ncompany.com',
     credit_cost_square: '1',
+    guest_generation_limit: '5',
+    guest_layered_generation_limit: '1',
+    user_generation_limit: '100',
+    user_layered_generation_limit: '10',
     credit_cost_portrait: '2',
     credit_cost_story: '2',
     credit_cost_landscape: '2',

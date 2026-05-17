@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 
 import { createConversation, deleteConversation, listConversations, renameConversation } from '@/api/conversation'
+import { createGeneration, createImageEdit } from '@/api/generation'
 import { createMessage, listMessages, type CreateMessagePayload } from '@/api/message'
 import type { Conversation, Message } from '@/api/types'
 import { useUserStore } from '@/stores/user'
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed'
+const GUEST_CONVERSATION_ID = -1
 
 export const useConversationStore = defineStore('conversation', {
   state: () => ({
@@ -53,7 +55,23 @@ export const useConversationStore = defineStore('conversation', {
     async ensureConversation() {
       const userStore = useUserStore()
       if (!userStore.token) {
-        throw new Error('login_required')
+        const existing = this.list.find((item) => item.id === GUEST_CONVERSATION_ID)
+        if (!existing) {
+          this.list = [
+            {
+              id: GUEST_CONVERSATION_ID,
+              title: '访客创作',
+              msg_count: 0,
+              last_msg_at: new Date().toISOString(),
+              is_layered: false,
+              total_cost: 0,
+            },
+            ...this.list,
+          ]
+          this.messages[GUEST_CONVERSATION_ID] = []
+        }
+        this.currentId = GUEST_CONVERSATION_ID
+        return GUEST_CONVERSATION_ID
       }
       if (this.currentId) return this.currentId
       if (this.list.length > 0) {
@@ -70,6 +88,10 @@ export const useConversationStore = defineStore('conversation', {
       }
     },
     async loadMessages(id: number) {
+      if (id < 0) {
+        this.messages[id] = this.messages[id] || []
+        return
+      }
       this.messageLoading = true
       try {
         const response = await listMessages(id)
@@ -105,6 +127,33 @@ export const useConversationStore = defineStore('conversation', {
       this.sending = true
 
       try {
+        const userStore = useUserStore()
+        if (!userStore.token) {
+          const response = payload.attachment
+            ? await createImageEdit({ prompt: normalizedPrompt, size: payload.size, image: payload.attachment })
+            : await createGeneration({ prompt: normalizedPrompt, size: payload.size })
+          const message: Message = {
+            ...pendingMessage,
+            id: response.data.id,
+            generation_id: response.data.id,
+            anonymous_id: response.data.anonymous_id,
+            _sending: false,
+          }
+          this.messages[conversationId] = (this.messages[conversationId] || []).map((item) => (item.id === tempId ? message : item))
+          this.list = this.list.map((item) =>
+            item.id === conversationId
+              ? {
+                  ...item,
+                  title: item.msg_count === 0 ? normalizedPrompt.slice(0, 128) : item.title,
+                  msg_count: item.msg_count + 1,
+                  last_msg_at: message.created_at || new Date().toISOString(),
+                  is_layered: Boolean(payload.layered),
+                }
+              : item,
+          )
+          return
+        }
+
         const response = await createMessage(conversationId, { ...payload, prompt: normalizedPrompt })
         const message = response.data.message
         this.messages[conversationId] = (this.messages[conversationId] || []).map((item) => (item.id === tempId ? message : item))
@@ -128,6 +177,14 @@ export const useConversationStore = defineStore('conversation', {
       }
     },
     async deleteLocalConversation(id: number) {
+      if (id < 0) {
+        this.list = this.list.filter((item) => item.id !== id)
+        delete this.messages[id]
+        if (this.currentId === id) {
+          this.currentId = null
+        }
+        return
+      }
       await deleteConversation(id)
       this.list = this.list.filter((item) => item.id !== id)
       delete this.messages[id]

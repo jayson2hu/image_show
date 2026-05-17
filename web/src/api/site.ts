@@ -10,6 +10,10 @@ export interface SiteConfig {
   credit_costs?: CreditCosts
   greeting_text?: string
   guest_free_credits?: number
+  guest_generation_limit?: number
+  guest_layered_generation_limit?: number
+  user_generation_limit?: number
+  user_layered_generation_limit?: number
 }
 
 export interface CreditCosts {
