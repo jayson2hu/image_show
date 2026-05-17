@@ -114,6 +114,31 @@ export const useConversationStore = defineStore('conversation', {
       this.messages[conversation.id] = []
       return conversation
     },
+    resetGuestConversation() {
+      const now = new Date().toISOString()
+      const existing = this.list.find((item) => item.id === GUEST_CONVERSATION_ID)
+      if (existing) {
+        existing.title = '新对话'
+        existing.msg_count = 0
+        existing.last_msg_at = now
+        existing.is_layered = false
+        existing.total_cost = 0
+      } else {
+        this.list = [
+          {
+            id: GUEST_CONVERSATION_ID,
+            title: '新对话',
+            msg_count: 0,
+            last_msg_at: now,
+            is_layered: false,
+            total_cost: 0,
+          },
+          ...this.list,
+        ]
+      }
+      this.messages[GUEST_CONVERSATION_ID] = []
+      this.currentId = GUEST_CONVERSATION_ID
+    },
     async ensureConversation() {
       const userStore = useUserStore()
       if (!userStore.token) {
@@ -193,8 +218,21 @@ export const useConversationStore = defineStore('conversation', {
         const userStore = useUserStore()
         if (!userStore.token) {
           const response = payload.attachment
-            ? await createImageEdit({ prompt: normalizedPrompt, size: payload.size, image: payload.attachment })
-            : await createGeneration({ prompt: normalizedPrompt, size: payload.size })
+            ? await createImageEdit({
+                prompt: normalizedPrompt,
+                size: payload.size,
+                image: payload.attachment,
+                style_id: payload.style_id,
+                layered: payload.layered,
+                layer_count: payload.layer_count,
+              })
+            : await createGeneration({
+                prompt: normalizedPrompt,
+                size: payload.size,
+                style_id: payload.style_id,
+                layered: payload.layered,
+                layer_count: payload.layer_count,
+              })
           const message: Message = {
             ...pendingMessage,
             id: response.data.id,

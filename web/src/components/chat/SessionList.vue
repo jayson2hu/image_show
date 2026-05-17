@@ -2,10 +2,12 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import { useComposerStore } from '@/stores/composer'
 import { useConversationStore } from '@/stores/conversation'
 import { useUiStore } from '@/stores/ui'
 import { useUserStore } from '@/stores/user'
 
+const composerStore = useComposerStore()
 const conversationStore = useConversationStore()
 const uiStore = useUiStore()
 const userStore = useUserStore()
@@ -23,7 +25,12 @@ const deleteTarget = computed(() => conversations.value.find((item) => item.id =
 
 async function createConversation() {
   closeMenu()
-  await conversationStore.ensureConversation()
+  if (userStore.token) {
+    await conversationStore.createLocalConversation()
+  } else {
+    conversationStore.resetGuestConversation()
+  }
+  composerStore.reset()
 }
 
 function firstChar(title: string) {
@@ -83,7 +90,7 @@ onUnmounted(() => {
 
 <template>
   <aside
-    class="hidden h-screen shrink-0 border-r border-slate-200 bg-white/90 transition-all duration-200 lg:flex lg:flex-col"
+    class="hidden h-screen shrink-0 border-r border-slate-100 bg-white transition-all duration-200 lg:flex lg:flex-col"
     :class="uiStore.sidebarCollapsed ? 'w-14 p-2' : 'w-72 p-3'"
   >
     <template v-if="uiStore.sidebarCollapsed">
