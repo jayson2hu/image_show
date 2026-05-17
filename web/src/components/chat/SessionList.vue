@@ -3,9 +3,11 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useConversationStore } from '@/stores/conversation'
+import { useUiStore } from '@/stores/ui'
 import { useUserStore } from '@/stores/user'
 
 const conversationStore = useConversationStore()
+const uiStore = useUiStore()
 const userStore = useUserStore()
 const menuOpenId = ref<number | null>(null)
 const editingId = ref<number | null>(null)
@@ -82,22 +84,22 @@ onUnmounted(() => {
 <template>
   <aside
     class="hidden h-screen shrink-0 border-r border-slate-200 bg-white/90 transition-all duration-200 lg:flex lg:flex-col"
-    :class="conversationStore.sidebarCollapsed ? 'w-14 p-2' : 'w-72 p-3'"
+    :class="uiStore.sidebarCollapsed ? 'w-14 p-2' : 'w-72 p-3'"
   >
-    <template v-if="conversationStore.sidebarCollapsed">
+    <template v-if="uiStore.sidebarCollapsed">
       <div class="flex flex-col items-center gap-2">
         <button
           class="flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-teal hover:bg-teal/5 hover:text-teal"
           type="button"
           title="展开侧栏"
-          @click="conversationStore.toggleSidebar()"
+          @click="uiStore.toggleSidebar()"
         >
           <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 6 6 6-6 6" />
           </svg>
         </button>
         <button
-          class="flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-teal hover:bg-teal/5 hover:text-teal"
+          class="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-teal hover:bg-teal/5 hover:text-teal"
           type="button"
           title="新建对话"
           @click="createConversation"
@@ -112,7 +114,7 @@ onUnmounted(() => {
         <button
           v-for="conversation in conversations"
           :key="conversation.id"
-          class="flex size-9 items-center justify-center rounded-full text-sm font-semibold transition"
+          class="flex size-8 items-center justify-center rounded-lg text-sm font-semibold transition"
           :class="conversationStore.currentId === conversation.id ? 'bg-mist text-ink' : 'bg-white text-slate-500 hover:bg-slate-50 hover:text-ink'"
           type="button"
           :title="conversation.title"
@@ -131,7 +133,7 @@ onUnmounted(() => {
 
     <template v-else>
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold text-ink">对话</h2>
+        <h2 class="text-sm font-semibold text-ink">对话列表</h2>
         <div class="flex items-center gap-2">
           <button
             class="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-teal hover:bg-teal/5 hover:text-teal"
@@ -147,7 +149,7 @@ onUnmounted(() => {
             class="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-teal hover:bg-teal/5 hover:text-teal"
             type="button"
             aria-label="收起侧栏"
-            @click="conversationStore.toggleSidebar()"
+            @click="uiStore.toggleSidebar()"
           >
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m15 6-6 6 6 6" />
@@ -168,7 +170,7 @@ onUnmounted(() => {
             <input
               ref="inputRef"
               v-model="editingTitle"
-              class="w-full rounded-lg border border-teal bg-white px-2 py-1.5 text-sm text-ink outline-none"
+              class="w-full rounded-lg border-2 border-teal bg-white px-2 py-1.5 text-sm text-ink outline-none"
               maxlength="128"
               @keydown.enter.prevent="confirmRename"
               @keydown.esc.prevent="cancelRename"
@@ -194,7 +196,7 @@ onUnmounted(() => {
           <button
             v-if="editingId !== conversation.id"
             class="absolute right-2 top-2 flex size-7 items-center justify-center rounded-md text-slate-400 opacity-0 transition hover:bg-white hover:text-ink group-hover:opacity-100"
-            :class="menuOpenId === conversation.id ? 'opacity-100' : ''"
+            :class="menuOpenId === conversation.id || conversationStore.currentId === conversation.id ? 'opacity-100' : ''"
             type="button"
             aria-label="更多"
             @click.stop="toggleMenu(conversation.id)"
