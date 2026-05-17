@@ -61,6 +61,10 @@ func (n *GenerationNotifier) Publish(id int64, event GenerationEvent) {
 }
 
 func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymousID string, options ImageOptions) (*model.Generation, error) {
+	return CreateGenerationForMessage(prompt, quality, size, ip, userID, anonymousID, nil, options)
+}
+
+func CreateGenerationForMessage(prompt, quality, size, ip string, userID *int64, anonymousID string, messageID *int64, options ImageOptions) (*model.Generation, error) {
 	cost := CostForSize(size)
 	if userID != nil {
 		if err := ensureEnoughGenerationCredits(*userID, cost); err != nil {
@@ -70,6 +74,7 @@ func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymous
 	generation := &model.Generation{
 		UserID:            userID,
 		AnonymousID:       anonymousID,
+		MessageID:         messageID,
 		Mode:              GenerationModeGenerate,
 		Prompt:            prompt,
 		Quality:           quality,
@@ -98,6 +103,10 @@ func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymous
 }
 
 func CreateImageEdit(prompt, quality, size, ip string, userID *int64, anonymousID string, imageData []byte, filename, contentType string, options ImageOptions) (*model.Generation, error) {
+	return CreateImageEditForMessage(prompt, quality, size, ip, userID, anonymousID, imageData, filename, contentType, nil, options)
+}
+
+func CreateImageEditForMessage(prompt, quality, size, ip string, userID *int64, anonymousID string, imageData []byte, filename, contentType string, messageID *int64, options ImageOptions) (*model.Generation, error) {
 	cost := CostForSize(size)
 	if userID != nil {
 		if err := ensureEnoughGenerationCredits(*userID, cost); err != nil {
@@ -107,6 +116,7 @@ func CreateImageEdit(prompt, quality, size, ip string, userID *int64, anonymousI
 	generation := &model.Generation{
 		UserID:            userID,
 		AnonymousID:       anonymousID,
+		MessageID:         messageID,
 		Mode:              GenerationModeEdit,
 		Prompt:            prompt,
 		Quality:           quality,

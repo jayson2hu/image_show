@@ -37,6 +37,8 @@ func Register(r *gin.Engine) {
 	conversations.GET("/:id", controller.GetConversation)
 	conversations.PATCH("/:id", controller.RenameConversation)
 	conversations.DELETE("/:id", controller.DeleteConversation)
+	conversations.GET("/:id/messages", controller.ListMessages)
+	conversations.POST("/:id/messages", middleware.GenerationRateLimit(), controller.CreateMessage)
 	api.GET("/generations", middleware.AuthRequired(), controller.ListGenerations)
 	api.POST("/generations", middleware.OptionalAuth(), middleware.GenerationRateLimit(), controller.CreateGeneration)
 	api.POST("/generations/edit", middleware.OptionalAuth(), middleware.GenerationRateLimit(), controller.CreateImageEdit)

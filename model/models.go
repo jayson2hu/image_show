@@ -23,6 +23,7 @@ type Generation struct {
 	ID                int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID            *int64    `gorm:"index" json:"user_id"`
 	AnonymousID       string    `gorm:"size:128;index" json:"anonymous_id"`
+	MessageID         *int64    `gorm:"index" json:"message_id"`
 	Mode              string    `gorm:"size:16;default:generate;index" json:"mode"`
 	Prompt            string    `gorm:"type:text" json:"prompt"`
 	Quality           string    `gorm:"size:16" json:"quality"`
@@ -43,6 +44,27 @@ type Generation struct {
 	IsDeleted         bool      `gorm:"default:false;index" json:"is_deleted"`
 	CreatedAt         time.Time `gorm:"index" json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type Message struct {
+	ID             int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	ConversationID int64     `gorm:"index;not null" json:"conversation_id"`
+	UserID         int64     `gorm:"index" json:"user_id"`
+	AnonymousID    string    `gorm:"size:128;index" json:"anonymous_id"`
+	Prompt         string    `gorm:"type:text" json:"prompt"`
+	AttachmentKey  string    `gorm:"size:256" json:"attachment_key"`
+	AttachmentURL  string    `gorm:"size:512" json:"attachment_url"`
+	AttachmentName string    `gorm:"size:128" json:"attachment_name"`
+	AttachmentSize int64     `json:"attachment_size"`
+	TaskKind       string    `gorm:"size:32;default:text2img;index" json:"task_kind"`
+	Size           string    `gorm:"size:32" json:"size"`
+	StyleID        string    `gorm:"size:64" json:"style_id"`
+	SceneID        string    `gorm:"size:64" json:"scene_id"`
+	Layered        bool      `gorm:"default:false" json:"layered"`
+	LayerCount     int       `gorm:"default:0" json:"layer_count"`
+	GenerationID   *int64    `gorm:"index" json:"generation_id"`
+	CreatedAt      time.Time `gorm:"index" json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type Conversation struct {
