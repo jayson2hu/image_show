@@ -6,8 +6,6 @@ import type { Scene } from '@/api/types'
 import { useComposerStore } from '@/stores/composer'
 import { useUserStore } from '@/stores/user'
 
-import Composer from './Composer.vue'
-
 const userStore = useUserStore()
 const composerStore = useComposerStore()
 const scenes = ref<Scene[]>([])
@@ -83,10 +81,8 @@ function onSceneClick(scene: Scene) {
         </button>
       </div>
 
-      <Composer compact />
-
       <div class="mt-3 text-center text-[11px] text-slate-500">
-        Enter 发送 · Shift+Enter 换行 · 当前
+        当前
         <span class="font-semibold text-ink">{{ userStore.user?.credits ?? guestLimit }}</span>
         {{ userStore.user ? '点数' : '次' }}
       </div>

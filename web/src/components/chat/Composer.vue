@@ -13,10 +13,6 @@ type Option = {
   credit_cost?: number
 }
 
-const props = withDefaults(defineProps<{ compact?: boolean }>(), {
-  compact: false,
-})
-
 const fallbackStyles: Option[] = [
   { value: 'realistic', label: '写实' },
   { value: 'anime', label: '动漫' },
@@ -198,8 +194,8 @@ async function send() {
 </script>
 
 <template>
-  <div :class="props.compact ? 'w-full' : 'border-t border-slate-200 bg-white/90 p-4'">
-    <div v-if="!props.compact" class="mx-auto mb-2 flex max-w-3xl items-center gap-2 overflow-x-auto pb-1 text-xs text-slate-500">
+  <div class="border-t border-slate-200 bg-white/90 p-4">
+    <div class="mx-auto mb-2 flex max-w-3xl items-center gap-2 overflow-x-auto pb-1 text-xs text-slate-500">
       <span class="rounded-full bg-mist px-3 py-1">文字生成</span>
       <span class="rounded-full bg-mist px-3 py-1">图片参考</span>
     </div>
@@ -300,7 +296,7 @@ async function send() {
       </div>
     </div>
 
-    <div v-if="!props.compact" class="mx-auto mt-2 max-w-3xl text-center text-xs text-slate-400">
+    <div class="mx-auto mt-2 max-w-3xl text-center text-xs text-slate-400">
       Enter 发送 · Shift+Enter 换行
     </div>
   </div>
