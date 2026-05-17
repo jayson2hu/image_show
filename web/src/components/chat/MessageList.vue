@@ -1,12 +1,31 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, watch } from 'vue'
 
 import { useConversationStore } from '@/stores/conversation'
 
 import ImageReply from './ImageReply.vue'
 
+const props = defineProps<{
+  scrollContainer?: HTMLElement | null
+}>()
+
 const conversationStore = useConversationStore()
 const messages = computed(() => conversationStore.currentMessages)
+
+function scrollToBottom() {
+  nextTick(() => {
+    const container = props.scrollContainer
+    if (!container) return
+    container.scrollTop = container.scrollHeight
+  })
+}
+
+onMounted(scrollToBottom)
+
+watch(
+  () => messages.value.map((message) => `${message.id}:${message.generation_id || ''}:${message._sending ? 'sending' : 'done'}`).join('|'),
+  scrollToBottom,
+)
 </script>
 
 <template>
@@ -17,7 +36,7 @@ const messages = computed(() => conversationStore.currentMessages)
         <p>{{ message.prompt }}</p>
         <div v-if="message._error" class="mt-2 text-[11px] text-red-200">{{ message._error }}</div>
       </article>
-      <ImageReply :message="message" />
+      <ImageReply :message="message" @image-load="scrollToBottom" />
     </template>
   </div>
 </template>
