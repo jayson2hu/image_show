@@ -3,12 +3,14 @@ import { computed } from 'vue'
 
 import type { Message } from '@/api/types'
 import { useGenerationPoll } from '@/composables/useGenerationPoll'
+import { useProtectedImageURL } from '@/composables/useProtectedImageURL'
 
 const props = defineProps<{ message: Message }>()
 const generationId = computed(() => props.message.generation_id)
 const { generation, loading, error } = useGenerationPoll(generationId)
 
-const imageUrl = computed(() => generation.value?.image_url || '')
+const rawImageUrl = computed(() => generation.value?.image_url || '')
+const imageUrl = useProtectedImageURL(rawImageUrl)
 const progress = computed(() => {
   if (props.message._sending) return 8
   switch (generation.value?.status) {
@@ -36,9 +38,10 @@ const statusText = computed(() => {
 })
 
 function download() {
-  if (!imageUrl.value) return
+  const url = imageUrl.value || rawImageUrl.value
+  if (!url) return
   const link = document.createElement('a')
-  link.href = imageUrl.value
+  link.href = url
   link.download = `image-${props.message.generation_id || props.message.id}.png`
   link.click()
 }

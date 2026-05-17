@@ -1,8 +1,11 @@
 package controller_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
@@ -111,4 +114,61 @@ func TestListMessagesUsesConversationOwnership(t *testing.T) {
 	if forbidden.Code != http.StatusNotFound {
 		t.Fatalf("expected ownership 404, got %d body=%s", forbidden.Code, forbidden.Body.String())
 	}
+}
+
+func TestCreateMultipartMessageCreatesImageEditGeneration(t *testing.T) {
+	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
+	token := createGenerationUser(t, 3)
+	userID := tokenUserID(t, token)
+
+	conversation := model.Conversation{UserID: userID, Title: "edit chat", LastMsgAt: time.Now()}
+	if err := model.DB.Create(&conversation).Error; err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	_ = writer.WriteField("prompt", "restore this image")
+	_ = writer.WriteField("size", "square")
+	_ = writer.WriteField("style_id", "restore")
+	part, err := writer.CreateFormFile("image", "source.png")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err := part.Write(testPNGBytes); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/conversations/"+strconv.FormatInt(conversation.ID, 10)+"/messages", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create multipart message status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	var createResp struct {
+		Message      model.Message `json:"message"`
+		GenerationID int64         `json:"generation_id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &createResp); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if createResp.Message.TaskKind != "img2img_generic" || createResp.Message.AttachmentName != "source.png" || createResp.Message.AttachmentSize == 0 {
+		t.Fatalf("unexpected multipart message: %+v", createResp.Message)
+	}
+
+	var generation model.Generation
+	if err := model.DB.First(&generation, createResp.GenerationID).Error; err != nil {
+		t.Fatalf("load generation: %v", err)
+	}
+	if generation.Mode != "edit" || generation.MessageID == nil || *generation.MessageID != createResp.Message.ID {
+		t.Fatalf("unexpected edit generation: %+v", generation)
+	}
+	waitGenerationStatus(t, createResp.GenerationID, 3)
 }
