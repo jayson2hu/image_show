@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import type { Message } from '@/api/types'
 import { useGenerationPoll } from '@/composables/useGenerationPoll'
 import { useProtectedImageURL } from '@/composables/useProtectedImageURL'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{ message: Message }>()
+const toast = useToast()
+const showMore = ref(false)
 const generationId = computed(() => props.message.generation_id)
 const { generation, loading, error } = useGenerationPoll(generationId)
 
@@ -21,7 +24,6 @@ const progress = computed(() => {
     case 2:
       return 78
     case 3:
-      return 100
     case 4:
     case 5:
       return 100
@@ -36,6 +38,31 @@ const statusText = computed(() => {
   if (imageUrl.value) return '已完成'
   return '等待生成'
 })
+const sizeLabel = computed(() => formatSizeLabel(props.message.size))
+const moreItems = computed(() => [
+  `尺寸：${sizeLabel.value}`,
+  props.message.layered ? `分层：${props.message.layer_count || 0} 层` : '分层：关闭',
+  `任务 ID：${props.message.generation_id || props.message.id}`,
+])
+
+function formatSizeLabel(size?: string) {
+  const labels: Record<string, string> = {
+    square: '1:1 方图',
+    portrait: '3:4 竖图',
+    portrait_3_4: '3:4 竖图',
+    story: '9:16 长图',
+    landscape: '4:3 横图',
+    landscape_4_3: '4:3 横图',
+    widescreen: '16:9 宽屏',
+    '1024x1024': '1:1 方图',
+    '1152x1536': '3:4 竖图',
+    '1008x1792': '9:16 长图',
+    '1536x1152': '4:3 横图',
+    '1792x1008': '16:9 宽屏',
+  }
+  if (!size) return '图片'
+  return labels[size] || size.replace('x', ' x ')
+}
 
 function download() {
   const url = imageUrl.value || rawImageUrl.value
@@ -48,6 +75,19 @@ function download() {
 
 async function copyPrompt() {
   await navigator.clipboard?.writeText(props.message.prompt)
+  toast.success('提示词已复制')
+}
+
+async function copyImageUrl() {
+  const url = imageUrl.value || rawImageUrl.value
+  if (!url) return
+  await navigator.clipboard?.writeText(url)
+  toast.success('图片链接已复制')
+  showMore.value = false
+}
+
+function saveImage() {
+  toast.info('收藏功能暂未开放')
 }
 </script>
 
@@ -97,17 +137,23 @@ async function copyPrompt() {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" />
           </svg>
         </button>
-        <button class="grid size-8 place-items-center rounded-lg hover:bg-slate-100 hover:text-ink" type="button" title="收藏">
+        <button class="grid size-8 place-items-center rounded-lg hover:bg-slate-100 hover:text-ink" type="button" title="收藏" @click="saveImage">
           <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 5 7-2 7 2v16l-7-3-7 3V5Z" />
           </svg>
         </button>
-        <button class="grid size-8 place-items-center rounded-lg hover:bg-slate-100 hover:text-ink" type="button" title="更多">
-          <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 12h.01M12 12h.01M18 12h.01" />
-          </svg>
-        </button>
-        <span class="ml-2 text-[11px] text-slate-400">{{ message.size || 'image' }}</span>
+        <div class="relative">
+          <button class="grid size-8 place-items-center rounded-lg hover:bg-slate-100 hover:text-ink" type="button" title="更多" @click="showMore = !showMore">
+            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 12h.01M12 12h.01M18 12h.01" />
+            </svg>
+          </button>
+          <div v-if="showMore" class="absolute bottom-9 left-0 z-20 w-52 rounded-xl border border-slate-200 bg-white p-2 text-xs text-slate-600 shadow-lg">
+            <p v-for="item in moreItems" :key="item" class="px-2 py-1.5">{{ item }}</p>
+            <button class="mt-1 w-full rounded-lg px-2 py-1.5 text-left text-slate-700 hover:bg-slate-50" type="button" @click="copyImageUrl">复制图片链接</button>
+          </div>
+        </div>
+        <span class="ml-2 text-[11px] text-slate-400">{{ sizeLabel }}</span>
       </div>
     </div>
   </div>
