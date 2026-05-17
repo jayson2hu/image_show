@@ -10,7 +10,7 @@ const subtitle = computed(() => (conversationStore.currentConversation ? `${conv
 </script>
 
 <template>
-  <header class="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur">
+  <header class="flex h-16 shrink-0 items-center justify-between bg-mist/90 px-4 backdrop-blur">
     <div class="min-w-0">
       <h1 class="truncate text-base font-semibold text-ink">{{ title }}</h1>
       <p class="text-xs text-slate-500">{{ subtitle }}</p>

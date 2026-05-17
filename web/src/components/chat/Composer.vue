@@ -194,13 +194,13 @@ async function send() {
 </script>
 
 <template>
-  <div class="border-t border-slate-200 bg-white/90 p-4">
+  <div class="bg-mist/90 p-4">
     <div class="mx-auto mb-2 flex max-w-3xl items-center gap-2 overflow-x-auto pb-1 text-xs text-slate-500">
       <span class="rounded-full bg-mist px-3 py-1">文字生成</span>
       <span class="rounded-full bg-mist px-3 py-1">图片参考</span>
     </div>
 
-    <div class="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+    <div class="mx-auto max-w-3xl rounded-2xl border border-slate-100 bg-white p-2 shadow-sm">
       <textarea
         ref="textareaRef"
         v-model="composerStore.draft.prompt"
@@ -286,12 +286,14 @@ async function send() {
           参考图{{ hasAttachment ? ' 已选' : '' }}
         </button>
         <span class="ml-auto text-xs font-medium text-slate-500">预计 {{ creditEstimate }} 点数</span>
-        <button class="flex size-9 items-center justify-center rounded-full bg-teal text-white transition hover:bg-ink disabled:cursor-not-allowed disabled:bg-slate-300" type="button" :disabled="!composerStore.draft.prompt.trim() || conversationStore.sending" @click="send">
+        <button class="flex size-9 items-center justify-center rounded-full bg-ink text-white transition hover:bg-ink/80 disabled:cursor-not-allowed disabled:bg-slate-300" type="button" :disabled="!composerStore.draft.prompt.trim() || conversationStore.sending" @click="send">
           <svg v-if="conversationStore.sending" class="size-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
           </svg>
-          <span v-else>发送</span>
+          <svg v-else class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19V5m0 0l-5 5m5-5l5 5" />
+          </svg>
         </button>
       </div>
     </div>
