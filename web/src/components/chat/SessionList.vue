@@ -14,14 +14,14 @@ const pendingDeleteId = ref<number | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
 
 const conversations = computed(() => conversationStore.list)
-const displayName = computed(() => userStore.user?.username || userStore.user?.email?.split('@')[0] || '游客')
-const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 积分` : '体验积分 5'))
-const avatarText = computed(() => displayName.value.trim().slice(0, 1).toUpperCase() || '游')
+const displayName = computed(() => userStore.user?.username || userStore.user?.email?.split('@')[0] || '访客')
+const creditText = computed(() => (userStore.user ? `${userStore.user.credits} 点数` : '访客点数 5'))
+const avatarText = computed(() => displayName.value.trim().slice(0, 1).toUpperCase() || 'U')
 const deleteTarget = computed(() => conversations.value.find((item) => item.id === pendingDeleteId.value) || null)
 
-function createConversation() {
+async function createConversation() {
   closeMenu()
-  conversationStore.createLocalConversation()
+  await conversationStore.createLocalConversation()
 }
 
 function firstChar(title: string) {
@@ -43,9 +43,9 @@ function startRename(id: number, title: string) {
   nextTick(() => inputRef.value?.focus())
 }
 
-function confirmRename() {
+async function confirmRename() {
   if (!editingId.value || !editingTitle.value.trim()) return
-  conversationStore.updateConversationTitle(editingId.value, editingTitle.value)
+  await conversationStore.updateConversationTitle(editingId.value, editingTitle.value)
   cancelRename()
 }
 
@@ -59,9 +59,9 @@ function askDelete(id: number) {
   closeMenu()
 }
 
-function confirmDelete() {
+async function confirmDelete() {
   if (pendingDeleteId.value) {
-    conversationStore.deleteLocalConversation(pendingDeleteId.value)
+    await conversationStore.deleteLocalConversation(pendingDeleteId.value)
   }
   pendingDeleteId.value = null
 }
@@ -89,7 +89,7 @@ onUnmounted(() => {
         <button
           class="flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-teal hover:bg-teal/5 hover:text-teal"
           type="button"
-          title="展开侧边栏"
+          title="展开侧栏"
           @click="conversationStore.toggleSidebar()"
         >
           <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -99,7 +99,7 @@ onUnmounted(() => {
         <button
           class="flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-teal hover:bg-teal/5 hover:text-teal"
           type="button"
-          title="新建创作"
+          title="新建对话"
           @click="createConversation"
         >
           <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -131,12 +131,12 @@ onUnmounted(() => {
 
     <template v-else>
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold text-ink">对话列表</h2>
+        <h2 class="text-sm font-semibold text-ink">对话</h2>
         <div class="flex items-center gap-2">
           <button
             class="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-teal hover:bg-teal/5 hover:text-teal"
             type="button"
-            aria-label="新建创作"
+            aria-label="新建对话"
             @click="createConversation"
           >
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -146,7 +146,7 @@ onUnmounted(() => {
           <button
             class="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-teal hover:bg-teal/5 hover:text-teal"
             type="button"
-            aria-label="收起侧边栏"
+            aria-label="收起侧栏"
             @click="conversationStore.toggleSidebar()"
           >
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -180,7 +180,7 @@ onUnmounted(() => {
                 :disabled="!editingTitle.trim()"
                 @click="confirmRename"
               >
-                确认
+                保存
               </button>
               <button class="rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-500 hover:bg-white" type="button" @click="cancelRename">取消</button>
             </div>
@@ -229,7 +229,7 @@ onUnmounted(() => {
   <ConfirmDialog
     :open="pendingDeleteId !== null"
     title="删除对话"
-    :message="`确认删除「${deleteTarget?.title || '该对话'}」吗？删除后本地消息也会被清除。`"
+    :message="`确定删除「${deleteTarget?.title || '未命名对话'}」吗？删除后不会再显示该会话。`"
     confirm-text="删除"
     confirm-color="red"
     @cancel="pendingDeleteId = null"

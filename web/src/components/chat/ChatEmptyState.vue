@@ -19,8 +19,8 @@ const guestCredits = ref(5)
 const fallbackGreeting = computed(() => {
   const hour = new Date().getHours()
   const name = userStore.user?.username || userStore.user?.email?.split('@')[0] || ''
-  const timePart = hour < 6 ? '凌晨好' : hour < 12 ? '上午好' : hour < 18 ? '下午好' : '晚上好'
-  return name ? `${timePart}，${name}，准备好创作了吗？` : '准备好开始创作了吗？'
+  const timePart = hour < 6 ? '夜深了' : hour < 12 ? '上午好' : hour < 18 ? '下午好' : '晚上好'
+  return name ? `${timePart}，${name}` : '想生成什么图片？'
 })
 const greeting = computed(() => greetingText.value.trim() || fallbackGreeting.value)
 const displayScenes = computed(() => [...scenes.value].sort((a, b) => a.sort_order - b.sort_order).slice(0, 5))
@@ -70,21 +70,21 @@ function onSceneClick(scene: Scene) {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M4.93 19h14.14a2 2 0 0 0 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.2 16a2 2 0 0 0 1.73 3Z" />
         </svg>
       </div>
-      <h2 class="mt-4 text-xl font-semibold text-ink">体验积分已用完</h2>
-      <p class="mt-2 text-sm leading-6 text-slate-500">登录或注册后可以继续使用完整创作能力，并查看历史作品。</p>
+      <h2 class="mt-4 text-xl font-semibold text-ink">访客点数已用完</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-500">登录后可以继续生成图片，并管理历史记录与点数。</p>
       <div class="mt-6 flex justify-center gap-3">
-        <RouterLink class="rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-ink" to="/login">注册</RouterLink>
-        <RouterLink class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-slate-50" to="/login">登录</RouterLink>
+        <RouterLink class="rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-ink" to="/login">登录</RouterLink>
+        <RouterLink class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-slate-50" to="/packages">查看点数</RouterLink>
       </div>
     </div>
 
     <div v-else class="w-full max-w-[720px]">
       <div class="mb-6 text-center">
         <div v-if="!userStore.user" class="mb-3 inline-flex rounded-full bg-teal/10 px-3 py-1 text-xs font-semibold text-teal">
-          体验积分：{{ guestCredits }}
+          访客点数 {{ guestCredits }}
         </div>
         <h2 class="text-[22px] font-semibold leading-tight text-ink">{{ greeting }}</h2>
-        <p class="mt-1.5 text-[13px] text-slate-500">选择一个场景，或直接描述你想生成的画面。</p>
+        <p class="mt-1.5 text-[13px] text-slate-500">输入提示词，或选择一个场景开始生成。</p>
       </div>
 
       <div v-if="displayScenes.length" class="mb-3 flex flex-wrap items-center justify-center gap-2">
@@ -105,8 +105,8 @@ function onSceneClick(scene: Scene) {
       <div class="mt-3 text-center text-[11px] text-slate-500">
         Enter 发送 · Shift+Enter 换行 · 当前
         <span class="font-semibold text-ink">{{ userStore.user?.credits ?? guestCredits }}</span>
-        积分 ·
-        <RouterLink class="text-teal hover:underline" to="/packages">查看套餐</RouterLink>
+        点数 ·
+        <RouterLink class="text-teal hover:underline" to="/packages">购买点数</RouterLink>
       </div>
     </div>
   </div>

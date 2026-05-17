@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{ compact?: boolean }>(), {
 const fallbackStyles: Option[] = [
   { value: 'realistic', label: '写实' },
   { value: 'anime', label: '动漫' },
-  { value: 'fantasy', label: '幻想' },
+  { value: 'fantasy', label: '奇幻' },
   { value: 'cyberpunk', label: '赛博朋克' },
   { value: 'watercolor', label: '水彩' },
   { value: 'illustration', label: '插画' },
@@ -28,9 +28,9 @@ const fallbackStyles: Option[] = [
 
 const fallbackRatios: Option[] = [
   { value: 'square', label: '1:1 方图', ratio: '1:1', credit_cost: 1 },
-  { value: 'portrait_3_4', label: '3:4 竖版', ratio: '3:4', credit_cost: 2 },
-  { value: 'story', label: '9:16 竖屏', ratio: '9:16', credit_cost: 2 },
-  { value: 'landscape_4_3', label: '4:3 横版', ratio: '4:3', credit_cost: 2 },
+  { value: 'portrait_3_4', label: '3:4 竖图', ratio: '3:4', credit_cost: 2 },
+  { value: 'story', label: '9:16 长图', ratio: '9:16', credit_cost: 2 },
+  { value: 'landscape_4_3', label: '4:3 横图', ratio: '4:3', credit_cost: 2 },
   { value: 'widescreen', label: '16:9 宽屏', ratio: '16:9', credit_cost: 2 },
 ]
 
@@ -45,7 +45,7 @@ const previewUrl = ref('')
 const styles = ref<Option[]>(fallbackStyles)
 const ratios = ref<Option[]>(fallbackRatios)
 
-const styleOptions = computed<Option[]>(() => [{ value: '', label: '无（模型决定）' }, ...styles.value])
+const styleOptions = computed<Option[]>(() => [{ value: '', label: '默认风格' }, ...styles.value])
 const selectedStyle = computed(() => styleOptions.value.find((item) => item.value === composerStore.draft.style_id) || styleOptions.value[0])
 const selectedRatio = computed(() => ratios.value.find((item) => item.value === composerStore.draft.size) || fallbackRatios[0])
 const hasAttachment = computed(() => !!composerStore.draft.attachment)
@@ -200,8 +200,8 @@ async function send() {
 <template>
   <div :class="props.compact ? 'w-full' : 'border-t border-slate-200 bg-white/90 p-4'">
     <div v-if="!props.compact" class="mx-auto mb-2 flex max-w-3xl items-center gap-2 overflow-x-auto pb-1 text-xs text-slate-500">
-      <span class="rounded-full bg-mist px-3 py-1">场景</span>
-      <span class="rounded-full bg-mist px-3 py-1">提示词灵感</span>
+      <span class="rounded-full bg-mist px-3 py-1">文字生成</span>
+      <span class="rounded-full bg-mist px-3 py-1">图片参考</span>
     </div>
 
     <div class="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
@@ -209,7 +209,7 @@ async function send() {
         ref="textareaRef"
         v-model="composerStore.draft.prompt"
         class="min-h-24 w-full resize-none rounded-xl border-0 bg-transparent px-3 py-2 text-sm leading-6 text-ink outline-none placeholder:text-slate-400"
-        placeholder="描述你想生成的画面..."
+        placeholder="描述你想生成或修改的图片..."
         @keydown.enter.exact.prevent="send"
       ></textarea>
 
@@ -221,21 +221,21 @@ async function send() {
       >
         <input ref="fileInputRef" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" @change="handleFileChange" />
         <div v-if="previewUrl" class="relative size-20">
-          <img class="size-20 rounded-lg object-cover" :src="previewUrl" alt="附图预览" />
+          <img class="size-20 rounded-lg object-cover" :src="previewUrl" alt="参考图预览" />
           <button class="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-ink text-xs text-white" type="button" @click="removeAttachment">x</button>
         </div>
         <button v-else class="flex w-full flex-col items-center justify-center rounded-lg px-4 py-6 text-center text-sm text-slate-500 hover:bg-white" type="button" @click="triggerFilePicker">
           <svg class="mb-2 size-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 0 4 4m-4-4-4 4M4 20h16" />
           </svg>
-          点击或拖拽上传图片
+          点击上传参考图片
         </button>
       </div>
 
       <div class="flex flex-wrap items-center gap-2 px-2 pb-1" @click.stop>
         <div class="relative">
           <button class="rounded-full bg-mist px-3 py-1.5 text-xs font-medium text-ink" type="button" @click="toggleDropdown('style')">
-            风格：{{ selectedStyle.value ? selectedStyle.label : '无' }}
+            风格: {{ selectedStyle.label }}
           </button>
           <div v-if="openMenu === 'style'" class="absolute bottom-full left-0 z-20 mb-2 w-44 rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg">
             <button
@@ -275,7 +275,7 @@ async function send() {
           type="button"
           @click="toggleLayered"
         >
-          <span>分层 · {{ composerStore.draft.layered ? '开' : '关' }}</span>
+          <span>分层 {{ composerStore.draft.layered ? '开' : '关' }}</span>
           <span class="flex h-4 w-7 items-center rounded-full bg-white/60 p-0.5">
             <span class="size-3 rounded-full bg-current transition" :class="composerStore.draft.layered ? 'translate-x-3' : 'translate-x-0'"></span>
           </span>
@@ -287,11 +287,15 @@ async function send() {
           type="button"
           @click="showUploader = !showUploader"
         >
-          附图{{ hasAttachment ? ' ✓' : '' }}
+          参考图{{ hasAttachment ? ' 已选' : '' }}
         </button>
-        <span class="ml-auto text-xs font-medium text-slate-500">预计 {{ creditEstimate }} 积分</span>
+        <span class="ml-auto text-xs font-medium text-slate-500">预计 {{ creditEstimate }} 点数</span>
         <button class="flex size-9 items-center justify-center rounded-full bg-teal text-white transition hover:bg-ink disabled:cursor-not-allowed disabled:bg-slate-300" type="button" :disabled="!composerStore.draft.prompt.trim() || conversationStore.sending" @click="send">
-          发送
+          <svg v-if="conversationStore.sending" class="size-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+          </svg>
+          <span v-else>发送</span>
         </button>
       </div>
     </div>

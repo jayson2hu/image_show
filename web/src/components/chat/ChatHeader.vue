@@ -6,7 +6,7 @@ import { useConversationStore } from '@/stores/conversation'
 
 const conversationStore = useConversationStore()
 const title = computed(() => conversationStore.currentConversation?.title || '新对话')
-const subtitle = computed(() => (conversationStore.currentConversation ? `${conversationStore.currentMessages.length} 条消息` : '未保存'))
+const subtitle = computed(() => (conversationStore.currentConversation ? `${conversationStore.currentMessages.length} 条消息` : '未选择会话'))
 </script>
 
 <template>
@@ -16,7 +16,7 @@ const subtitle = computed(() => (conversationStore.currentConversation ? `${conv
       <p class="text-xs text-slate-500">{{ subtitle }}</p>
     </div>
     <RouterLink class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-teal hover:text-teal" to="/classic">
-      切换经典版
+      经典模式
     </RouterLink>
   </header>
 </template>
