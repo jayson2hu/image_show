@@ -16,11 +16,10 @@ const isEmpty = computed(() => {
   const messages = conversationStore.messages[conversation.id]
   return !messages || messages.length === 0
 })
+const showEmptyState = computed(() => !conversationStore.loading && !conversationStore.messageLoading && isEmpty.value)
 
 onMounted(() => {
-  if (!conversationStore.currentId && conversationStore.list.length === 0) {
-    conversationStore.createLocalConversation()
-  }
+  conversationStore.loadConversations()
 })
 </script>
 
@@ -29,7 +28,10 @@ onMounted(() => {
     <SessionList />
     <main class="flex min-w-0 flex-1 flex-col transition-all duration-200">
       <ChatHeader />
-      <ChatEmptyState v-if="isEmpty" class="flex-1" />
+      <ChatEmptyState v-if="showEmptyState" class="flex-1" />
+      <div v-else-if="conversationStore.loading || conversationStore.messageLoading" class="flex flex-1 items-center justify-center text-sm text-slate-500">
+        加载中...
+      </div>
       <template v-else>
         <div class="flex-1 overflow-y-auto">
           <MessageList />

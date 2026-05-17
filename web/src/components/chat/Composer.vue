@@ -172,16 +172,28 @@ function revokePreview() {
   }
 }
 
-function send() {
+async function send() {
   const prompt = composerStore.draft.prompt.trim()
   if (!prompt) {
     composerStore.focusInput()
     return
   }
-  conversationStore.sendLocalMessage(prompt)
-  revokePreview()
-  showUploader.value = false
-  composerStore.reset()
+  try {
+    await conversationStore.sendMessage({
+      prompt,
+      size: composerStore.draft.size,
+      style_id: composerStore.draft.style_id,
+      scene_id: composerStore.draft.scene_id,
+      layered: composerStore.draft.layered,
+      layer_count: composerStore.draft.layer_count,
+      attachment: composerStore.draft.attachment,
+    })
+    revokePreview()
+    showUploader.value = false
+    composerStore.reset()
+  } catch (error: any) {
+    toast.error(error.response?.data?.message || error.response?.data?.error || '发送失败')
+  }
 }
 </script>
 
@@ -278,7 +290,7 @@ function send() {
           附图{{ hasAttachment ? ' ✓' : '' }}
         </button>
         <span class="ml-auto text-xs font-medium text-slate-500">预计 {{ creditEstimate }} 积分</span>
-        <button class="flex size-9 items-center justify-center rounded-full bg-teal text-white transition hover:bg-ink disabled:cursor-not-allowed disabled:bg-slate-300" type="button" :disabled="!composerStore.draft.prompt.trim()" @click="send">
+        <button class="flex size-9 items-center justify-center rounded-full bg-teal text-white transition hover:bg-ink disabled:cursor-not-allowed disabled:bg-slate-300" type="button" :disabled="!composerStore.draft.prompt.trim() || conversationStore.sending" @click="send">
           发送
         </button>
       </div>
