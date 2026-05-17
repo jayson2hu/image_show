@@ -222,7 +222,7 @@ func linkMessageGeneration(c *gin.Context, conversation model.Conversation, mess
 		"is_layered":  message.Layered,
 	}
 	if conversation.MsgCount == 0 {
-		conversationUpdates["title"] = normalizeConversationTitle(message.Prompt)
+		conversationUpdates["title"] = conversationTitleFromPrompt(message.Prompt)
 	}
 	if err := model.DB.Model(&conversation).Updates(conversationUpdates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "update conversation failed"})

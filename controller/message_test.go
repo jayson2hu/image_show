@@ -66,7 +66,7 @@ func TestCreateMessageCreatesGenerationAndUpdatesConversation(t *testing.T) {
 	if err := model.DB.First(&updated, conversation.ID).Error; err != nil {
 		t.Fatalf("load conversation: %v", err)
 	}
-	if updated.MsgCount != 1 || updated.Title != "a glass cabin near the lake" || !updated.IsLayered {
+	if updated.MsgCount != 1 || updated.Title != "a glass cabi..." || !updated.IsLayered {
 		t.Fatalf("conversation not updated: %+v", updated)
 	}
 }

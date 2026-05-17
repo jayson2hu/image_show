@@ -6,8 +6,11 @@ import { createMessage, listMessages, type CreateMessagePayload } from '@/api/me
 import type { Conversation, Message } from '@/api/types'
 import { useUserStore } from '@/stores/user'
 
-const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed'
 const GUEST_CONVERSATION_ID = -1
+
+function autoTitleFromPrompt(prompt: string) {
+  return prompt.slice(0, 12) + (prompt.length > 12 ? '...' : '')
+}
 
 export const useConversationStore = defineStore('conversation', {
   state: () => ({
@@ -18,7 +21,6 @@ export const useConversationStore = defineStore('conversation', {
     messageLoading: false,
     sending: false,
     searchQuery: '',
-    sidebarCollapsed: localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true',
   }),
   getters: {
     currentConversation: (state) => state.list.find((item) => item.id === state.currentId) || null,
@@ -120,7 +122,7 @@ export const useConversationStore = defineStore('conversation', {
           this.list = [
             {
               id: GUEST_CONVERSATION_ID,
-              title: '访客创作',
+              title: '新对话',
               msg_count: 0,
               last_msg_at: new Date().toISOString(),
               is_layered: false,
@@ -165,10 +167,6 @@ export const useConversationStore = defineStore('conversation', {
         this.messageLoading = false
       }
     },
-    toggleSidebar() {
-      this.sidebarCollapsed = !this.sidebarCollapsed
-      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(this.sidebarCollapsed))
-    },
     async sendMessage(payload: CreateMessagePayload) {
       const normalizedPrompt = payload.prompt.trim()
       if (!normalizedPrompt) return
@@ -209,7 +207,7 @@ export const useConversationStore = defineStore('conversation', {
             item.id === conversationId
               ? {
                   ...item,
-                  title: item.msg_count === 0 ? normalizedPrompt.slice(0, 128) : item.title,
+                  title: item.msg_count === 0 ? autoTitleFromPrompt(normalizedPrompt) : item.title,
                   msg_count: item.msg_count + 1,
                   last_msg_at: message.created_at || new Date().toISOString(),
                   is_layered: Boolean(payload.layered),
@@ -222,7 +220,12 @@ export const useConversationStore = defineStore('conversation', {
         const response = await createMessage(conversationId, { ...payload, prompt: normalizedPrompt })
         const message = response.data.message
         this.messages[conversationId] = (this.messages[conversationId] || []).map((item) => (item.id === tempId ? message : item))
+        const current = this.list.find((item) => item.id === conversationId)
         await this.loadConversations()
+        if (current && current.msg_count === 0) {
+          const nextTitle = autoTitleFromPrompt(normalizedPrompt)
+          await this.updateConversationTitle(conversationId, nextTitle)
+        }
         this.currentId = conversationId
       } catch (error: any) {
         const message = error.response?.data?.message || error.response?.data?.error || 'send failed'
@@ -247,6 +250,7 @@ export const useConversationStore = defineStore('conversation', {
         delete this.messages[id]
         if (this.currentId === id) {
           this.currentId = null
+          await this.ensureConversation()
         }
         return
       }
@@ -260,6 +264,7 @@ export const useConversationStore = defineStore('conversation', {
         await this.selectConversation(this.list[0].id)
       } else {
         this.currentId = null
+        await this.ensureConversation()
       }
     },
   },

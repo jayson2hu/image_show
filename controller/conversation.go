@@ -18,7 +18,7 @@ import (
 const (
 	defaultConversationLimit = 20
 	maxConversationLimit     = 100
-	defaultConversationTitle = "新会话"
+	defaultConversationTitle = "新对话"
 )
 
 type conversationTitleRequest struct {
@@ -303,13 +303,24 @@ func normalizeConversationTitle(title string) string {
 	return title
 }
 
+func conversationTitleFromPrompt(prompt string) string {
+	runes := []rune(strings.TrimSpace(prompt))
+	if len(runes) == 0 {
+		return defaultConversationTitle
+	}
+	if len(runes) > 12 {
+		return string(runes[:12]) + "..."
+	}
+	return string(runes)
+}
+
 func firstClaimPrompt(generations []model.Generation, messages map[int64]claimGuestMessageRequest) string {
 	for _, generation := range generations {
 		if source, ok := messages[generation.ID]; ok && strings.TrimSpace(source.Prompt) != "" {
-			return source.Prompt
+			return conversationTitleFromPrompt(source.Prompt)
 		}
 		if strings.TrimSpace(generation.Prompt) != "" {
-			return generation.Prompt
+			return conversationTitleFromPrompt(generation.Prompt)
 		}
 	}
 	return defaultConversationTitle
