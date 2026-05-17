@@ -72,7 +72,7 @@ func ensureAnonymousTotalQuota(anonymousID string) error {
 
 func ensureAnonymousLayeredQuota(anonymousID string) error {
 	var count int64
-	if err := model.DB.Model(&model.Message{}).
+	if err := model.DB.Model(&model.Generation{}).
 		Where("anonymous_id = ? AND layered = ?", anonymousID, true).
 		Count(&count).Error; err != nil {
 		return err

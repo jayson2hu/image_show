@@ -28,6 +28,9 @@ type Generation struct {
 	Prompt            string    `gorm:"type:text" json:"prompt"`
 	Quality           string    `gorm:"size:16" json:"quality"`
 	Size              string    `gorm:"size:16" json:"size"`
+	StyleID           string    `gorm:"size:64" json:"style_id"`
+	Layered           bool      `gorm:"default:false" json:"layered"`
+	LayerCount        int       `gorm:"default:0" json:"layer_count"`
 	OutputFormat      string    `gorm:"size:16" json:"output_format"`
 	OutputCompression *int      `json:"output_compression"`
 	Background        string    `gorm:"size:16" json:"background"`

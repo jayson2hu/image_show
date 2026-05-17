@@ -15,6 +15,12 @@ type GenerationEvent struct {
 	Error    string `json:"error,omitempty"`
 }
 
+type GenerationMetadata struct {
+	StyleID    string
+	Layered    bool
+	LayerCount int
+}
+
 type GenerationNotifier struct {
 	mu       sync.RWMutex
 	channels map[int64]map[chan GenerationEvent]struct{}
@@ -61,10 +67,18 @@ func (n *GenerationNotifier) Publish(id int64, event GenerationEvent) {
 }
 
 func CreateGeneration(prompt, quality, size, ip string, userID *int64, anonymousID string, options ImageOptions) (*model.Generation, error) {
-	return CreateGenerationForMessage(prompt, quality, size, ip, userID, anonymousID, nil, options)
+	return CreateGenerationWithMetadata(prompt, quality, size, ip, userID, anonymousID, options, GenerationMetadata{})
+}
+
+func CreateGenerationWithMetadata(prompt, quality, size, ip string, userID *int64, anonymousID string, options ImageOptions, metadata GenerationMetadata) (*model.Generation, error) {
+	return createGenerationForMessage(prompt, quality, size, ip, userID, anonymousID, nil, options, metadata)
 }
 
 func CreateGenerationForMessage(prompt, quality, size, ip string, userID *int64, anonymousID string, messageID *int64, options ImageOptions) (*model.Generation, error) {
+	return createGenerationForMessage(prompt, quality, size, ip, userID, anonymousID, messageID, options, GenerationMetadata{})
+}
+
+func createGenerationForMessage(prompt, quality, size, ip string, userID *int64, anonymousID string, messageID *int64, options ImageOptions, metadata GenerationMetadata) (*model.Generation, error) {
 	cost := CostForSize(size)
 	if userID != nil {
 		if err := ensureEnoughGenerationCredits(*userID, cost); err != nil {
@@ -79,6 +93,9 @@ func CreateGenerationForMessage(prompt, quality, size, ip string, userID *int64,
 		Prompt:            prompt,
 		Quality:           quality,
 		Size:              size,
+		StyleID:           metadata.StyleID,
+		Layered:           metadata.Layered,
+		LayerCount:        metadata.LayerCount,
 		OutputFormat:      options.OutputFormat,
 		OutputCompression: options.OutputCompression,
 		Background:        options.Background,
@@ -103,10 +120,18 @@ func CreateGenerationForMessage(prompt, quality, size, ip string, userID *int64,
 }
 
 func CreateImageEdit(prompt, quality, size, ip string, userID *int64, anonymousID string, imageData []byte, filename, contentType string, options ImageOptions) (*model.Generation, error) {
-	return CreateImageEditForMessage(prompt, quality, size, ip, userID, anonymousID, imageData, filename, contentType, nil, options)
+	return CreateImageEditWithMetadata(prompt, quality, size, ip, userID, anonymousID, imageData, filename, contentType, options, GenerationMetadata{})
+}
+
+func CreateImageEditWithMetadata(prompt, quality, size, ip string, userID *int64, anonymousID string, imageData []byte, filename, contentType string, options ImageOptions, metadata GenerationMetadata) (*model.Generation, error) {
+	return createImageEditForMessage(prompt, quality, size, ip, userID, anonymousID, imageData, filename, contentType, nil, options, metadata)
 }
 
 func CreateImageEditForMessage(prompt, quality, size, ip string, userID *int64, anonymousID string, imageData []byte, filename, contentType string, messageID *int64, options ImageOptions) (*model.Generation, error) {
+	return createImageEditForMessage(prompt, quality, size, ip, userID, anonymousID, imageData, filename, contentType, messageID, options, GenerationMetadata{})
+}
+
+func createImageEditForMessage(prompt, quality, size, ip string, userID *int64, anonymousID string, imageData []byte, filename, contentType string, messageID *int64, options ImageOptions, metadata GenerationMetadata) (*model.Generation, error) {
 	cost := CostForSize(size)
 	if userID != nil {
 		if err := ensureEnoughGenerationCredits(*userID, cost); err != nil {
@@ -121,6 +146,9 @@ func CreateImageEditForMessage(prompt, quality, size, ip string, userID *int64, 
 		Prompt:            prompt,
 		Quality:           quality,
 		Size:              size,
+		StyleID:           metadata.StyleID,
+		Layered:           metadata.Layered,
+		LayerCount:        metadata.LayerCount,
 		OutputFormat:      options.OutputFormat,
 		OutputCompression: options.OutputCompression,
 		Background:        options.Background,

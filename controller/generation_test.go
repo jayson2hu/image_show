@@ -330,6 +330,36 @@ func TestCreateGenerationUsesConfiguredRatioCreditCost(t *testing.T) {
 	waitGenerationStatus(t, resp.ID, 3)
 }
 
+func TestAnonymousGenerationPersistsLayeredAndStyle(t *testing.T) {
+	engine := setupAuthTest(t)
+	config.AppConfig.MockSub2API = true
+
+	rec := postJSONWithFingerprint(engine, "/api/generations", map[string]interface{}{
+		"prompt":      "layered guest image",
+		"size":        "square",
+		"style_id":    "realistic",
+		"layered":     true,
+		"layer_count": 5,
+	}, "layered-style-fp")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	var generation model.Generation
+	if err := model.DB.First(&generation, resp.ID).Error; err != nil {
+		t.Fatalf("load generation: %v", err)
+	}
+	if generation.StyleID != "realistic" || !generation.Layered || generation.LayerCount != 5 {
+		t.Fatalf("generation did not persist style/layered fields: %+v", generation)
+	}
+	waitGenerationStatus(t, resp.ID, 3)
+}
+
 func TestCreateGenerationRequiresCaptchaWhenEnabled(t *testing.T) {
 	engine := setupAuthTest(t)
 	enableCaptchaForTest(t)

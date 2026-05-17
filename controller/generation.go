@@ -23,6 +23,9 @@ type createGenerationRequest struct {
 	Size              string `json:"size" binding:"required"`
 	AnonymousID       string `json:"anonymous_id"`
 	CaptchaToken      string `json:"captcha_token"`
+	StyleID           string `json:"style_id"`
+	Layered           bool   `json:"layered"`
+	LayerCount        int    `json:"layer_count"`
 	OutputFormat      string `json:"output_format"`
 	Background        string `json:"background"`
 	OutputCompression *int   `json:"output_compression"`
@@ -256,6 +259,11 @@ func CreateGeneration(c *gin.Context) {
 	}
 	req.Size = realSize
 	options := fixedGenerationImageOptions()
+	metadata := service.GenerationMetadata{
+		StyleID:    strings.TrimSpace(req.StyleID),
+		Layered:    req.Layered,
+		LayerCount: normalizeLayerCount(req.LayerCount),
+	}
 
 	var userID *int64
 	if value, exists := c.Get("userID"); exists {
@@ -270,12 +278,12 @@ func CreateGeneration(c *gin.Context) {
 			return
 		}
 		anonymousID := service.TrialAnonymousID(common.GetRealIP(c), fingerprint)
-		if err := service.EnsureAnonymousGenerationQuota(anonymousID, false); err != nil {
+		if err := service.EnsureAnonymousGenerationQuota(anonymousID, req.Layered); err != nil {
 			handleGenerationQuotaError(c, err)
 			return
 		}
 		req.AnonymousID = anonymousID
-		generation, err := service.CreateGeneration(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), nil, req.AnonymousID, options)
+		generation, err := service.CreateGenerationWithMetadata(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), nil, req.AnonymousID, options, metadata)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create generation"})
 			return
@@ -284,11 +292,11 @@ func CreateGeneration(c *gin.Context) {
 		return
 	}
 
-	if err := service.EnsureUserGenerationQuota(*userID, false); err != nil {
+	if err := service.EnsureUserGenerationQuota(*userID, req.Layered); err != nil {
 		handleGenerationQuotaError(c, err)
 		return
 	}
-	generation, err := service.CreateGeneration(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), userID, req.AnonymousID, options)
+	generation, err := service.CreateGenerationWithMetadata(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), userID, req.AnonymousID, options, metadata)
 	if err != nil {
 		if errors.Is(err, service.ErrInsufficientCredits) {
 			c.JSON(http.StatusPaymentRequired, gin.H{"error": "insufficient_credits", "message": "积分不足，请充值后继续"})
@@ -331,6 +339,14 @@ func CreateImageEdit(c *gin.Context) {
 	}
 	req.Size = realSize
 	options := fixedGenerationImageOptions()
+	req.Layered = c.PostForm("layered") == "true"
+	req.LayerCount = parseIntForm(c.PostForm("layer_count"))
+	req.StyleID = strings.TrimSpace(c.PostForm("style_id"))
+	metadata := service.GenerationMetadata{
+		StyleID:    req.StyleID,
+		Layered:    req.Layered,
+		LayerCount: normalizeLayerCount(req.LayerCount),
+	}
 	file, header, err := c.Request.FormFile("image")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "image file required"})
@@ -368,16 +384,16 @@ func CreateImageEdit(c *gin.Context) {
 			return
 		}
 		req.AnonymousID = service.TrialAnonymousID(common.GetRealIP(c), fingerprint)
-		if err := service.EnsureAnonymousGenerationQuota(req.AnonymousID, false); err != nil {
+		if err := service.EnsureAnonymousGenerationQuota(req.AnonymousID, req.Layered); err != nil {
 			handleGenerationQuotaError(c, err)
 			return
 		}
-	} else if err := service.EnsureUserGenerationQuota(*userID, false); err != nil {
+	} else if err := service.EnsureUserGenerationQuota(*userID, req.Layered); err != nil {
 		handleGenerationQuotaError(c, err)
 		return
 	}
 
-	generation, err := service.CreateImageEdit(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), userID, req.AnonymousID, imageData, header.Filename, contentType, options)
+	generation, err := service.CreateImageEditWithMetadata(req.Prompt, req.Quality, req.Size, common.GetRealIP(c), userID, req.AnonymousID, imageData, header.Filename, contentType, options, metadata)
 	if err != nil {
 		if errors.Is(err, service.ErrInsufficientCredits) {
 			c.JSON(http.StatusPaymentRequired, gin.H{"error": "insufficient_credits", "message": "积分不足，请充值后继续"})
