@@ -983,3 +983,91 @@ export function useGenerationPoll(generationId: number | null | undefined) {
 
 **文档版本**：v2.0（基于真实代码现状重写）
 **视觉参考**：`mockups/chat-img2img.html`
+
+---
+
+## 11. 游客会话登录后认领同步计划
+
+### 11.1 背景
+
+新版 Chat 允许游客直接生成。游客消息当前存在前端临时会话中，后端生成记录以 `anonymous_id` 落库。如果用户先试用、再注册或登录，应该把这段游客创作同步到登录账号的正式会话中，否则用户会觉得刚生成的内容丢失。
+
+### 11.2 目标
+
+- 游客生成后登录或注册，自动把当前浏览器游客会话同步为登录用户会话。
+- 同步成功后，聊天列表出现正式会话，消息和生成图可继续查看。
+- 原匿名 `generation` 更新为当前用户所有，进入用户历史。
+- 同步失败不阻断登录，只在控制台记录，避免影响认证主流程。
+
+### 11.3 后端实现细节
+
+新增接口：
+
+```text
+POST /api/conversations/claim-guest
+Authorization: Bearer <token>
+X-Fingerprint: <browser fingerprint>
+```
+
+请求体：
+
+```json
+{
+  "title": "游客创作",
+  "messages": [
+    {
+      "generation_id": 123,
+      "prompt": "提示词",
+      "task_kind": "text2img",
+      "size": "1024x1024",
+      "style_id": "",
+      "scene_id": "",
+      "layered": false,
+      "layer_count": 0
+    }
+  ]
+}
+```
+
+安全策略：
+
+- 后端不信任前端传 `anonymous_id`。
+- 后端用 `X-Fingerprint + IP` 重新计算 `anonymous_id`。
+- 只认领 `anonymous_id` 匹配、`user_id IS NULL`、`message_id IS NULL`、`is_deleted=false` 的 generation。
+- 重复同步时，已绑定过的 generation 不会再次创建消息。
+- 没有可认领记录时返回 `claimed=0`，不创建空会话。
+
+写入流程：
+
+1. 读取登录用户 ID 和 fingerprint。
+2. 按请求里的 `generation_id` 查询可认领 generation。
+3. 创建正式 `Conversation`。
+4. 为每个 generation 创建 `Message`，补齐 prompt、size、task_kind、layered 等字段。
+5. 更新 generation 的 `user_id` 和 `message_id`。
+6. 更新 conversation 的 `msg_count`、`last_msg_at`、`is_layered`。
+7. 返回 `{ conversation, messages, claimed }`。
+
+### 11.4 前端实现细节
+
+- 新增 `claimGuestConversation()` API。
+- `conversationStore.syncGuestConversation()` 从本地 `-1` 游客会话读取消息并提交。
+- 邮箱登录、邮箱注册、微信登录成功后，在跳转首页前调用同步。
+- 同步成功后删除本地游客会话，插入后端正式会话和消息，`currentId` 指向正式会话。
+- 同步失败时不影响登录。
+
+### 11.5 自测清单
+
+- [x] 游客生成后登录，正式会话创建成功。
+- [x] 原 generation 的 `user_id`、`message_id` 正确更新。
+- [x] 错误 fingerprint 无法认领。
+- [x] 重复同步不重复创建消息。
+- [x] `go test ./controller/... ./model/...` 通过。
+- [x] `cmd /c npm run build` 通过。
+
+### 11.6 完成记录
+
+- 状态：已实现并自测通过，2026-05-17。
+- 后端：新增 `POST /api/conversations/claim-guest`，按 fingerprint + IP 计算 `anonymous_id`，只认领未绑定的游客 generation。
+- 前端：登录、注册、微信登录成功后调用 `syncGuestConversation()`，把 `-1` 游客会话转换为正式会话。
+- 自测：`go test ./controller/... ./model/...`、`cmd /c npm run build` 均通过。
+- 计划提交信息：`feat: claim guest chat after login`

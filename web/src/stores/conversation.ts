@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-import { createConversation, deleteConversation, listConversations, renameConversation } from '@/api/conversation'
+import { claimGuestConversation, createConversation, deleteConversation, listConversations, renameConversation } from '@/api/conversation'
 import { createGeneration, createImageEdit } from '@/api/generation'
 import { createMessage, listMessages, type CreateMessagePayload } from '@/api/message'
 import type { Conversation, Message } from '@/api/types'
@@ -47,6 +47,62 @@ export const useConversationStore = defineStore('conversation', {
       } finally {
         this.loading = false
       }
+    },
+    hasClaimableGuestConversation() {
+      return (this.messages[GUEST_CONVERSATION_ID] || []).some((message) => Number(message.generation_id) > 0)
+    },
+    clearGuestConversation() {
+      this.list = this.list.filter((item) => item.id !== GUEST_CONVERSATION_ID)
+      delete this.messages[GUEST_CONVERSATION_ID]
+      if (this.currentId === GUEST_CONVERSATION_ID) {
+        this.currentId = null
+      }
+    },
+    async syncGuestConversation() {
+      const userStore = useUserStore()
+      if (!userStore.token || !this.hasClaimableGuestConversation()) {
+        return
+      }
+
+      const guestConversation = this.list.find((item) => item.id === GUEST_CONVERSATION_ID)
+      const guestMessages = this.messages[GUEST_CONVERSATION_ID] || []
+      const claimableMessages = guestMessages
+        .filter((message) => Number(message.generation_id) > 0)
+        .map((message) => ({
+          generation_id: Number(message.generation_id),
+          prompt: message.prompt,
+          task_kind: message.task_kind,
+          size: message.size,
+          style_id: message.style_id,
+          scene_id: message.scene_id,
+          layered: Boolean(message.layered),
+          layer_count: message.layer_count || 0,
+        }))
+
+      if (claimableMessages.length === 0) {
+        this.clearGuestConversation()
+        return
+      }
+
+      try {
+        const response = await claimGuestConversation({
+          title: guestConversation?.title,
+          messages: claimableMessages,
+        })
+        if (response.data.claimed > 0 && response.data.conversation?.id) {
+          const conversation = response.data.conversation
+          this.list = [conversation, ...this.list.filter((item) => item.id !== GUEST_CONVERSATION_ID && item.id !== conversation.id)]
+          this.messages[conversation.id] = response.data.messages || []
+          this.currentId = conversation.id
+          delete this.messages[GUEST_CONVERSATION_ID]
+          return
+        }
+      } catch (error) {
+        console.warn('sync guest conversation failed', error)
+        return
+      }
+
+      this.clearGuestConversation()
     },
     async createLocalConversation() {
       const response = await createConversation()

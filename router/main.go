@@ -34,6 +34,7 @@ func Register(r *gin.Engine) {
 	conversations := api.Group("/conversations", middleware.AuthRequired())
 	conversations.GET("", controller.ListConversations)
 	conversations.POST("", controller.CreateConversation)
+	conversations.POST("/claim-guest", controller.ClaimGuestConversation)
 	conversations.GET("/:id", controller.GetConversation)
 	conversations.PATCH("/:id", controller.RenameConversation)
 	conversations.DELETE("/:id", controller.DeleteConversation)

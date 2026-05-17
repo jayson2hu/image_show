@@ -1,13 +1,17 @@
 package controller_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jayson2hu/image-show/model"
+	"github.com/jayson2hu/image-show/service"
 )
 
 func TestConversationCRUD(t *testing.T) {
@@ -176,4 +180,112 @@ func TestConversationAuthAndOwnership(t *testing.T) {
 	if missing.Code != http.StatusNotFound {
 		t.Fatalf("expected missing 404, got %d body=%s", missing.Code, missing.Body.String())
 	}
+}
+
+func TestClaimGuestConversationCreatesOwnedConversation(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 1)
+	userID := tokenUserID(t, token)
+	anonymousID := service.TrialAnonymousID("1.2.3.4", "claim-fp")
+	generation := model.Generation{
+		AnonymousID: anonymousID,
+		Prompt:      "guest prompt",
+		Mode:        service.GenerationModeGenerate,
+		Quality:     "medium",
+		Size:        "1024x1024",
+		Status:      3,
+		ImageURL:    "data:image/png;base64,AA==",
+		CreatedAt:   time.Now().Add(-time.Minute),
+	}
+	if err := model.DB.Create(&generation).Error; err != nil {
+		t.Fatalf("create guest generation: %v", err)
+	}
+
+	rec := claimGuestConversation(engine, token, "claim-fp", map[string]interface{}{
+		"title": "游客创作",
+		"messages": []map[string]interface{}{
+			{
+				"generation_id": generation.ID,
+				"prompt":        "guest prompt",
+				"task_kind":     "text2img",
+				"size":          "square",
+				"layered":       true,
+				"layer_count":   4,
+			},
+		},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("claim status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Conversation model.Conversation `json:"conversation"`
+		Messages     []model.Message    `json:"messages"`
+		Claimed      int                `json:"claimed"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode claim response: %v", err)
+	}
+	if resp.Claimed != 1 || resp.Conversation.ID == 0 || resp.Conversation.UserID != userID || !resp.Conversation.IsLayered {
+		t.Fatalf("unexpected claim response: %+v", resp)
+	}
+	if len(resp.Messages) != 1 || resp.Messages[0].UserID != userID || resp.Messages[0].GenerationID == nil || *resp.Messages[0].GenerationID != generation.ID {
+		t.Fatalf("unexpected claimed messages: %+v", resp.Messages)
+	}
+
+	var updated model.Generation
+	if err := model.DB.First(&updated, generation.ID).Error; err != nil {
+		t.Fatalf("load updated generation: %v", err)
+	}
+	if updated.UserID == nil || *updated.UserID != userID || updated.MessageID == nil || *updated.MessageID != resp.Messages[0].ID {
+		t.Fatalf("generation not claimed: %+v", updated)
+	}
+}
+
+func TestClaimGuestConversationRejectsWrongFingerprintAndIsIdempotent(t *testing.T) {
+	engine := setupAuthTest(t)
+	token := createTokenForRole(t, 1)
+	anonymousID := service.TrialAnonymousID("1.2.3.4", "claim-fp")
+	generation := model.Generation{AnonymousID: anonymousID, Prompt: "guest prompt", Mode: service.GenerationModeGenerate, Size: "1024x1024", Status: 3}
+	if err := model.DB.Create(&generation).Error; err != nil {
+		t.Fatalf("create guest generation: %v", err)
+	}
+	body := map[string]interface{}{
+		"messages": []map[string]interface{}{{"generation_id": generation.ID, "prompt": "guest prompt"}},
+	}
+
+	wrong := claimGuestConversation(engine, token, "wrong-fp", body)
+	if wrong.Code != http.StatusOK {
+		t.Fatalf("wrong fingerprint status=%d body=%s", wrong.Code, wrong.Body.String())
+	}
+	if !strings.Contains(wrong.Body.String(), `"claimed":0`) {
+		t.Fatalf("expected no claims with wrong fingerprint: %s", wrong.Body.String())
+	}
+
+	first := claimGuestConversation(engine, token, "claim-fp", body)
+	if first.Code != http.StatusOK || !strings.Contains(first.Body.String(), `"claimed":1`) {
+		t.Fatalf("first claim status=%d body=%s", first.Code, first.Body.String())
+	}
+	second := claimGuestConversation(engine, token, "claim-fp", body)
+	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"claimed":0`) {
+		t.Fatalf("second claim should be idempotent, status=%d body=%s", second.Code, second.Body.String())
+	}
+	var messageCount int64
+	if err := model.DB.Model(&model.Message{}).Count(&messageCount).Error; err != nil {
+		t.Fatalf("count messages: %v", err)
+	}
+	if messageCount != 1 {
+		t.Fatalf("expected one claimed message, got %d", messageCount)
+	}
+}
+
+func claimGuestConversation(engine http.Handler, token, fingerprint string, body interface{}) *httptest.ResponseRecorder {
+	payload, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/api/conversations/claim-guest", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Real-IP", "1.2.3.4")
+	req.Header.Set("X-Fingerprint", fingerprint)
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+	return rec
 }

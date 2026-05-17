@@ -4,12 +4,14 @@ import { RouterLink, useRouter } from 'vue-router'
 
 import api from '@/api'
 import { fetchSiteConfig } from '@/api/site'
+import { useConversationStore } from '@/stores/conversation'
 import { useUserStore } from '@/stores/user'
 
 type EmailTab = 'login' | 'register'
 
 const router = useRouter()
 const userStore = useUserStore()
+const conversationStore = useConversationStore()
 
 const wechatCode = ref('')
 const wechatQRCode = ref('')
@@ -87,6 +89,7 @@ async function submitWechatCode() {
   wechatLoading.value = true
   try {
     await userStore.wechatLogin(wechatCode.value.trim())
+    await conversationStore.syncGuestConversation()
     await userStore.fetchUser()
     await router.push('/')
   } catch {
@@ -102,6 +105,7 @@ async function submitEmailLogin() {
   emailLoading.value = true
   try {
     await userStore.login(loginEmail.value.trim(), loginPassword.value)
+    await conversationStore.syncGuestConversation()
     await userStore.fetchUser()
     await router.push('/')
   } catch {
@@ -143,6 +147,7 @@ async function submitEmailRegister() {
   emailLoading.value = true
   try {
     await userStore.register(registerEmail.value.trim(), registerPassword.value, registerCode.value.trim())
+    await conversationStore.syncGuestConversation()
     await userStore.fetchUser()
     await router.push('/')
   } catch (err: any) {

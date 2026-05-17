@@ -1,5 +1,5 @@
 import api from '@/api'
-import type { Conversation } from '@/api/types'
+import type { Conversation, Message } from '@/api/types'
 
 export interface ConversationListResponse {
   items: Conversation[]
@@ -20,4 +20,30 @@ export function renameConversation(id: number, title: string) {
 
 export function deleteConversation(id: number) {
   return api.delete(`/conversations/${id}`)
+}
+
+export interface ClaimGuestConversationMessage {
+  generation_id: number
+  prompt: string
+  task_kind: Message['task_kind']
+  size?: string
+  style_id?: string
+  scene_id?: string
+  layered?: boolean
+  layer_count?: number
+}
+
+export interface ClaimGuestConversationPayload {
+  title?: string
+  messages: ClaimGuestConversationMessage[]
+}
+
+export interface ClaimGuestConversationResponse {
+  conversation: Conversation
+  messages: Message[]
+  claimed: number
+}
+
+export function claimGuestConversation(payload: ClaimGuestConversationPayload) {
+  return api.post<ClaimGuestConversationResponse>('/conversations/claim-guest', payload)
 }
