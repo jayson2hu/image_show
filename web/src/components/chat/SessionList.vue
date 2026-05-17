@@ -21,7 +21,7 @@ const deleteTarget = computed(() => conversations.value.find((item) => item.id =
 
 async function createConversation() {
   closeMenu()
-  await conversationStore.createLocalConversation()
+  await conversationStore.ensureConversation()
 }
 
 function firstChar(title: string) {

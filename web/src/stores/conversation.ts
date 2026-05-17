@@ -37,6 +37,10 @@ export const useConversationStore = defineStore('conversation', {
       try {
         const response = await listConversations({ q: this.searchQuery || undefined })
         this.list = response.data.items
+        if (this.currentId !== null && this.currentId < 0) {
+          this.currentId = null
+        }
+        delete this.messages[GUEST_CONVERSATION_ID]
         if (!this.currentId && this.list.length > 0) {
           await this.selectConversation(this.list[0].id)
         }
@@ -72,6 +76,11 @@ export const useConversationStore = defineStore('conversation', {
         }
         this.currentId = GUEST_CONVERSATION_ID
         return GUEST_CONVERSATION_ID
+      }
+      if (this.currentId !== null && this.currentId < 0) {
+        this.currentId = null
+        this.list = this.list.filter((item) => item.id >= 0)
+        delete this.messages[GUEST_CONVERSATION_ID]
       }
       if (this.currentId) return this.currentId
       if (this.list.length > 0) {
